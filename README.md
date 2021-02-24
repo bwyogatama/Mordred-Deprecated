@@ -28,6 +28,11 @@ For full details of the Crystal, see our [paper](http://anilshanbhag.in/static/p
 Usage
 ----
 
+Install Intel TBB first by running
+```
+sudo apt install libtbb-dev
+```
+
 To use Crystal:
 
 * Copy out the `crystal` directory into your project.
@@ -46,6 +51,10 @@ make bin/ops/project
 ```
 
 To run the Star Schema Benchmark implementation:
+* To setup Crystal
+```
+make setup
+```
 
 * Generate the test dataset
 
@@ -76,4 +85,5 @@ cd src/ssb/
 make bin/ssb/q11
 ./bin/ssb/q11
 ```
+DONT FORGET TO CHANGE THE PATH TO YOUR LOCAL SSB DIRECTORY IN src/gpu/ssb/ssb_utils.h and src/cpu/ssb/ssb_utils.h
 
