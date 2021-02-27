@@ -1,14 +1,13 @@
-#include <CacheManager.h>
-
-#define LO_LEN 6000000
+#include "CacheManager.h"
+#include "ssb_utils.h"
 
 int main () {
 
 	CacheManager* cache_manager = new CacheManager(2000000000, 3);
 
-	int *h_lo_orderdate = cache_manager->loadColumnToCPU("lo_orderdate", LO_LEN);
-	int *h_lo_suppkey = cache_manager->loadColumnToCPU("lo_suppkey", LO_LEN);
-	int *h_lo_partkey = cache_manager->loadColumnToCPU("lo_partkey", LO_LEN);
+	int *h_lo_orderdate = loadColumn<int>("lo_orderdate", LO_LEN);
+	int *h_lo_suppkey = loadColumn<int>("lo_suppkey", LO_LEN);
+	int *h_lo_partkey = loadColumn<int>("lo_partkey", LO_LEN);
 
 	ColumnInfo* orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 0, h_lo_orderdate);
 	ColumnInfo* suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 1, h_lo_suppkey);
