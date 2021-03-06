@@ -17,6 +17,7 @@
 #include <cub/util_allocator.cuh>
 #include "cub/test/test_util.h"
 #include "crystal/crystal.cuh"
+#include "ssb_utils.h"
 
 using namespace std;
 
@@ -133,6 +134,18 @@ public:
 	//int* metaCache; //metadata in GPU
 	//int** meta_st_end; //no longer used, start and end index of metadata in GPU
 
+	int *h_lo_orderkey, *h_lo_orderdate, *h_lo_custkey, *h_lo_suppkey, *h_lo_partkey, *h_lo_revenue, *h_lo_discount, *h_lo_quantity, *h_lo_extendedprice, *h_lo_supplycost;
+	int *h_c_custkey, *h_c_nation, *h_c_region, *h_c_city;
+	int *h_s_suppkey, *h_s_nation, *h_s_region, *h_s_city;
+	int *h_p_partkey, *h_p_brand1, *h_p_category, *h_p_mfgr;
+	int *h_d_datekey, *h_d_year, *h_d_yearmonthnum;
+
+	ColumnInfo *lo_orderkey, *lo_orderdate, *lo_custkey, *lo_suppkey, *lo_partkey, *lo_revenue, *lo_discount, *lo_quantity, *lo_extendedprice, *lo_supplycost;
+	ColumnInfo *c_custkey, *c_nation, *c_region, *c_city;
+	ColumnInfo *s_suppkey, *s_nation, *s_region, *s_city;
+	ColumnInfo *p_partkey, *p_brand1, *p_category, *p_mfgr;
+	ColumnInfo *d_datekey, *d_year, *d_yearmonthnum;
+
 	CacheManager(size_t cache_size, int _TOT_COLUMN);
 
 	~CacheManager();
@@ -160,6 +173,8 @@ public:
 	void updateColumnInGPU();
 
 	void weightAdjustment();
+
+	void loadColumnToCPU();
 
 	/*void sendMetadata() {
 		int idx = 0;
@@ -217,6 +232,8 @@ CacheManager::CacheManager(size_t cache_size, int _TOT_COLUMN) {
 	index_to_segment.resize(TOT_COLUMN);
 	//CubDebugExit(cudaMalloc((void**) &metaCache, cache_total_seg * sizeof(int)));
 	//meta_st_end = new int[TOT_COLUMN][2];
+
+	loadColumnToCPU();
 }
 
 CacheManager::~CacheManager() {
@@ -413,6 +430,99 @@ CacheManager::weightAdjustment() {
 			}
 		}
 	} while (remainder != 0 && !stop);
+}
+
+void
+CacheManager::loadColumnToCPU() {
+	h_lo_orderkey = loadColumn<int>("lo_orderkey", LO_LEN);
+	h_lo_orderdate = loadColumn<int>("lo_orderdate", LO_LEN);
+	h_lo_custkey = loadColumn<int>("lo_custkey", LO_LEN);
+	h_lo_suppkey = loadColumn<int>("lo_suppkey", LO_LEN);
+	h_lo_partkey = loadColumn<int>("lo_partkey", LO_LEN);
+	h_lo_revenue = loadColumn<int>("lo_revenue", LO_LEN);
+	h_lo_discount = loadColumn<int>("lo_discount", LO_LEN);
+	h_lo_quantity = loadColumn<int>("lo_quantity", LO_LEN);
+	h_lo_extendedprice = loadColumn<int>("lo_extendedprice", LO_LEN);
+	h_lo_supplycost = loadColumn<int>("lo_supplycost", LO_LEN);
+
+	h_c_custkey = loadColumn<int>("c_custkey", C_LEN);
+	h_c_nation = loadColumn<int>("c_nation", C_LEN);
+	h_c_region = loadColumn<int>("c_region", C_LEN);
+	h_c_city = loadColumn<int>("c_city", C_LEN);
+
+	h_s_suppkey = loadColumn<int>("s_suppkey", S_LEN);
+	h_s_nation = loadColumn<int>("s_nation", S_LEN);
+	h_s_region = loadColumn<int>("s_region", S_LEN);
+	h_s_city = loadColumn<int>("s_city", S_LEN);
+
+	h_p_partkey = loadColumn<int>("p_partkey", P_LEN);
+	h_p_brand1 = loadColumn<int>("p_brand1", P_LEN);
+	h_p_category = loadColumn<int>("p_category", P_LEN);
+	h_p_mfgr = loadColumn<int>("p_mfgr", P_LEN);
+
+	h_d_datekey = loadColumn<int>("d_datekey", D_LEN);
+	h_d_year = loadColumn<int>("d_year", D_LEN);
+	h_d_yearmonthnum = loadColumn<int>("d_yearmonthnum", D_LEN);
+
+	lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, h_lo_orderkey);
+	lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 1, h_lo_orderdate);
+	lo_custkey = new ColumnInfo("lo_custkey", "lo", LO_LEN, 2, h_lo_custkey);
+	lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 3, h_lo_suppkey);
+	lo_partkey = new ColumnInfo("lo_partkey", "lo", LO_LEN, 4, h_lo_partkey);
+	lo_revenue = new ColumnInfo("lo_revenue", "lo", LO_LEN, 5, h_lo_revenue);
+	lo_discount = new ColumnInfo("lo_discount", "lo", LO_LEN, 6, h_lo_discount);
+	lo_quantity = new ColumnInfo("lo_quantity", "lo", LO_LEN, 7, h_lo_quantity);
+	lo_extendedprice = new ColumnInfo("lo_extendedprice", "lo", LO_LEN, 8, h_lo_extendedprice);
+	lo_supplycost = new ColumnInfo("lo_supplycost", "lo", LO_LEN, 9, h_lo_supplycost);
+
+	c_custkey = new ColumnInfo("c_custkey", "c", C_LEN, 10, h_c_custkey);
+	c_nation = new ColumnInfo("c_nation", "c", C_LEN, 11, h_c_nation);
+	c_region = new ColumnInfo("c_region", "c", C_LEN, 12, h_c_region);
+	c_city = new ColumnInfo("c_city", "c", C_LEN, 13, h_c_city);
+
+	s_suppkey = new ColumnInfo("s_suppkey", "s", S_LEN, 14, h_s_suppkey);	
+	s_nation = new ColumnInfo("s_nation", "s", S_LEN, 15, h_s_nation);
+	s_region = new ColumnInfo("s_region", "s", S_LEN, 16, h_s_region);
+	s_city = new ColumnInfo("s_city", "s", S_LEN, 17, h_s_city);
+
+	p_partkey = new ColumnInfo("p_partkey", "p", P_LEN, 18, h_p_partkey);
+	p_brand1 = new ColumnInfo("p_brand1", "p", P_LEN, 19, h_p_brand1);
+	p_category = new ColumnInfo("p_category", "p", P_LEN, 20, h_p_category);
+	p_mfgr = new ColumnInfo("p_mfgr", "p", P_LEN, 21, h_p_mfgr);
+
+	d_datekey = new ColumnInfo("d_datekey", "d", D_LEN, 22, h_d_datekey);
+	d_year = new ColumnInfo("d_year", "d", D_LEN, 23, h_d_year);
+	d_yearmonthnum = new ColumnInfo("d_yearmonthnum", "d", D_LEN, 24, h_d_yearmonthnum);
+
+	allColumn[0] = lo_orderkey;
+	allColumn[1] = lo_orderdate;
+	allColumn[2] = lo_custkey;
+	allColumn[3] = lo_suppkey;
+	allColumn[4] = lo_partkey;
+	allColumn[5] = lo_revenue;
+	allColumn[6] = lo_discount;
+	allColumn[7] = lo_quantity;
+	allColumn[8] = lo_extendedprice;
+	allColumn[9] = lo_supplycost;
+
+	allColumn[10] = c_custkey;
+	allColumn[11] = c_nation;
+	allColumn[12] = c_region;
+	allColumn[13] = c_city;
+
+	allColumn[14] = s_suppkey;
+	allColumn[15] = s_nation;
+	allColumn[16] = s_region;
+	allColumn[17] = s_city;
+
+	allColumn[18] = p_partkey;
+	allColumn[19] = p_brand1;
+	allColumn[20] = p_category;
+	allColumn[21] = p_mfgr;
+
+	allColumn[22] = d_datekey;
+	allColumn[23] = d_year;
+	allColumn[24] = d_yearmonthnum;
 }
 
 #endif
