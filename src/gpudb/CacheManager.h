@@ -19,17 +19,20 @@
 #include "crystal/crystal.cuh"
 #include "ssb_utils.h"
 
+//#include "QueryOptimizer.h"
+
 using namespace std;
 
 #define SEGMENT_SIZE 1000
 #define CUB_STDERR
 
+//class QueryOptimizer;
 class Statistics;
 class CacheManager;
 class Segment;
 class ColumnInfo;
-template<class T> 
 class priority_stack;
+class custom_priority_queue;
 
 enum GPUBufferManagementStrategy {
     LEAST_RECENTLY_USED, LEAST_FREQUENTLY_USED, ON_DEMAND, DISABLED_GPU_BUFFER
@@ -71,16 +74,16 @@ public:
 	int* seg_ptr; //ptr to the last segment in the column
 	int tot_seg_in_GPU; //total segments in GPU (based on current weight)
 	float weight;
+	int total_segment;
 
 	Segment* getSegment(int index);
 };
 
-template<class T>
 class priority_stack {
 public:
-	vector<T> stack;
+	vector<Segment*> stack;
     bool empty() { return stack.size()==0; } 
-    void push(T x) { //const so that it can't be modified, passed by reference so that large object not get copied 
+    void push(Segment* x) { //const so that it can't be modified, passed by reference so that large object not get copied 
         stack.push_back(x);
         percolateDown();
     } 
@@ -88,33 +91,58 @@ public:
         if (!empty())
             stack.resize(stack.size()-1);
     }
-    T top() { 
+    Segment* top() { 
         if (!empty()) 
         	return stack[stack.size()-1]; 
         else
         	return NULL;
     }
     void percolateDown() {
-        for (int i=stack.size()-1; i!=0; i--)
+        for (int i=stack.size()-1; i>0; i--)
             if (stack[i]->priority > stack[i-1]->priority)
                 swap(stack[i-1], stack[i]);
     }
     void percolateUp() {
-    	for (int i=0; i<stack.size(); i++)
+    	for (int i=0; i<stack.size()-1; i++)
     		if (stack[i]->priority < stack[i+1]->priority)
     			swap(stack[i], stack[i+1]);
     }
-    vector<T> return_stack() {
+    vector<Segment*> return_stack() {
     	return stack;
     }
 };
 
-class OrderByPriority
-{
+class custom_priority_queue {
 public:
-    bool operator() (Segment* a, Segment* b)  { 
-		return a->priority < b->priority; 
-	}
+	vector<Segment*> queue;
+    bool empty() { return queue.size()==0; } 
+    void push(Segment* x) { //const so that it can't be modified, passed by reference so that large object not get copied 
+        queue.push_back(x);
+        percolateDown();
+    } 
+    void pop() {
+        if (!empty())
+            queue.erase(queue.begin());
+    }
+    Segment* front() { 
+        if (!empty()) 
+        	return queue[0]; 
+        else
+        	return NULL;
+    }
+    void percolateDown() {
+        for (int i=queue.size()-1; i>0; i--)
+            if (queue[i]->priority > queue[i-1]->priority)
+                swap(queue[i-1], queue[i]);
+    }
+    void percolateUp() {
+    	for (int i=0; i<queue.size()-1; i++)
+    		if (queue[i]->priority < queue[i+1]->priority)
+    			swap(queue[i], queue[i+1]);
+    }
+    vector<Segment*> return_queue() {
+    	return queue;
+    }
 };
 
 class CacheManager {
@@ -122,17 +150,15 @@ public:
 	int* gpuCache;
 	int cache_total_seg;
 	int TOT_COLUMN;
-
 	vector<ColumnInfo*> allColumn;
-	queue<int> empty_gpu_segment; //free list
-	vector<priority_stack<Segment*>> cached_seg_in_GPU; //track segments that are already cached in GPU
-	int** segment_idx; //segment index in GPU for each column
-	unordered_map<Segment*, int> cache_mapper; //map segment to index in GPU
-	vector<priority_queue<Segment*, vector<Segment*>, OrderByPriority>> next_seg_to_cache; //a priority queue to store next segment to be cache to GPU
-	vector<unordered_map<int, Segment*>> index_to_segment; //track which segment has been created from a particular segment id
 
-	//int* metaCache; //metadata in GPU
-	//int** meta_st_end; //no longer used, start and end index of metadata in GPU
+	queue<int> empty_gpu_segment; //free list
+	vector<priority_stack> cached_seg_in_GPU; //track segments that are already cached in GPU
+	int** segment_list; //segment list in GPU for each column
+	unordered_map<Segment*, int> cache_mapper; //map segment to index in GPU
+	vector<custom_priority_queue> next_seg_to_cache; //a priority queue to store the special segment to be cached to GPU
+	vector<unordered_map<int, Segment*>> index_to_segment; //track which segment has been created from a particular segment id
+	vector<unordered_map<int, Segment*>> special_segment; //special segment id (segment with priority) to segment itself
 
 	int *h_lo_orderkey, *h_lo_orderdate, *h_lo_custkey, *h_lo_suppkey, *h_lo_partkey, *h_lo_revenue, *h_lo_discount, *h_lo_quantity, *h_lo_extendedprice, *h_lo_supplycost;
 	int *h_c_custkey, *h_c_nation, *h_c_region, *h_c_city;
@@ -175,17 +201,6 @@ public:
 	void weightAdjustment();
 
 	void loadColumnToCPU();
-
-	/*void sendMetadata() {
-		int idx = 0;
-		for (int i = 0; i < allColumn.size(); i++) {
-			ColumnInfo* column = allColumn[i];
-			CubDebugExit(cudaMemcpy(&metaCache[idx], &segment_idx[column->column_id], column->tot_seg_in_GPU * sizeof(int), cudaMemcpyHostToDevice));
-			meta_st_end[column->column_id][0] = idx;
-			meta_st_end[column->column_id][1] = idx + column->tot_seg_in_GPU - 1;
-			idx += column->tot_seg_in_GPU;
-		}
-	}*/
 };
 
 Segment::Segment(ColumnInfo* _column, int* _seg_ptr, int _priority)
@@ -206,9 +221,10 @@ ColumnInfo::ColumnInfo(string _column_name, string _table_name, int _LEN, int _c
 	tot_seg_in_GPU = 0;
 	weight = 0;
 	seg_ptr = col_ptr;
+	total_segment = (LEN+SEGMENT_SIZE-1)/SEGMENT_SIZE;
 }
 
-Segment* 
+Segment*
 ColumnInfo::getSegment(int index) {
 	Segment* seg = new Segment(this, col_ptr+SEGMENT_SIZE*index, 0);
 	return seg;
@@ -223,40 +239,48 @@ CacheManager::CacheManager(size_t cache_size, int _TOT_COLUMN) {
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
 
-	segment_idx = (int**) malloc (TOT_COLUMN * sizeof(int*));
+	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
 	for (int i = 0; i < TOT_COLUMN; i++) {
-		segment_idx[i] = (int*) malloc(cache_total_seg * sizeof(int));
+		segment_list[i] = (int*) malloc(cache_total_seg * sizeof(int));
 	}
 
 	next_seg_to_cache.resize(TOT_COLUMN);
 	index_to_segment.resize(TOT_COLUMN);
-	//CubDebugExit(cudaMalloc((void**) &metaCache, cache_total_seg * sizeof(int)));
-	//meta_st_end = new int[TOT_COLUMN][2];
+	special_segment.resize(TOT_COLUMN);
 
 	loadColumnToCPU();
 }
 
 CacheManager::~CacheManager() {
 	CubDebugExit(cudaFree((void**) &gpuCache));
-	//CubDebugExit(cudaFree((void**) &metaCache));
 }
 
 void
 CacheManager::cacheColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
+	assert(column->tot_seg_in_GPU + total_segment <= column->total_segment);
 	for (int i = 0; i < total_segment; i++) {
-		if (next_seg_to_cache[column->column_id].size() > 0) {
+		if (!next_seg_to_cache[column->column_id].empty()) {
 			cacheSegmentFromQueue(column);
 		} else {
 			int segment_idx = (column->seg_ptr - column->col_ptr)/SEGMENT_SIZE;
-			while (index_to_segment[column->column_id].find(segment_idx) != index_to_segment[column->column_id].end()) {
+			if (segment_idx >= column->total_segment) {
+				segment_idx = 0;
+				column->seg_ptr = column->col_ptr;
+			}
+			while (special_segment[column->column_id].find(segment_idx) != special_segment[column->column_id].end()) { //selama next segment pointer masih termasuk special segment
 				assert(cache_mapper.find(index_to_segment[column->column_id][segment_idx]) != cache_mapper.end());
+				assert(segment_idx < column->total_segment); //will have to delete this later
+				segment_idx++;
 				column->seg_ptr += SEGMENT_SIZE;
-				segment_idx = (column->seg_ptr - column->col_ptr)/SEGMENT_SIZE;
+				if (segment_idx >= column->total_segment) {
+					segment_idx = 0;
+					column->seg_ptr = column->col_ptr;
+				}
 			}
 			Segment* seg = new Segment(column, column->seg_ptr);
 			assert(segment_idx == seg->segment_id);
+			assert(seg->priority == 0);
 			index_to_segment[column->column_id][seg->segment_id] = seg;
-			assert(cache_mapper.find(seg) == cache_mapper.end());
 			column->seg_ptr += SEGMENT_SIZE;
 			cacheSegmentInGPU(seg);
 		}
@@ -272,12 +296,14 @@ CacheManager::cacheSegmentInGPU(Segment* seg) {
 	cached_seg_in_GPU[seg->column->column_id].push(seg);
 	CubDebugExit(cudaMemcpy(&gpuCache[idx * SEGMENT_SIZE], seg->seg_ptr, SEGMENT_SIZE * sizeof(int), cudaMemcpyHostToDevice));
 	allColumn[seg->column->column_id]->tot_seg_in_GPU++;
+	assert(allColumn[seg->column->column_id]->tot_seg_in_GPU <= allColumn[seg->column->column_id]->total_segment);
 }
 
 void
 CacheManager::cacheSegmentFromQueue(ColumnInfo* column) {
-	Segment* seg = next_seg_to_cache[column->column_id].top();
+	Segment* seg = next_seg_to_cache[column->column_id].front();
 	next_seg_to_cache[column->column_id].pop();
+	assert(special_segment[column->column_id].find(seg->segment_id) != special_segment[column->column_id].end());
 	cacheSegmentInGPU(seg);
 }
 
@@ -290,6 +316,7 @@ CacheManager::cacheListSegmentInGPU(vector<Segment*> v_seg) {
 
 void
 CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
+	assert(column->tot_seg_in_GPU - total_segment >= 0);
 	for (int i = 0; i < total_segment; i++) {
 		Segment* seg = cached_seg_in_GPU[column->column_id].top();
 		cached_seg_in_GPU[column->column_id].pop();
@@ -299,7 +326,21 @@ CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 		assert(ret == 1);
 		empty_gpu_segment.push(idx);
 		column->tot_seg_in_GPU--;
-		next_seg_to_cache[column->column_id].push(seg);
+		if (special_segment[column->column_id].find(seg->segment_id) != special_segment[column->column_id].end()) {
+			assert(seg->priority > 0);
+			next_seg_to_cache[column->column_id].push(seg);
+		} else {
+			assert(seg->priority == 0);
+			delete seg;
+			column->seg_ptr -= SEGMENT_SIZE;
+			int segment_idx = (column->seg_ptr - column->col_ptr)/SEGMENT_SIZE;
+			while (special_segment[column->column_id].find(segment_idx) != special_segment[column->column_id].end()) { //selama next segment pointer masih termasuk special segment
+				segment_idx--;
+				column->seg_ptr -= SEGMENT_SIZE;
+				assert(segment_idx > 0);
+			}
+			assert(cache_mapper.find(index_to_segment[column->column_id][segment_idx]) != cache_mapper.end());
+		}
 	}
 }
 
@@ -307,7 +348,7 @@ void
 CacheManager::constructListSegmentInGPU(ColumnInfo* column) {
 	vector<Segment*> temp = cached_seg_in_GPU[column->column_id].return_stack();
 	for (int i = 0; i < temp.size(); i++) {
-		segment_idx[column->column_id][i] = cache_mapper[temp[i]];
+		segment_list[column->column_id][i] = cache_mapper[temp[i]];
 	}
 }
 
@@ -318,13 +359,19 @@ CacheManager::updateSegmentTablePriority(string table_name, int segment_idx, int
 		if (allColumn[i]->table_name == table_name) {
 			if (index_to_segment[column_id].find(segment_idx) != index_to_segment[column_id].end()) { // the segment is created already
 				Segment* seg = index_to_segment[column_id][segment_idx]; //get the segment
+				if (special_segment[column_id].find(segment_idx) == special_segment[column_id].end()) { // kalau segment sudah dibuat tapi bukan special segment (segment biasa yg udah dicache)
+					assert(cache_mapper.find(seg) != cache_mapper.end());
+					assert(priority > 0);
+					special_segment[column_id][segment_idx] = seg; //is a special segment now
+				}
 				updateSegmentPriority(seg, priority); //update priority of that segment (either in the queue or the stack)
 				updateSegmentInColumn(allColumn[i]); //check the stack and update it accordingly
 			} else { //the segment is not created already
 				Segment* seg = allColumn[i]->getSegment(segment_idx);
 				index_to_segment[column_id][segment_idx] = seg; //mark the segment is created
+				assert(priority > 0);
 				next_seg_to_cache[column_id].push(seg); //push it to next seg to cache
-				updateSegmentPriority(seg, priority); //update priority of that segment in the queue
+				special_segment[column_id][segment_idx] = seg; //is a special segment now
 				updateSegmentInColumn(allColumn[i]); //check the stack and update it accordingly
 			}
 		}
@@ -333,6 +380,7 @@ CacheManager::updateSegmentTablePriority(string table_name, int segment_idx, int
 
 void
 CacheManager::updateSegmentPriority(Segment* seg, int priority) {
+	assert(special_segment[seg->column->column_id].find(seg->segment_id) != special_segment[seg->column->column_id].end());
 	if (cache_mapper.find(seg) != cache_mapper.end()) { // the segment is created and mapped to GPU
 		if (priority > seg->priority) { //if the priority increase, do percolateDown
 			seg->priority = priority;
@@ -341,15 +389,33 @@ CacheManager::updateSegmentPriority(Segment* seg, int priority) {
 			seg->priority = priority;
 			cached_seg_in_GPU[seg->column->column_id].percolateUp();
 		}
+		if (priority == 0) { //priority diturunkan jadi segment biasa
+			special_segment[seg->column->column_id].erase(seg->segment_id);
+		}
 	} else { //the segment is created but not mapped to GPU (sit on the next_seg_to_cache queue), in this case just update the priority
-		seg->priority = priority;
+		if (priority == 0) { //if the priority becomes 0, we need to get rid of this segment from next seg to cache queue
+			priority = 100000; // assign a very big number
+		}
+
+		if (priority > seg->priority) { //if the priority increase, do percolateDown
+			seg->priority = priority;
+			next_seg_to_cache[seg->column->column_id].percolateDown();
+		} else if (priority < seg->priority) { //if the priority decrease, do percolateUp
+			seg->priority = priority;
+			next_seg_to_cache[seg->column->column_id].percolateUp();
+		}
+		if (priority == 100000) { //priority diturunkan jadi segment biasa
+			special_segment[seg->column->column_id].erase(seg->segment_id);
+			next_seg_to_cache[seg->column->column_id].pop();
+		}
 	}
+
 }
 
 void
 CacheManager::updateSegmentInColumn(ColumnInfo* column) {
 	if (next_seg_to_cache[column->column_id].empty()) return; //if no segment in the queue
-	Segment* seg1 = next_seg_to_cache[column->column_id].top();
+	Segment* seg1 = next_seg_to_cache[column->column_id].front();
 	Segment* seg2 = cached_seg_in_GPU[column->column_id].top();
 	if (seg1->priority > seg2->priority) { //if the priority of segment in the queue is higher than the stack
 		deleteColumnSegmentInGPU(column, 1); //delete segment in the stack, push it to the queue
