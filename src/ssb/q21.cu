@@ -19,7 +19,7 @@ using namespace std;
 /**
  * Globals, constants and typedefs
  */
-bool                    g_verbose = false;  // Whether to display input/output to console
+bool g_verbose = false;  // Whether to display input/output to console
 cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
@@ -218,7 +218,7 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
  */
 int main(int argc, char** argv)
 {
-  int num_trials          = 3;
+  int num_trials = 3;
 
   // Initialize command line
   CommandLineArgs args(argc, argv);

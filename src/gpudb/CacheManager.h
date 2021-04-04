@@ -235,6 +235,7 @@ CacheManager::CacheManager(size_t cache_size, int _TOT_COLUMN) {
 	TOT_COLUMN = _TOT_COLUMN;
 
 	CubDebugExit(cudaMalloc((void**) &gpuCache, cache_size * sizeof(int)));
+	CubDebugExit(cudaMemset(gpuCache, 0, cache_size * sizeof(int)));
 
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
@@ -248,11 +249,11 @@ CacheManager::CacheManager(size_t cache_size, int _TOT_COLUMN) {
 	index_to_segment.resize(TOT_COLUMN);
 	special_segment.resize(TOT_COLUMN);
 
-	loadColumnToCPU();
-}
+	for(int i = 0; i < cache_total_seg; i++) {
+		empty_gpu_segment.push(i);
+	}
 
-CacheManager::~CacheManager() {
-	CubDebugExit(cudaFree((void**) &gpuCache));
+	loadColumnToCPU();
 }
 
 void
@@ -282,6 +283,7 @@ CacheManager::cacheColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 			assert(seg->priority == 0);
 			index_to_segment[column->column_id][seg->segment_id] = seg;
 			column->seg_ptr += SEGMENT_SIZE;
+			//printf("%d\n", i);
 			cacheSegmentInGPU(seg);
 		}
 	}
@@ -347,6 +349,8 @@ CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 void
 CacheManager::constructListSegmentInGPU(ColumnInfo* column) {
 	vector<Segment*> temp = cached_seg_in_GPU[column->column_id].return_stack();
+	delete segment_list[column->column_id];
+	segment_list[column->column_id] = (int*) malloc(temp.size() * sizeof(int));
 	for (int i = 0; i < temp.size(); i++) {
 		segment_list[column->column_id][i] = cache_mapper[temp[i]];
 	}
@@ -589,6 +593,75 @@ CacheManager::loadColumnToCPU() {
 	allColumn[22] = d_datekey;
 	allColumn[23] = d_year;
 	allColumn[24] = d_yearmonthnum;
+}
+
+CacheManager::~CacheManager() {
+	CubDebugExit(cudaFree((void**) &gpuCache));
+
+	delete h_lo_orderkey;
+	delete h_lo_orderdate;
+	delete h_lo_custkey;
+	delete h_lo_suppkey;
+	delete h_lo_partkey;
+	delete h_lo_revenue;
+	delete h_lo_discount; 
+	delete h_lo_quantity;
+	delete h_lo_extendedprice;
+	delete h_lo_supplycost;
+
+	delete h_c_custkey;
+	delete h_c_nation;
+	delete h_c_region;
+	delete h_c_city;
+
+	delete h_s_suppkey;
+	delete h_s_nation;
+	delete h_s_region;
+	delete h_s_city;
+
+	delete h_p_partkey;
+	delete h_p_brand1;
+	delete h_p_category;
+	delete h_p_mfgr;
+
+	delete h_d_datekey;
+	delete h_d_year;
+	delete h_d_yearmonthnum;
+
+	delete lo_orderkey;
+	delete lo_orderdate;
+	delete lo_custkey;
+	delete lo_suppkey;
+	delete lo_partkey;
+	delete lo_revenue;
+	delete lo_discount;
+	delete lo_quantity;
+	delete lo_extendedprice;
+	delete lo_supplycost;
+
+	delete c_custkey;
+	delete c_nation;
+	delete c_region;
+	delete c_city;
+
+	delete s_suppkey;	
+	delete s_nation;
+	delete s_region;
+	delete s_city;
+
+	delete p_partkey;
+	delete p_brand1;
+	delete p_category;
+	delete p_mfgr;
+
+	delete d_datekey;
+	delete d_year;
+	delete d_yearmonthnum;
+
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		free(segment_list[i]);
+	}
+	free(segment_list);
 }
 
 #endif

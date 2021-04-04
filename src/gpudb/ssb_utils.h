@@ -34,7 +34,8 @@ using namespace std;
 #define D_LEN 2556
 #endif
 
-
+#define BATCH_SIZE 128
+#define NUM_THREADS 48
 
 int index_of(string* arr, int len, string val) {
   for (int i=0; i<len; i++)

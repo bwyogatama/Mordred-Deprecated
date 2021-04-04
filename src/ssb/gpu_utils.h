@@ -18,7 +18,7 @@ template<typename T>
 T* loadToGPU(T* src, int numEntries, cub::CachingDeviceAllocator& g_allocator) {
   T* dest;
   CubDebugExit(g_allocator.DeviceAllocate((void**)&dest, sizeof(T) * numEntries));
-  CubDebugExit(cudaMemcpy(dest, src, sizeof(T) * numEntries, cudaMemcpyHostToDevice));
+  cudaMemcpy(dest, src, sizeof(T) * numEntries, cudaMemcpyHostToDevice);
   return dest;
 }
 
