@@ -350,7 +350,8 @@ void
 CacheManager::constructListSegmentInGPU(ColumnInfo* column) {
 	vector<Segment*> temp = cached_seg_in_GPU[column->column_id].return_stack();
 	delete segment_list[column->column_id];
-	segment_list[column->column_id] = (int*) malloc(temp.size() * sizeof(int));
+	//segment_list[column->column_id] = (int*) malloc(temp.size() * sizeof(int));
+	segment_list[column->column_id] = (int*) malloc(cache_total_seg * sizeof(int));
 	for (int i = 0; i < temp.size(); i++) {
 		segment_list[column->column_id][i] = cache_mapper[temp[i]];
 	}

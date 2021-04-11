@@ -387,7 +387,7 @@ int main () {
   cudaMalloc((void **)&total, sizeof(int));
   cudaMemset(total, 0, sizeof(int));
 
-  for (int i = 0; i < 6000; i++) {
+  for (int i = 0; i < 3; i++) {
     int tile_items = 128*4;
     int idx_key1 = cm->segment_list[cm->lo_suppkey->column_id][i];
     int idx_key2 = cm->segment_list[cm->lo_partkey->column_id][i];
@@ -406,7 +406,7 @@ int main () {
 
   cudaMemcpy(h_t_table, t_table, t_len * sizeof(int), cudaMemcpyDeviceToHost);
 
-  //printf("total = %d\n", h_total);
+  printf("total = %d\n", h_total);
 
   // for (int j = 0; j < h_total; j++) {
   //   printf("%d %d %d %d\n", h_t_table[j << 2], h_t_table[(j << 2) + 1], h_t_table[(j << 2) + 2], h_t_table[(j << 2) + 3]);

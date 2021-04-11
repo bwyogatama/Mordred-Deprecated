@@ -6,13 +6,6 @@
 /*#include <cub/device/device_select.cuh>*/
 #include <cub/cub.cuh>
 #include "tbb/tbb.h"
-// #include "tbb/parallel_for.h"
-// #include "tbb/parallel_scan.h"
-// #include "tbb/task_arena.h"
-// #include "tbb/tbb_thread.h"
-// #include "tbb/task.h"
-// #include "tbb/task_scheduler_init.h"
-// #include "tbb/partitioner.h"
 
 using namespace std;
 using namespace cub;
@@ -202,54 +195,7 @@ __global__ void probe_2_GPU(int* gpuCache, int idx_key1, int idx_key2,
   }
 }
 
-void probe_2_CPU(int* h_t_table, int* dimkey_col1, int* ht1, int h_total, int dim_len1, int start_offset, int min_key1) {
-
-  // Probe
-  parallel_for(blocked_range<size_t>(0, h_total, h_total/NUM_THREADS + 4), [&](auto range) {
-    int start = range.begin();
-    int end = range.end();
-    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
-
-    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
-      #pragma simd
-      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
-        int hash;
-        int slot;
-        int lo_offset = h_t_table[((start_offset + i) << 2)];
-        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-        slot = ht1[hash << 1];
-        if (slot != 0) {
-          int dim_offset1 = ht1[(hash << 1) + 1];
-          h_t_table[((start_offset + i) << 2) + 3] = dim_offset1;
-        } else {
-          h_t_table[((start_offset + i) << 2)] = 0;
-          h_t_table[((start_offset + i) << 2) + 1] = 0;
-          h_t_table[((start_offset + i) << 2) + 2] = 0;
-          h_t_table[((start_offset + i) << 2) + 3] = 0;
-        }
-      }
-    }
-
-    for (int i = end_batch ; i < end; i++) {
-      int hash;
-      int slot;
-      int lo_offset = h_t_table[((start_offset + i) << 2)];
-      hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-      slot = ht1[hash << 1];
-      if (slot != 0) {
-        int dim_offset1 = ht1[(hash << 1) + 1];
-        h_t_table[((start_offset + i) << 2) + 3] = dim_offset1;
-      } else {
-        h_t_table[((start_offset + i) << 2)] = 0;
-        h_t_table[((start_offset + i) << 2) + 1] = 0;
-        h_t_table[((start_offset + i) << 2) + 2] = 0;
-        h_t_table[((start_offset + i) << 2) + 3] = 0;
-      }
-    }
-  });
-}
-
-void probe_2_CPU2(int* h_t_table, int* dimkey_col1, int* ht1, int* h_t_table_res, int h_total, int dim_len1, int start_offset, int min_key1, int* offset) {
+void probe_2_CPU(int* h_t_table, int* dimkey_col1, int* ht1, int* h_t_table_res, int h_total, int dim_len1, int start_offset, int min_key1, int* offset) {
 
   // Probe
   parallel_for(blocked_range<size_t>(0, h_total, h_total/NUM_THREADS + 4), [&](auto range) {
@@ -284,6 +230,7 @@ void probe_2_CPU2(int* h_t_table, int* dimkey_col1, int* ht1, int* h_t_table_res
     }
     //printf("count = %d\n", count);
     int thread_off = __atomic_fetch_add(offset, count, __ATOMIC_RELAXED);
+    int j = 0;
 
     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
       #pragma simd
@@ -297,10 +244,11 @@ void probe_2_CPU2(int* h_t_table, int* dimkey_col1, int* ht1, int* h_t_table_res
           int dim_offset1 = ht1[(hash << 1) + 1];
           int dim_offset2 = h_t_table[((start_offset + i) << 2) + 1];
           int dim_offset3 = h_t_table[((start_offset + i) << 2) + 2];
-          h_t_table_res[(thread_off << 2)] = lo_offset;
-          h_t_table_res[(thread_off << 2) + 1] = dim_offset1;
-          h_t_table_res[(thread_off << 2) + 2] = dim_offset2;
-          h_t_table_res[(thread_off << 2) + 3] = dim_offset3;
+          h_t_table_res[((thread_off+j) << 2)] = lo_offset;
+          h_t_table_res[((thread_off+j) << 2) + 1] = dim_offset1;
+          h_t_table_res[((thread_off+j) << 2) + 2] = dim_offset2;
+          h_t_table_res[((thread_off+j) << 2) + 3] = dim_offset3;
+          j++;
         }
       }
     }
@@ -315,10 +263,12 @@ void probe_2_CPU2(int* h_t_table, int* dimkey_col1, int* ht1, int* h_t_table_res
         int dim_offset1 = ht1[(hash << 1) + 1];
         int dim_offset2 = h_t_table[((start_offset + i) << 2) + 1];
         int dim_offset3 = h_t_table[((start_offset + i) << 2) + 2];
-        h_t_table_res[(thread_off << 2)] = lo_offset;
-        h_t_table_res[(thread_off << 2) + 1] = dim_offset1;
-        h_t_table_res[(thread_off << 2) + 2] = dim_offset2;
-        h_t_table_res[(thread_off << 2) + 3] = dim_offset3;
+        h_t_table_res[((thread_off+j) << 2)] = lo_offset;
+        h_t_table_res[((thread_off+j) << 2) + 1] = dim_offset1;
+        h_t_table_res[((thread_off+j) << 2) + 2] = dim_offset2;
+        h_t_table_res[((thread_off+j) << 2) + 3] = dim_offset3;
+        j++;
+        //printf("%d %d %d %d\n", lo_offset, dim_offset1, dim_offset2, dim_offset3);
       }
     }
   });
@@ -365,13 +315,21 @@ void build_filter_offset_CPU(int *filter_col, int *dim_key, int num_tuples, int 
 }
 
 __global__
-void runAggregationQ2GPU(int* lo_col, int* p_col, int* d_col, int* d_t_table, int num_tuples, int* res, int num_slots) {
+void runAggregationQ2GPU(int* gpuCache, int* lo_idx, int* p_idx, int* d_idx, int* d_t_table, int num_tuples, int* res, int num_slots) {
   int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (offset < num_tuples) {
-    int revenue = lo_col[d_t_table[(offset << 2)]];
-    int year = d_col[d_t_table[(offset << 2) + 2]];
-    int brand = p_col[d_t_table[(offset << 2) + 3]];
+    int revenue_idx = d_t_table[(offset << 2)];
+    int brand_idx = d_t_table[(offset << 2) + 1];
+    int year_idx = d_t_table[(offset << 2) + 3];
+
+    int revenue_seg = lo_idx[revenue_idx / SEGMENT_SIZE];
+    int brand_seg = p_idx[brand_idx / SEGMENT_SIZE];
+    int year_seg = d_idx[year_idx / SEGMENT_SIZE];
+
+    int revenue = gpuCache[revenue_seg * SEGMENT_SIZE + (revenue_idx % SEGMENT_SIZE)];
+    int brand = gpuCache[brand_seg * SEGMENT_SIZE + (brand_idx % SEGMENT_SIZE)];
+    int year = gpuCache[year_seg * SEGMENT_SIZE + (year_idx % SEGMENT_SIZE)];
 
     int hash = (brand * 7 + (year - 1992)) % num_slots;
 
@@ -393,8 +351,8 @@ void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* t_tab
       #pragma simd
       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
         if (t_table[i << 2] != 0) {
-          int brand = p_brand1[t_table[(i << 2) + 3]];
-          int year = d_year[t_table[(i << 2) + 2]];
+          int brand = p_brand1[t_table[(i << 2) + 1]];
+          int year = d_year[t_table[(i << 2) + 3]];
           int hash = (brand * 7 + (year - 1992)) % num_slots;
           res[hash * 6 + 1] = brand;
           res[hash * 6 + 2] = year;
@@ -404,8 +362,8 @@ void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* t_tab
     }
     for (int i = end_batch ; i < end; i++) {
       if (t_table[i << 2] != 0) {
-        int brand = p_brand1[t_table[(i << 2) + 3]];
-        int year = d_year[t_table[(i << 2) + 2]];
+        int brand = p_brand1[t_table[(i << 2) + 1]];
+        int year = d_year[t_table[(i << 2) + 3]];
         int hash = (brand * 7 + (year - 1992)) % num_slots;
         res[hash * 6 + 1] = brand;
         res[hash * 6 + 2] = year;
@@ -494,13 +452,10 @@ int main () {
   int *d_res;
   int res_size = ((1998-1992+1) * (5 * 5 * 40));
   int res_array_size = res_size * 6;
-     
   g_allocator.DeviceAllocate((void**)&d_res, res_array_size * sizeof(int));
   cudaMemset(d_res, 0, res_array_size * sizeof(int));
 
-  int* offset = (int*) malloc(sizeof(int));
-  *offset = 0;
-
+  int offset = 0;
   int start_index = 0;
 
   for (int i = 0; i < 6000; i++) {
@@ -516,58 +471,44 @@ int main () {
       SEGMENT_SIZE, d_ht_s, S_LEN, d_ht_d, d_val_len,
       0, 19920101, t_table, total, start_offset);
 
-    //cudaDeviceSynchronize();
-
     cudaMemcpy(&h_total, total, sizeof(int), cudaMemcpyDeviceToHost);
 
     t_len = (h_total - start_index) * 4;
 
     cudaMemcpy(h_t_table + start_index * 4, t_table + start_index * 4, t_len * sizeof(int), cudaMemcpyDeviceToHost);
 
-    probe_2_CPU2(h_t_table, cm->h_lo_partkey, h_ht_p, h_t_table_res, (h_total - start_index), P_LEN, start_index, 0, offset);
-    //probe_2_CPU(h_t_table, cm->h_lo_partkey, h_ht_p, (h_total - start_index), P_LEN, start_index, 0);
+    probe_2_CPU(h_t_table, cm->h_lo_partkey, h_ht_p, h_t_table_res, (h_total - start_index), P_LEN, start_index, 0, &offset);
 
-    //printf("h_total = %d\n", h_total);
-    //printf("total = %d\n", *offset);
-    //printf("start_offset = %d\n", start_index);
-
-    // for (int j = 0; j < h_total; j++) {
-    //   if (h_t_table[j << 2] != 0) {
-    //     printf("%d %d %d %d\n", h_t_table[j << 2], h_t_table[(j << 2) + 1], h_t_table[(j << 2) + 2], h_t_table[(j << 2) + 3]);
+    // for (int j = 0; j < offset; j++) {
+    //   if (h_t_table_res[j << 2] != 0) {
+    //     printf("%d %d %d %d\n", h_t_table_res[j << 2], h_t_table_res[(j << 2) + 1], h_t_table_res[(j << 2) + 2], h_t_table_res[(j << 2) + 3]);
     //   }
     // }
-
-    /*int lo_idx = cm->segment_list[cm->lo_revenue->column_id][i];
-    int p_idx = cm->segment_list[cm->p_brand1->column_id][i];
-    int d_idx = cm->segment_list[cm->d_year->column_id][i];
-
-    int* lo_col = cm->gpuCache + lo_idx * SEGMENT_SIZE;
-    int* p_col = cm->gpuCache + p_idx * SEGMENT_SIZE;
-    int* d_col = cm->gpuCache + d_idx * SEGMENT_SIZE;
-
-    runAggregationQ2GPU<<<((h_total - start_index) + 128 - 1)/128, 128>>>(lo_col, p_col, d_col, d_t_table, h_total - start_index, d_res, (1998-1992+1) * 5 * 5 * 40);
-
-    cudaDeviceSynchronize();
-
-    g_allocator.DeviceFree(d_t_table);*/
   }
 
-  int* d_t_table;
-  g_allocator.DeviceAllocate((void**)&d_t_table, *offset * 4 * sizeof(int));
+  int* d_t_table, *d_lo_idx, *d_p_idx, *d_d_idx;
+  g_allocator.DeviceAllocate((void**)&d_t_table, offset * 4 * sizeof(int));
+  g_allocator.DeviceAllocate((void**)&d_lo_idx, cm->cache_total_seg * sizeof(int));
+  g_allocator.DeviceAllocate((void**)&d_p_idx, cm->cache_total_seg * sizeof(int));
+  g_allocator.DeviceAllocate((void**)&d_d_idx, cm->cache_total_seg * sizeof(int));
 
-  cudaMemcpy(d_t_table, h_t_table_res, *offset * 4 * sizeof(int), cudaMemcpyHostToDevice);
+  // printf("total = %d\n", offset);
 
-
+  cudaMemcpy(d_t_table, h_t_table_res, offset * 4 * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_lo_idx, cm->segment_list[cm->lo_revenue->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_p_idx, cm->segment_list[cm->p_brand1->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
+  cudaMemcpy(d_d_idx, cm->segment_list[cm->d_year->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
 
   int* res = new int[res_array_size];
   memset(res, 0, res_array_size * sizeof(int));
 
-  runAggregationQ2CPU(cm->h_lo_revenue, cm->h_p_brand1, cm->h_d_year, h_t_table, h_total, res, (1998-1992+1) * 5 * 5 * 40);
+  // runAggregationQ2CPU(cm->h_lo_revenue, cm->h_p_brand1, cm->h_d_year, h_t_table_res, offset, res, res_size);
 
+  runAggregationQ2GPU<<<(offset + 128 - 1)/128, 128>>>(cm->gpuCache, d_lo_idx, d_p_idx, d_d_idx, d_t_table, offset, d_res, res_size);
 
   finish = chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = finish - st;
-  //cudaMemcpy(res, d_res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost);
+  cudaMemcpy(res, d_res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost);
 
   cout << "Result:" << endl;
   int res_count = 0;
@@ -582,15 +523,64 @@ int main () {
   cout << "Time Taken Total: " << diff.count() * 1000 << endl;
 
 	delete cm;
-
-  printf("hi\n");
-
   delete h_t_table;
   delete h_ht_p;
 
   g_allocator.DeviceFree(d_ht_s);
   g_allocator.DeviceFree(d_ht_d);
   g_allocator.DeviceFree(t_table);
+  g_allocator.DeviceFree(d_t_table);
+  g_allocator.DeviceFree(d_lo_idx);
+  g_allocator.DeviceFree(d_p_idx);
+  g_allocator.DeviceFree(d_d_idx);
 
 	return 0;
 }
+
+
+
+// void probe_2_CPU(int* h_t_table, int* dimkey_col1, int* ht1, int h_total, int dim_len1, int start_offset, int min_key1) {
+
+//   // Probe
+//   parallel_for(blocked_range<size_t>(0, h_total, h_total/NUM_THREADS + 4), [&](auto range) {
+//     int start = range.begin();
+//     int end = range.end();
+//     int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+
+//     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+//       #pragma simd
+//       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+//         int hash;
+//         int slot;
+//         int lo_offset = h_t_table[((start_offset + i) << 2)];
+//         hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+//         slot = ht1[hash << 1];
+//         if (slot != 0) {
+//           int dim_offset1 = ht1[(hash << 1) + 1];
+//           h_t_table[((start_offset + i) << 2) + 3] = dim_offset1;
+//         } else {
+//           h_t_table[((start_offset + i) << 2)] = 0;
+//           h_t_table[((start_offset + i) << 2) + 1] = 0;
+//           h_t_table[((start_offset + i) << 2) + 2] = 0;
+//           h_t_table[((start_offset + i) << 2) + 3] = 0;
+//         }
+//       }
+//     }
+
+//     for (int i = end_batch ; i < end; i++) {
+//       int hash;
+//       int slot;
+//       int lo_offset = h_t_table[((start_offset + i) << 2)];
+//       hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+//       slot = ht1[hash << 1];
+//       if (slot != 0) {
+//         int dim_offset1 = ht1[(hash << 1) + 1];
+//         h_t_table[((start_offset + i) << 2) + 3] = dim_offset1;
+//       } else {
+//         h_t_table[((start_offset + i) << 2)] = 0;
+//         h_t_table[((start_offset + i) << 2) + 1] = 0;
+//         h_t_table[((start_offset + i) << 2) + 2] = 0;
+//         h_t_table[((start_offset + i) << 2) + 3] = 0;
+//       }
+//     }
+//   });
