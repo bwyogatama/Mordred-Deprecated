@@ -23,7 +23,6 @@
 
 using namespace std;
 
-#define SEGMENT_SIZE 1000
 #define CUB_STDERR
 
 //class QueryOptimizer;

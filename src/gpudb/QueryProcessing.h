@@ -1,14 +1,29 @@
+#include "QueryOptimizer.h"
 #include <cub/cub.cuh>
 #include "tbb/tbb.h"
+
+#include <chrono>
+#include <atomic>
+#include <unistd.h>
+#include <iostream>
+#include <stdio.h>
+#include <curand.h>
+
+#include <cuda.h>
+#include <cub/util_allocator.cuh>
 
 using namespace std;
 using namespace cub;
 using namespace tbb;
 
+#define HASH_WM(X,Y,Z) ((X-Z) % Y)
+
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
-__global__ void probe_2_GPU(int* gpuCache, int idx_key1, int idx_key2, 
-  int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2,
-  int min_key1, int min_key2, int* t_table, int *total, int start_offset) {
+__global__ void probe_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_key4,
+  int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4, 
+  int fact_len, int *total, int start_offset) {
 
   // Specialize BlockLoad for a 1D block of 128 threads owning 4 integer items each
   typedef cub::BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD, BLOCK_LOAD_TRANSPOSE> BlockLoadInt;
@@ -29,6 +44,8 @@ __global__ void probe_2_GPU(int* gpuCache, int idx_key1, int idx_key2,
   int selection_flags[ITEMS_PER_THREAD];
   int dim_offset1[ITEMS_PER_THREAD];
   int dim_offset2[ITEMS_PER_THREAD];
+  int dim_offset3[ITEMS_PER_THREAD];
+  int dim_offset4[ITEMS_PER_THREAD];
   int t_count = 0; // Number of items selected per thread
   int c_t_count = 0; //Prefix sum of t_count
   __shared__ int block_off;
@@ -47,86 +64,142 @@ __global__ void probe_2_GPU(int* gpuCache, int idx_key1, int idx_key2,
     selection_flags[ITEM] = 1;
   }
 
-  int* dim_key1 = gpuCache + idx_key1 * SEGMENT_SIZE;
-  int* dim_key2 = gpuCache + idx_key2 * SEGMENT_SIZE;
-
   __syncthreads();
 
   /********************
     Not the last tile
     ******************/
   if (!is_last_tile) {
-    BlockLoadInt(temp_storage.load_items).Load(dim_key1 + tile_offset, items);
+    if (dim_key1 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key1 + tile_offset, items);
 
-    // Barrier for smem reuse
-    __syncthreads();
+      // Barrier for smem reuse
+      __syncthreads();
 
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      // Out-of-bounds items are selection_flags
-      int hash = HASH(items[ITEM], dim_len1, min_key1);
-      if (selection_flags[ITEM]) {
-        int slot = ht1[(hash << 1) + 1];
-        if (slot != 0) {
-          dim_offset1[ITEM] = slot;
-          // printf("item %d\n", items[ITEM]);
-          // printf("ID %d\n", blockIdx.x * tile_size + threadIdx.x * ITEMS_PER_THREAD + ITEM);
-          // cudaDeviceSynchronize();
-        } else {
-          selection_flags[ITEM] = 0;
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH(items[ITEM], dim_len1, min_key1);
+        if (selection_flags[ITEM]) {
+          int slot = ht1[(hash << 1) + 1];
+          if (slot != 0) {
+            dim_offset1[ITEM] = slot - 1;
+          } else {
+            selection_flags[ITEM] = 0;
+          }
         }
       }
     }
 
     __syncthreads();
 
-    BlockLoadInt(temp_storage.load_items).Load(dim_key2 + tile_offset, items);
+    if (dim_key2 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key2 + tile_offset, items);
 
-    // Barrier for smem reuse
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH(items[ITEM], dim_len2, min_key2);
+        if (selection_flags[ITEM]) {
+          int slot = ht2[(hash << 1) + 1];
+          if (slot != 0) {
+            dim_offset2[ITEM] = slot - 1;
+          } else {
+            selection_flags[ITEM] = 0;
+          }
+        }
+      }
+    }
+
     __syncthreads();
 
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      // Out-of-bounds items are selection_flags
-      int hash = HASH(items[ITEM], dim_len2, min_key2); //19920101
-      if (selection_flags[ITEM]) {
-        int slot = ht2[(hash << 1) + 1];
-        if (slot != 0) {
-          t_count++;
-          dim_offset2[ITEM] = slot;
-        } else {
-          selection_flags[ITEM] = 0;
+    if (dim_key3 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key3 + tile_offset, items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH(items[ITEM], dim_len3, min_key3); //19920101
+        if (selection_flags[ITEM]) {
+          int slot = ht3[(hash << 1) + 1];
+          if (slot != 0) {
+            dim_offset3[ITEM] = slot - 1;
+          } else {
+            selection_flags[ITEM] = 0;
+          }
+        }
+      }
+    }
+
+    __syncthreads();
+
+    if (dim_key4 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key4 + tile_offset, items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH(items[ITEM], dim_len4, min_key4); //19920101
+        if (selection_flags[ITEM]) {
+          int slot = ht4[(hash << 1) + 1];
+          if (slot != 0) {
+            t_count++;
+            dim_offset4[ITEM] = slot - 1;
+          } else {
+            selection_flags[ITEM] = 0;
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
+          if (selection_flags[ITEM]) {
+            t_count++;
+          }
         }
       }
     }
 
   }
   else {
-    BlockLoadInt(temp_storage.load_items).Load(dim_key1 + tile_offset, items, num_tile_items);
 
-    // Barrier for smem reuse
-    __syncthreads();
+    if (dim_key1 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key1 + tile_offset, items, num_tile_items);
 
-    /*
-     * Join with supplier table.
-     */
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      // Out-of-bounds items are selection_flags
-      if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
-        int hash = HASH(items[ITEM], dim_len1, min_key1);
-        if (selection_flags[ITEM]) {
-          int slot = ht1[(hash << 1) + 1];
-          if (slot != 0) {
-            dim_offset1[ITEM] = slot;
-            // printf("item %d\n", items[ITEM]);
-            // printf("ID %d\n", blockIdx.x * tile_size + threadIdx.x * ITEMS_PER_THREAD + ITEM);
-            // cudaDeviceSynchronize();
-          } else {
-            selection_flags[ITEM] = 0;
+      // Barrier for smem reuse
+      __syncthreads();
+
+      /*
+       * Join with supplier table.
+       */
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
+          int hash = HASH(items[ITEM], dim_len1, min_key1);
+          if (selection_flags[ITEM]) {
+            int slot = ht1[(hash << 1) + 1];
+            if (slot != 0) {
+              dim_offset1[ITEM] = slot - 1;
+            } else {
+              selection_flags[ITEM] = 0;
+            }
           }
         }
       }
@@ -134,30 +207,99 @@ __global__ void probe_2_GPU(int* gpuCache, int idx_key1, int idx_key2,
 
     __syncthreads();
 
-    BlockLoadInt(temp_storage.load_items).Load(dim_key2 + tile_offset, items, num_tile_items);
+    if (dim_key2 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key2 + tile_offset, items, num_tile_items);
 
-    // Barrier for smem reuse
+      // Barrier for smem reuse
+      __syncthreads();
+
+      /*
+       * Join with part table.
+       */
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
+          int hash = HASH(items[ITEM], dim_len2, min_key2);
+          if (selection_flags[ITEM]) {
+            int slot = ht2[(hash << 1) + 1];
+            if (slot != 0) {
+              dim_offset2[ITEM] = slot - 1;
+            } else {
+              selection_flags[ITEM] = 0;
+            }
+          }
+        }
+      }
+    }
+
     __syncthreads();
 
-    /*
-     * Join with date table.
-     */
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
-        int hash = HASH(items[ITEM], dim_len2, min_key2); //19920101
-        if (selection_flags[ITEM]) {
-          int slot = ht2[(hash << 1) + 1]; //TODO fix this
-          if (slot != 0) {
+    if (dim_key3 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key3 + tile_offset, items, num_tile_items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      /*
+       * Join with date table.
+       */
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
+          int hash = HASH(items[ITEM], dim_len3, min_key3); //19920101
+          if (selection_flags[ITEM]) {
+            int slot = ht3[(hash << 1) + 1];
+            if (slot != 0) {
+              dim_offset3[ITEM] = slot - 1;
+            } else {
+              selection_flags[ITEM] = 0;
+            }
+          }
+        }
+      }
+    }
+
+    __syncthreads();
+
+    if (dim_key4 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key4 + tile_offset, items, num_tile_items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      /*
+       * Join with date table.
+       */
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
+          int hash = HASH(items[ITEM], dim_len4, min_key4); //19920101
+          if (selection_flags[ITEM]) {
+            int slot = ht4[(hash << 1) + 1];
+            if (slot != 0) {
+              t_count++;
+              dim_offset4[ITEM] = slot - 1;
+            } else {
+              selection_flags[ITEM] = 0;
+            }
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
+          if (selection_flags[ITEM]) {
             t_count++;
-            dim_offset2[ITEM] = slot;
-          } else {
-            selection_flags[ITEM] = 0;
           }
         }
       }
     }
+
   }
 
   //Barrier
@@ -174,12 +316,1050 @@ __global__ void probe_2_GPU(int* gpuCache, int idx_key1, int idx_key2,
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
     if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
       if(selection_flags[ITEM]) {
-        int offset = block_off + c_t_count++; // block offset can be out of order, does not have to match block id order
-        t_table[(offset << 2)] = start_offset + blockIdx.x * tile_size + threadIdx.x * ITEMS_PER_THREAD + ITEM;
-        t_table[(offset << 2) + 1] = dim_offset1[ITEM];
-        t_table[(offset << 2) + 2] = dim_offset2[ITEM];
-        t_table[(offset << 2) + 3] = 0;
+        int offset = block_off + c_t_count++;
+        lo_off[offset] = start_offset + blockIdx.x * tile_size + threadIdx.x * ITEMS_PER_THREAD + ITEM;
+        if (dim_off1 != NULL) dim_off1[offset] = dim_offset1[ITEM];
+        if (dim_off2 != NULL) dim_off2[offset] = dim_offset2[ITEM];
+        if (dim_off3 != NULL) dim_off3[offset] = dim_offset3[ITEM];
+        if (dim_off4 != NULL) dim_off4[offset] = dim_offset4[ITEM];
       }
     }
   }
 }
+
+void probe_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
+  int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, int* dimkey_col4,
+  int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* h_lo_off, int* h_dim_off1, int* h_dim_off2, int* h_dim_off3, int* h_dim_off4,
+  int h_total, int start_offset, int* offset) {
+
+  // Probe
+  parallel_for(blocked_range<size_t>(0, h_total, h_total/NUM_THREADS + 4), [&](auto range) {
+    int start = range.begin();
+    int end = range.end();
+    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+    int count = 0;
+
+    //printf("start = %d end = %d\n", start, end);
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int hash;
+        int slot;
+        int lo_offset = lo_off[start_offset + i];
+        if (dimkey_col1 != NULL) {
+          hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+          slot = ht1[hash << 1];
+        } else slot = 1;
+        if (slot != 0) {
+          if (dimkey_col2 != NULL) {
+            hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+            slot = ht2[hash << 1];
+          } else slot = 1;
+          if (slot != 0) {
+            if (dimkey_col3 != NULL) {
+              hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+              slot = ht3[hash << 1];
+            } else slot = 1;
+            if (slot != 0) {
+              if (dimkey_col4 != NULL) {
+                hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+                slot = ht4[hash << 1];
+              } else slot = 1;
+              if (slot != 0) count++;
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = end_batch ; i < end; i++) {
+      int hash;
+      int slot;
+      int lo_offset = lo_off[start_offset + i];
+      if (dimkey_col1 != NULL) {
+        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+        slot = ht1[hash << 1];
+      } else slot = 1;
+      if (slot != 0) {
+        if (dimkey_col2 != NULL) {
+          hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+          slot = ht2[hash << 1];
+        } else slot = 1;
+        if (slot != 0) {
+          if (dimkey_col3 != NULL) {
+            hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+            slot = ht3[hash << 1];
+          } else slot = 1;
+          if (slot != 0) {
+            if (dimkey_col4 != NULL) {
+              hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+              slot = ht4[hash << 1];
+            } else slot = 1;
+            if (slot != 0) count++;
+          }
+        }
+      }
+    }
+    //printf("count = %d\n", count);
+    int thread_off = __atomic_fetch_add(offset, count, __ATOMIC_RELAXED);
+    int j = 0;
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int hash;
+        int slot;
+        int lo_offset = lo_off[start_offset + i];
+        int dim_offset1 = 0;
+        int dim_offset2 = 0; 
+        int dim_offset3 = 0; 
+        int dim_offset4 = 0;
+
+        if (dimkey_col1 != NULL) {
+          hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+          slot = ht1[hash << 1];
+          dim_offset1 = ht1[(hash << 1) + 1] - 1;
+        } else {
+          slot = 1;
+          if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
+        }
+        if (slot != 0) {
+          if (dimkey_col2 != NULL) {
+            hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+            slot = ht2[hash << 1];
+            dim_offset2 = ht2[(hash << 1) + 1] - 1;
+          } else {
+            slot = 1;
+            if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
+          }
+          if (slot != 0) {
+            if (dimkey_col3 != NULL) {
+              hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+              slot = ht3[hash << 1];
+              dim_offset3 = ht3[(hash << 1) + 1] - 1;
+              //printf("dimoffset= %d\n", dim_offset3);
+            } else {
+              slot = 1;
+              if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
+            }
+            if (slot != 0) {
+              if (dimkey_col4 != NULL) {
+                hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+                slot = ht4[hash << 1];
+                dim_offset4 = ht4[(hash << 1) + 1] - 1;
+              } else {
+                slot = 1;
+                if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
+              }
+              if (slot != 0) {
+                //printf("thread off = %d\n", thread_off + j);
+                h_lo_off[thread_off+j] = lo_offset;
+                if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
+                if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
+                if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
+                if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
+                j++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = end_batch ; i < end; i++) {
+      int hash;
+      int slot;
+      int lo_offset = lo_off[start_offset + i];
+      int dim_offset1 = 0;
+      int dim_offset2 = 0; 
+      int dim_offset3 = 0; 
+      int dim_offset4 = 0;
+
+      if (dimkey_col1 != NULL) {
+        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+        slot = ht1[hash << 1];
+        dim_offset1 = ht1[(hash << 1) + 1] - 1;
+      } else {
+        slot = 1;
+        if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
+      }
+      if (slot != 0) {
+        if (dimkey_col2 != NULL) {
+          hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+          slot = ht2[hash << 1];
+          dim_offset2 = ht2[(hash << 1) + 1] - 1;
+        } else {
+          slot = 1;
+          if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
+        }
+        if (slot != 0) {
+          if (dimkey_col3 != NULL) {
+            hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+            slot = ht3[hash << 1];
+            dim_offset3 = ht3[(hash << 1) + 1] - 1;
+            //printf("dimoffset= %d\n", dim_offset3);
+          } else {
+            slot = 1;
+            if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
+          }
+          if (slot != 0) {
+            if (dimkey_col4 != NULL) {
+              hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+              slot = ht4[hash << 1];
+              dim_offset4 = ht4[(hash << 1) + 1] - 1;
+            } else {
+              slot = 1;
+              if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
+            }
+            if (slot != 0) {
+              //printf("thread off = %d\n", thread_off + j);
+              h_lo_off[thread_off+j] = lo_offset;
+              if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
+              if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
+              if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
+              if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
+              j++;
+            }
+          }
+        }
+      }
+    }
+
+  });
+}
+
+void probe_CPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
+  int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, int* dimkey_col4,
+  int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* h_lo_off, int* h_dim_off1, int* h_dim_off2, int* h_dim_off3, int* h_dim_off4,
+  int h_total, int start_offset, int* offset) {
+
+  // Probe
+  parallel_for(blocked_range<size_t>(0, h_total, h_total/NUM_THREADS + 4), [&](auto range) {
+    int start = range.begin();
+    int end = range.end();
+    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+    int count = 0;
+
+    int* temp = new int[end-start];
+    //printf("start = %d end = %d\n", start, end);
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int hash;
+        int slot;
+        int lo_offset = lo_off[start_offset + i];
+        if (dimkey_col1 != NULL) {
+          hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+          slot = ht1[hash << 1];
+        } else slot = 1;
+        if (slot != 0) {
+          if (dimkey_col2 != NULL) {
+            hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+            slot = ht2[hash << 1];
+          } else slot = 1;
+          if (slot != 0) {
+            if (dimkey_col3 != NULL) {
+              hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+              slot = ht3[hash << 1];
+            } else slot = 1;
+            if (slot != 0) {
+              if (dimkey_col4 != NULL) {
+                hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+                slot = ht4[hash << 1];
+              } else slot = 1;
+              if (slot != 0) {
+                temp[count] = 
+                count++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = end_batch ; i < end; i++) {
+      int hash;
+      int slot;
+      int lo_offset = lo_off[start_offset + i];
+      if (dimkey_col1 != NULL) {
+        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+        slot = ht1[hash << 1];
+      } else slot = 1;
+      if (slot != 0) {
+        if (dimkey_col2 != NULL) {
+          hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+          slot = ht2[hash << 1];
+        } else slot = 1;
+        if (slot != 0) {
+          if (dimkey_col3 != NULL) {
+            hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+            slot = ht3[hash << 1];
+          } else slot = 1;
+          if (slot != 0) {
+            if (dimkey_col4 != NULL) {
+              hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+              slot = ht4[hash << 1];
+            } else slot = 1;
+            if (slot != 0) count++;
+          }
+        }
+      }
+    }
+    //printf("count = %d\n", count);
+    int thread_off = __atomic_fetch_add(offset, count, __ATOMIC_RELAXED);
+    int j = 0;
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int hash;
+        int slot;
+        int lo_offset = lo_off[start_offset + i];
+        int dim_offset1 = 0;
+        int dim_offset2 = 0; 
+        int dim_offset3 = 0; 
+        int dim_offset4 = 0;
+
+        if (dimkey_col1 != NULL) {
+          hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+          slot = ht1[hash << 1];
+          dim_offset1 = ht1[(hash << 1) + 1] - 1;
+        } else {
+          slot = 1;
+          if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
+        }
+        if (slot != 0) {
+          if (dimkey_col2 != NULL) {
+            hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+            slot = ht2[hash << 1];
+            dim_offset2 = ht2[(hash << 1) + 1] - 1;
+          } else {
+            slot = 1;
+            if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
+          }
+          if (slot != 0) {
+            if (dimkey_col3 != NULL) {
+              hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+              slot = ht3[hash << 1];
+              dim_offset3 = ht3[(hash << 1) + 1] - 1;
+              //printf("dimoffset= %d\n", dim_offset3);
+            } else {
+              slot = 1;
+              if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
+            }
+            if (slot != 0) {
+              if (dimkey_col4 != NULL) {
+                hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+                slot = ht4[hash << 1];
+                dim_offset4 = ht4[(hash << 1) + 1] - 1;
+              } else {
+                slot = 1;
+                if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
+              }
+              if (slot != 0) {
+                //printf("thread off = %d\n", thread_off + j);
+                h_lo_off[thread_off+j] = lo_offset;
+                if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
+                if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
+                if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
+                if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
+                j++;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = end_batch ; i < end; i++) {
+      int hash;
+      int slot;
+      int lo_offset = lo_off[start_offset + i];
+      int dim_offset1 = 0;
+      int dim_offset2 = 0; 
+      int dim_offset3 = 0; 
+      int dim_offset4 = 0;
+
+      if (dimkey_col1 != NULL) {
+        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
+        slot = ht1[hash << 1];
+        dim_offset1 = ht1[(hash << 1) + 1] - 1;
+      } else {
+        slot = 1;
+        if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
+      }
+      if (slot != 0) {
+        if (dimkey_col2 != NULL) {
+          hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
+          slot = ht2[hash << 1];
+          dim_offset2 = ht2[(hash << 1) + 1] - 1;
+        } else {
+          slot = 1;
+          if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
+        }
+        if (slot != 0) {
+          if (dimkey_col3 != NULL) {
+            hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
+            slot = ht3[hash << 1];
+            dim_offset3 = ht3[(hash << 1) + 1] - 1;
+            //printf("dimoffset= %d\n", dim_offset3);
+          } else {
+            slot = 1;
+            if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
+          }
+          if (slot != 0) {
+            if (dimkey_col4 != NULL) {
+              hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
+              slot = ht4[hash << 1];
+              dim_offset4 = ht4[(hash << 1) + 1] - 1;
+            } else {
+              slot = 1;
+              if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
+            }
+            if (slot != 0) {
+              //printf("thread off = %d\n", thread_off + j);
+              h_lo_off[thread_off+j] = lo_offset;
+              if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
+              if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
+              if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
+              if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
+              j++;
+            }
+          }
+        }
+      }
+    }
+
+  });
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_key4, int* aggr, 
+  int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
+  int min_val1, int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4,
+  int total_val, int min_key1, int min_key2, int min_key3, int min_key4) {
+
+  // Specialize BlockLoad for a 1D block of 128 threads owning 4 integer items each
+  typedef cub::BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD, BLOCK_LOAD_TRANSPOSE> BlockLoadInt;
+  
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_idx = blockIdx.x;    // Current tile index
+  int tile_offset = tile_idx * tile_size;
+
+  // Allocate shared memory for BlockLoad
+  __shared__ union TempStorage
+  {
+    typename BlockLoadInt::TempStorage load_items;
+  } temp_storage;
+
+  // Load a segment of consecutive items that are blocked across threads
+  int items[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+  int groupval1[ITEMS_PER_THREAD];
+  int groupval2[ITEMS_PER_THREAD];
+  int groupval3[ITEMS_PER_THREAD];
+  int groupval4[ITEMS_PER_THREAD];
+  int aggrval[ITEMS_PER_THREAD];
+
+  int num_tiles = (fact_len + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  bool is_last_tile = false;
+  if (tile_idx == num_tiles - 1) {
+    num_tile_items = fact_len - tile_offset;
+    is_last_tile = true;
+  }
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+  {
+    selection_flags[ITEM] = 1;
+  }
+
+  __syncthreads();
+
+  /********************
+    Not the last tile
+    ******************/
+  if (!is_last_tile) {
+
+    if (dim_key1 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key1 + tile_offset, items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH_WM(items[ITEM], dim_len1, min_key1);
+        if (selection_flags[ITEM]) {
+          uint64_t slot = *reinterpret_cast<uint64_t*>(&ht1[hash << 1]);
+          if (slot != 0) {
+            groupval1[ITEM] = (slot >> 32);
+          } else {
+            selection_flags[ITEM] = 0;
+          }
+        }
+      }
+
+    }
+    else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        groupval1[ITEM] = 0;
+      }
+    }
+
+    __syncthreads();
+
+    if (dim_key2 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key2 + tile_offset, items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH_WM(items[ITEM], dim_len2, min_key2);
+        if (selection_flags[ITEM]) {
+          uint64_t slot = *reinterpret_cast<uint64_t*>(&ht2[hash << 1]);
+          if (slot != 0) {
+            groupval2[ITEM] = (slot >> 32);
+          } else {
+            selection_flags[ITEM] = 0;
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        groupval2[ITEM] = 0;
+      }
+    }
+
+    __syncthreads();
+
+    if (dim_key3 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key3 + tile_offset, items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH_WM(items[ITEM], dim_len3, min_key3); //19920101
+        if (selection_flags[ITEM]) {
+          uint64_t slot = *reinterpret_cast<uint64_t*>(&ht3[hash << 1]);
+          if (slot != 0) {
+            groupval3[ITEM] = (slot >> 32);
+          } else {
+            selection_flags[ITEM] = 0;
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        groupval3[ITEM] = 0;
+      }
+    }
+
+    __syncthreads();
+
+    if (dim_key4 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key4 + tile_offset, items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        int hash = HASH_WM(items[ITEM], dim_len4, min_key4); //19920101
+        if (selection_flags[ITEM]) {
+          uint64_t slot = *reinterpret_cast<uint64_t*>(&ht4[hash << 1]);
+          if (slot != 0) {
+            groupval4[ITEM] = (slot >> 32);
+          } else {
+            selection_flags[ITEM] = 0;
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        groupval4[ITEM] = 0;
+      }
+    }
+
+    __syncthreads();
+
+    BlockLoadInt(temp_storage.load_items).Load(aggr + tile_offset, aggrval);
+
+    // Barrier for smem reuse
+    __syncthreads();
+
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+      if (selection_flags[ITEM]) {
+        int hash = ((groupval1[ITEM] - min_val1) * unique_val1 + (groupval2[ITEM] - min_val2) * unique_val2 +  (groupval3[ITEM] - min_val3) * unique_val3 + (groupval4[ITEM] - min_val4) * unique_val4) % total_val; //!
+        res[hash * 6] = groupval1[ITEM];
+        res[hash * 6 + 1] = groupval2[ITEM];
+        res[hash * 6 + 2] = groupval3[ITEM];
+        res[hash * 6 + 3] = groupval4[ITEM];
+        atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval[ITEM]));
+      }
+    }
+  }
+  else {
+
+    if (dim_key1 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key1 + tile_offset, items, num_tile_items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      /*
+       * Join with supplier table.
+       */
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        // Out-of-bounds items are selection_flags
+        if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+          int hash = HASH_WM(items[ITEM], dim_len1, min_key1);
+          if (selection_flags[ITEM]) {
+            uint64_t slot = *reinterpret_cast<uint64_t*>(&ht1[hash << 1]);
+            if (slot != 0) {
+              groupval1[ITEM] = (slot >> 32);
+            } else {
+              selection_flags[ITEM] = 0;
+            }
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+          groupval1[ITEM] = 0;
+        }
+      }
+    }
+
+    __syncthreads();
+
+    if (dim_key2 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key2 + tile_offset, items, num_tile_items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      /*
+       * Join with part table.
+       */
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
+            int hash = HASH_WM(items[ITEM], dim_len2, min_key2);
+          if (selection_flags[ITEM]) {
+            uint64_t slot = *reinterpret_cast<uint64_t*>(&ht2[hash << 1]);
+            if (slot != 0) {
+              groupval2[ITEM] = (slot >> 32);
+            } else {
+              selection_flags[ITEM] = 0;
+            }
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+          groupval2[ITEM] = 0;
+        }
+      }
+    }
+
+    __syncthreads();
+
+    if (dim_key3 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key3 + tile_offset, items, num_tile_items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      /*
+       * Join with date table.
+       */
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+          int hash = HASH_WM(items[ITEM], dim_len3, min_key3); //19920101
+          if (selection_flags[ITEM]) {
+            uint64_t slot = *reinterpret_cast<uint64_t*>(&ht3[hash << 1]);
+            if (slot != 0) {
+              groupval3[ITEM] = (slot >> 32);
+            } else {
+              selection_flags[ITEM] = 0;
+            }
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+          groupval3[ITEM] = 0;
+        }
+      }  
+    }
+
+    __syncthreads();
+
+    if (dim_key4 != NULL) {
+      BlockLoadInt(temp_storage.load_items).Load(dim_key4 + tile_offset, items, num_tile_items);
+
+      // Barrier for smem reuse
+      __syncthreads();
+
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+          // Out-of-bounds items are selection_flags
+          int hash = HASH_WM(items[ITEM], dim_len4, min_key4); //19920101
+          if (selection_flags[ITEM]) {
+            uint64_t slot = *reinterpret_cast<uint64_t*>(&ht4[hash << 1]);
+            if (slot != 0) {
+              groupval4[ITEM] = (slot >> 32);
+            } else {
+              selection_flags[ITEM] = 0;
+            }
+          }
+        }
+      }
+    } else {
+      #pragma unroll
+      for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+      {
+        if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+          groupval4[ITEM] = 0;
+        }
+      }
+    }
+
+    __syncthreads();
+
+    BlockLoadInt(temp_storage.load_items).Load(aggr + tile_offset, aggrval, num_tile_items);
+
+    // Barrier for smem reuse
+    __syncthreads();
+
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+      if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+        if (selection_flags[ITEM]) {
+          int hash = ((groupval1[ITEM] - min_val1) * unique_val1 + (groupval2[ITEM] - min_val2) * unique_val2 +  (groupval3[ITEM] - min_val3) * unique_val3 + (groupval4[ITEM] - min_val4) * unique_val4) % total_val; //!
+          res[hash * 6] = groupval1[ITEM];
+          res[hash * 6 + 1] = groupval2[ITEM];
+          res[hash * 6 + 2] = groupval3[ITEM];
+          res[hash * 6 + 3] = groupval4[ITEM];
+          atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval[ITEM]));
+        }
+      }
+    }
+  }
+}
+
+
+void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, int* dimkey_col4, int* aggr_col,
+  int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
+  int min_val1, int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4, 
+  int total_val, int min_key1, int min_key2, int min_key3, int min_key4, int start_index) {
+
+  // Probe
+  parallel_for(blocked_range<size_t>(0, fact_len, fact_len/NUM_THREADS + 4), [&](auto range) {
+    int start = range.begin();
+    int end = range.end();
+    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int hash;
+        int slot;
+        int dim_val1, dim_val2, dim_val3, dim_val4;
+        if (dimkey_col1 != NULL) {
+          hash = HASH_WM(dimkey_col1[start_index + i], dim_len1, min_key1);
+          slot = ht1[hash << 1];
+          dim_val1 = ht1[(hash << 1) + 1];
+        } else {
+          slot = 1;
+          dim_val1 = 0;
+        }
+        if (slot != 0) {
+          if (dimkey_col2 != NULL) {
+            hash = HASH_WM(dimkey_col2[start_index + i], dim_len2, min_key2);
+            slot = ht2[hash << 1];
+            dim_val2 = ht2[(hash << 1) + 1];
+          } else {
+            slot = 1;
+            dim_val2 = 0;
+          }
+          if (slot != 0) {
+            if (dimkey_col3 != NULL) {
+              hash = HASH_WM(dimkey_col3[start_index + i], dim_len3, min_key3);
+              slot = ht3[hash << 1];
+              dim_val3 = ht3[(hash << 1) + 1];
+            } else {
+              slot = 1;
+              dim_val3 = 0;
+            }
+            if (slot != 0) {
+              if (dimkey_col4 != NULL) {
+                hash = HASH_WM(dimkey_col4[start_index + i], dim_len4, min_key4);
+                slot = ht4[hash << 1];
+                dim_val4 = ht4[(hash << 1) + 1];
+              } else {
+                slot = 1;
+                dim_val4 = 0;
+              }
+              if (slot != 0) {
+                hash = ((dim_val1 - min_val1) * unique_val1 + (dim_val2 - min_val2) * unique_val2 +  (dim_val3 - min_val3) * unique_val3 + (dim_val4 - min_val4) * unique_val4) % total_val;
+                res[hash * 6] = dim_val1;
+                res[hash * 6 + 1] = dim_val2;
+                res[hash * 6 + 2] = dim_val3;
+                res[hash * 6 + 3] = dim_val4;
+                __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggr_col[i + start_index]), __ATOMIC_RELAXED);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = end_batch ; i < end; i++) {
+      int hash;
+      int slot;
+      int dim_val1, dim_val2, dim_val3, dim_val4;
+      if (dimkey_col1 != NULL) {
+        hash = HASH_WM(dimkey_col1[start_index + i], dim_len1, min_key1);
+        slot = ht1[hash << 1];
+        dim_val1 = ht1[(hash << 1) + 1];
+      } else {
+        slot = 1;
+        dim_val1 = 0;
+      }
+      if (slot != 0) {
+        if (dimkey_col2 != NULL) {
+          hash = HASH_WM(dimkey_col2[start_index + i], dim_len2, min_key2);
+          slot = ht2[hash << 1];
+          dim_val2 = ht2[(hash << 1) + 1];
+        } else {
+          slot = 1;
+          dim_val2 = 0;
+        }
+        if (slot != 0) {
+          if (dimkey_col3 != NULL) {
+            hash = HASH_WM(dimkey_col3[start_index + i], dim_len3, min_key3);
+            slot = ht3[hash << 1];
+            dim_val3 = ht3[(hash << 1) + 1];
+          } else {
+            slot = 1;
+            dim_val3 = 0;
+          }
+          if (slot != 0) {
+            if (dimkey_col4 != NULL) {
+              hash = HASH_WM(dimkey_col4[start_index + i], dim_len4, min_key4);
+              slot = ht4[hash << 1];
+              dim_val4 = ht4[(hash << 1) + 1];
+            } else {
+              slot = 1;
+              dim_val4 = 0;
+            }
+            if (slot != 0) {
+              hash = ((dim_val1 - min_val1) * unique_val1 + (dim_val2 - min_val2) * unique_val2 +  (dim_val3 - min_val3) * unique_val3 + (dim_val4 - min_val4) * unique_val4) % total_val;
+              res[hash * 6] = dim_val1;
+              res[hash * 6 + 1] = dim_val2;
+              res[hash * 6 + 2] = dim_val3;
+              res[hash * 6 + 3] = dim_val4;
+              __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggr_col[i + start_index]), __ATOMIC_RELAXED);
+            }
+          }
+        }
+      }
+    }
+  });
+
+}
+
+__global__
+void build_GPU(int* dim_key, int* dim_val, int num_tuples, int *hash_table, int num_slots, int val_min, int segment_number, int isoffset) {
+  int offset = blockIdx.x * blockDim.x + threadIdx.x;
+  if (offset < num_tuples) {
+    int key = dim_key[offset];
+    int value;
+    if (isoffset == 1) value = segment_number * SEGMENT_SIZE + offset + 1;
+    else if (isoffset == 0) value = dim_val[offset];
+    else value = 0;
+    int hash = HASH(key, num_slots, val_min);
+    atomicCAS(&hash_table[hash << 1], 0, key);
+    hash_table[(hash << 1) + 1] = value;
+  }
+}
+
+__global__
+void build_filter_GPU(int* filter_col, int compare, int* dim_key, int* dim_val, int num_tuples, int *hash_table, int num_slots, int val_min, int segment_number, int isoffset) {
+  int offset = blockIdx.x * blockDim.x + threadIdx.x;
+  if (offset < num_tuples) {
+    if (filter_col[offset] == compare) {
+      int key = dim_key[offset];
+      int value;
+      if (isoffset == 1) value = segment_number * SEGMENT_SIZE + offset + 1;
+      else if (isoffset == 0) value = dim_val[offset];
+      else value = 0;
+      int hash = HASH(key, num_slots, val_min);
+      atomicCAS(&hash_table[hash << 1], 0, key);
+      hash_table[(hash << 1) + 1] = value;
+    }
+  }
+}
+
+void build_CPU(int *dim_key, int *dim_val, int num_tuples, int *hash_table, int num_slots, int val_min, int isoffset) {
+  // Build hashtable p
+  parallel_for(blocked_range<size_t>(0, num_tuples, num_tuples/NUM_THREADS + 4), [&](auto range) {
+    for (int i = range.begin(); i < range.end(); i++) {
+      int key = dim_key[i];
+      int hash = HASH_WM(key, num_slots, val_min);
+      hash_table[hash << 1] = key;
+      if (isoffset == 1) hash_table[(hash << 1) + 1] = i + 1;
+      else if (isoffset == 0) hash_table[(hash << 1) + 1] = dim_val[i];
+      else hash_table[(hash << 1) + 1] = 0;
+    }
+  });
+}
+
+void build_filter_CPU(int *filter_col, int compare, int *dim_key, int* dim_val, int num_tuples, int *hash_table, int num_slots, int val_min, int isoffset) {
+  // Build hashtable p
+  parallel_for(blocked_range<size_t>(0, num_tuples, num_tuples/NUM_THREADS + 4), [&](auto range) {
+    for (int i = range.begin(); i < range.end(); i++) {
+      if (filter_col[i] == compare) {
+        int key = dim_key[i];
+        int hash = HASH(key, num_slots, val_min);
+        hash_table[hash << 1] = key;
+        if (isoffset == 1) hash_table[(hash << 1) + 1] = i + 1;
+        else if (isoffset == 0) hash_table[(hash << 1) + 1] = dim_val[i];
+        else hash_table[(hash << 1) + 1] = 0;
+      }
+    }
+  });
+}
+
+__global__
+void runAggregationQ2GPU(int* gpuCache, int* lo_idx, int* p_idx, int* d_idx, int* d_t_table, int num_tuples, int* res, int num_slots) {
+  int offset = blockIdx.x * blockDim.x + threadIdx.x;
+
+  if (offset < num_tuples) {
+    int revenue_idx = d_t_table[(offset * 6)];
+    int brand_idx = d_t_table[(offset * 6) + 1];
+    int year_idx = d_t_table[(offset * 6) + 3];
+
+    int revenue_seg = lo_idx[revenue_idx / SEGMENT_SIZE];
+    int brand_seg = p_idx[brand_idx / SEGMENT_SIZE];
+    int year_seg = d_idx[year_idx / SEGMENT_SIZE];
+
+    int revenue = gpuCache[revenue_seg * SEGMENT_SIZE + (revenue_idx % SEGMENT_SIZE)];
+    int brand = gpuCache[brand_seg * SEGMENT_SIZE + (brand_idx % SEGMENT_SIZE)];
+    int year = gpuCache[year_seg * SEGMENT_SIZE + (year_idx % SEGMENT_SIZE)];
+
+    int hash = (brand * 7 + (year - 1992)) % num_slots;
+
+    res[hash * 6] = 0;
+    res[hash * 6 + 1] = brand;
+    res[hash * 6 + 2] = year;
+    atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(revenue));
+
+  }
+}
+
+void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* lo_off, int* part_off, int* date_off, int t_table_len, int* res, int num_slots) {
+  parallel_for(blocked_range<size_t>(0, t_table_len, t_table_len/NUM_THREADS + 4), [&](auto range) {
+    int start = range.begin();
+    int end = range.end();
+    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int brand = p_brand1[part_off[i]];
+        int year = d_year[date_off[i]];
+        int hash = (brand * 7 + (year - 1992)) % num_slots;
+        res[hash * 6 + 1] = brand;
+        res[hash * 6 + 2] = year;
+        __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(lo_revenue[lo_off[i]]), __ATOMIC_RELAXED);
+      }
+    }
+    for (int i = end_batch ; i < end; i++) {
+        int brand = p_brand1[part_off[i]];
+        int year = d_year[date_off[i]];
+        int hash = (brand * 7 + (year - 1992)) % num_slots;
+        res[hash * 6 + 1] = brand;
+        res[hash * 6 + 2] = year;
+        __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(lo_revenue[lo_off[i]]), __ATOMIC_RELAXED);
+    }
+  });
+}
+
+// void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* t_table, int t_table_len, int* res, int num_slots) {
+//   parallel_for(blocked_range<size_t>(0, t_table_len, t_table_len/NUM_THREADS + 4), [&](auto range) {
+//     int start = range.begin();
+//     int end = range.end();
+//     int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+
+//     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+//       #pragma simd
+//       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+//         if (t_table[i * 6] != 0) {
+//           int brand = p_brand1[t_table[(i * 6) + 1]];
+//           int year = d_year[t_table[(i * 6) + 3]];
+//           int hash = (brand * 7 + (year - 1992)) % num_slots;
+//           res[hash * 6 + 1] = brand;
+//           res[hash * 6 + 2] = year;
+//           __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(lo_revenue[t_table[i * 6]]), __ATOMIC_RELAXED);
+//         }
+//       }
+//     }
+//     for (int i = end_batch ; i < end; i++) {
+//       if (t_table[i * 6] != 0) {
+//         int brand = p_brand1[t_table[(i * 6) + 1]];
+//         int year = d_year[t_table[(i * 6) + 3]];
+//         int hash = (brand * 7 + (year - 1992)) % num_slots;
+//         res[hash * 6 + 1] = brand;
+//         res[hash * 6 + 2] = year;
+//         __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(lo_revenue[t_table[i * 6]]), __ATOMIC_RELAXED);
+//       }
+//     }
+//   });
+// }

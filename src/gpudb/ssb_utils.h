@@ -36,6 +36,7 @@ using namespace std;
 
 #define BATCH_SIZE 128
 #define NUM_THREADS 48
+#define SEGMENT_SIZE 1000
 
 int index_of(string* arr, int len, string val) {
   for (int i=0; i<len; i++)
@@ -74,7 +75,7 @@ string lookup(string col_name) {
 
 template<typename T>
 T* loadColumn(string col_name, int num_entries) {
-  T* h_col = new T[num_entries];
+  T* h_col = new T[((num_entries + SEGMENT_SIZE - 1)/SEGMENT_SIZE) * SEGMENT_SIZE];
   string filename = DATA_DIR + lookup(col_name);
   ifstream colData (filename.c_str(), ios::in | ios::binary);
   if (!colData) {
