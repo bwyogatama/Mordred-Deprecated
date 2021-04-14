@@ -41,20 +41,6 @@ int main () {
 
   	int d_val_len = 19981230 - 19920101 + 1;
 
-  	int *h_ht_d = (int*)malloc(2 * d_val_len * sizeof(int));
-  	int *h_ht_p = (int*)malloc(2 * P_LEN * sizeof(int));
-  	int *h_ht_s = (int*)malloc(2 * S_LEN * sizeof(int));
-
-  	memset(h_ht_d, 0, 2 * d_val_len * sizeof(int));
-  	memset(h_ht_p, 0, 2 * P_LEN * sizeof(int));
-  	memset(h_ht_s, 0, 2 * S_LEN * sizeof(int));
-
-    build_filter_CPU(cm->h_s_region, 1, cm->h_s_suppkey, NULL, S_LEN, h_ht_s, S_LEN, 0, 2);
-
-    build_filter_CPU(cm->h_p_category, 1, cm->h_p_partkey, cm->h_p_brand1, P_LEN, h_ht_p, P_LEN, 0, 0);
-
-    build_CPU(cm->h_d_datekey, cm->h_d_year, D_LEN, h_ht_d, d_val_len, 19920101, 0);
-
   	int *d_ht_d, *d_ht_p, *d_ht_s;
   	g_allocator.DeviceAllocate((void**)&d_ht_d, 2 * d_val_len * sizeof(int));
   	g_allocator.DeviceAllocate((void**)&d_ht_p, 2 * P_LEN * sizeof(int));
@@ -104,7 +90,7 @@ int main () {
     g_allocator.DeviceAllocate((void**)&d_res, res_array_size * sizeof(int));
     cudaMemset(d_res, 0, res_array_size * sizeof(int));
 
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 6; i++) {
      	int tile_items = 128*4;
      	int idx_key1 = cm->segment_list[cm->lo_suppkey->column_id][i];
      	int idx_key2 = cm->segment_list[cm->lo_partkey->column_id][i];
@@ -125,14 +111,6 @@ int main () {
     memset(res, 0, res_array_size * sizeof(int));
     cudaMemcpy(res, d_res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost);
 
-    int start_index = 4000000;
-    int CPU_len = 2000000;
-
-    probe_group_by_CPU(cm->h_lo_suppkey, cm->h_lo_partkey, cm->h_lo_orderdate, NULL, cm->h_lo_revenue,
-      CPU_len, h_ht_s, S_LEN, h_ht_p, P_LEN, h_ht_d, d_val_len, NULL, 0, res,
-      0, 0, 0, 7, 1992, 1, 0, 0, res_size,
-      0, 0, 19920101, 0, start_index);
-
     finish = chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = finish - st;
 
@@ -148,9 +126,6 @@ int main () {
     cout << "Res Count: " << res_count << endl;
     cout << "Time Taken Total: " << diff.count() * 1000 << endl;
 
-    delete h_ht_p;
-    delete h_ht_s;
-    delete h_ht_d;
     delete res;
 
     g_allocator.DeviceFree(d_ht_p);

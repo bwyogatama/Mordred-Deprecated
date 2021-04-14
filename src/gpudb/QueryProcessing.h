@@ -18,6 +18,28 @@ using namespace tbb;
 
 #define HASH_WM(X,Y,Z) ((X-Z) % Y)
 
+#define CUB_STDERR
+
+#define CHECK_ERROR() { \
+  cudaDeviceSynchronize(); \
+  cudaError_t error = cudaGetLastError(); \
+  if(error != cudaSuccess) \
+  { \
+    printf("CUDA error: %s\n", cudaGetErrorString(error)); \
+    exit(-1); \
+  } \
+}
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_key4,
   int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
@@ -340,241 +362,54 @@ void probe_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* di
     int end = range.end();
     int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
     int count = 0;
-
+    assert(lo_off != NULL);
+    assert(h_lo_off != NULL);
+    int temp[5][end-start];
     //printf("start = %d end = %d\n", start, end);
 
     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
       #pragma simd
       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
         int hash;
-        int slot;
+        int slot1, slot2, slot3, slot4;
         int lo_offset = lo_off[start_offset + i];
         if (dimkey_col1 != NULL) {
           hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-          slot = ht1[hash << 1];
-        } else slot = 1;
-        if (slot != 0) {
-          if (dimkey_col2 != NULL) {
-            hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-            slot = ht2[hash << 1];
-          } else slot = 1;
-          if (slot != 0) {
-            if (dimkey_col3 != NULL) {
-              hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-              slot = ht3[hash << 1];
-            } else slot = 1;
-            if (slot != 0) {
-              if (dimkey_col4 != NULL) {
-                hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-                slot = ht4[hash << 1];
-              } else slot = 1;
-              if (slot != 0) count++;
-            }
-          }
-        }
-      }
-    }
-
-    for (int i = end_batch ; i < end; i++) {
-      int hash;
-      int slot;
-      int lo_offset = lo_off[start_offset + i];
-      if (dimkey_col1 != NULL) {
-        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-        slot = ht1[hash << 1];
-      } else slot = 1;
-      if (slot != 0) {
-        if (dimkey_col2 != NULL) {
-          hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-          slot = ht2[hash << 1];
-        } else slot = 1;
-        if (slot != 0) {
-          if (dimkey_col3 != NULL) {
-            hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-            slot = ht3[hash << 1];
-          } else slot = 1;
-          if (slot != 0) {
-            if (dimkey_col4 != NULL) {
-              hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-              slot = ht4[hash << 1];
-            } else slot = 1;
-            if (slot != 0) count++;
-          }
-        }
-      }
-    }
-    //printf("count = %d\n", count);
-    int thread_off = __atomic_fetch_add(offset, count, __ATOMIC_RELAXED);
-    int j = 0;
-
-    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
-      #pragma simd
-      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
-        int hash;
-        int slot;
-        int lo_offset = lo_off[start_offset + i];
-        int dim_offset1 = 0;
-        int dim_offset2 = 0; 
-        int dim_offset3 = 0; 
-        int dim_offset4 = 0;
-
-        if (dimkey_col1 != NULL) {
-          hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-          slot = ht1[hash << 1];
-          dim_offset1 = ht1[(hash << 1) + 1] - 1;
+          slot1 = ht1[(hash << 1) + 1];
         } else {
-          slot = 1;
-          if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
+          slot1 = 1;
+          if (dim_off1 != NULL) slot1 = dim_off1[start_offset + i] + 1;
         }
-        if (slot != 0) {
+        if (slot1 != 0) {
           if (dimkey_col2 != NULL) {
             hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-            slot = ht2[hash << 1];
-            dim_offset2 = ht2[(hash << 1) + 1] - 1;
+            slot2 = ht2[(hash << 1) + 1];
           } else {
-            slot = 1;
-            if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
+            slot2 = 1;
+            if (dim_off2 != NULL) slot2 = dim_off2[start_offset + i] + 1;
           }
-          if (slot != 0) {
+          if (slot2 != 0) {
             if (dimkey_col3 != NULL) {
               hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-              slot = ht3[hash << 1];
-              dim_offset3 = ht3[(hash << 1) + 1] - 1;
-              //printf("dimoffset= %d\n", dim_offset3);
+              slot3 = ht3[(hash << 1) + 1];
             } else {
-              slot = 1;
-              if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
+              slot3 = 1;
+              if (dim_off3 != NULL) slot3 = dim_off3[start_offset + i] + 1;
             }
-            if (slot != 0) {
+            if (slot3 != 0) {
               if (dimkey_col4 != NULL) {
                 hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-                slot = ht4[hash << 1];
-                dim_offset4 = ht4[(hash << 1) + 1] - 1;
+                slot4 = ht4[(hash << 1) + 1];
               } else {
-                slot = 1;
-                if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
+                slot4 = 1;
+                if (dim_off4 != NULL) slot4 = dim_off4[start_offset + i] + 1;
               }
-              if (slot != 0) {
-                //printf("thread off = %d\n", thread_off + j);
-                h_lo_off[thread_off+j] = lo_offset;
-                if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
-                if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
-                if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
-                if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
-                j++;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    for (int i = end_batch ; i < end; i++) {
-      int hash;
-      int slot;
-      int lo_offset = lo_off[start_offset + i];
-      int dim_offset1 = 0;
-      int dim_offset2 = 0; 
-      int dim_offset3 = 0; 
-      int dim_offset4 = 0;
-
-      if (dimkey_col1 != NULL) {
-        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-        slot = ht1[hash << 1];
-        dim_offset1 = ht1[(hash << 1) + 1] - 1;
-      } else {
-        slot = 1;
-        if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
-      }
-      if (slot != 0) {
-        if (dimkey_col2 != NULL) {
-          hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-          slot = ht2[hash << 1];
-          dim_offset2 = ht2[(hash << 1) + 1] - 1;
-        } else {
-          slot = 1;
-          if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
-        }
-        if (slot != 0) {
-          if (dimkey_col3 != NULL) {
-            hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-            slot = ht3[hash << 1];
-            dim_offset3 = ht3[(hash << 1) + 1] - 1;
-            //printf("dimoffset= %d\n", dim_offset3);
-          } else {
-            slot = 1;
-            if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
-          }
-          if (slot != 0) {
-            if (dimkey_col4 != NULL) {
-              hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-              slot = ht4[hash << 1];
-              dim_offset4 = ht4[(hash << 1) + 1] - 1;
-            } else {
-              slot = 1;
-              if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
-            }
-            if (slot != 0) {
-              //printf("thread off = %d\n", thread_off + j);
-              h_lo_off[thread_off+j] = lo_offset;
-              if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
-              if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
-              if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
-              if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
-              j++;
-            }
-          }
-        }
-      }
-    }
-
-  });
-}
-
-void probe_CPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
-  int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, int* dimkey_col4,
-  int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
-  int min_key1, int min_key2, int min_key3, int min_key4,
-  int* h_lo_off, int* h_dim_off1, int* h_dim_off2, int* h_dim_off3, int* h_dim_off4,
-  int h_total, int start_offset, int* offset) {
-
-  // Probe
-  parallel_for(blocked_range<size_t>(0, h_total, h_total/NUM_THREADS + 4), [&](auto range) {
-    int start = range.begin();
-    int end = range.end();
-    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
-    int count = 0;
-
-    int* temp = new int[end-start];
-    //printf("start = %d end = %d\n", start, end);
-
-    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
-      #pragma simd
-      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
-        int hash;
-        int slot;
-        int lo_offset = lo_off[start_offset + i];
-        if (dimkey_col1 != NULL) {
-          hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-          slot = ht1[hash << 1];
-        } else slot = 1;
-        if (slot != 0) {
-          if (dimkey_col2 != NULL) {
-            hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-            slot = ht2[hash << 1];
-          } else slot = 1;
-          if (slot != 0) {
-            if (dimkey_col3 != NULL) {
-              hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-              slot = ht3[hash << 1];
-            } else slot = 1;
-            if (slot != 0) {
-              if (dimkey_col4 != NULL) {
-                hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-                slot = ht4[hash << 1];
-              } else slot = 1;
-              if (slot != 0) {
-                temp[count] = 
+              if (slot4 != 0) {
+                temp[0][count] = lo_offset;
+                temp[1][count] = slot1-1;
+                temp[2][count] = slot2-1;
+                temp[3][count] = slot3-1;
+                temp[4][count] = slot4-1;
                 count++;
               }
             }
@@ -585,155 +420,60 @@ void probe_CPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* d
 
     for (int i = end_batch ; i < end; i++) {
       int hash;
-      int slot;
+      int slot1, slot2, slot3, slot4;
       int lo_offset = lo_off[start_offset + i];
       if (dimkey_col1 != NULL) {
         hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-        slot = ht1[hash << 1];
-      } else slot = 1;
-      if (slot != 0) {
+        slot1 = ht1[(hash << 1) + 1];
+      } else {
+        slot1 = 1;
+        if (dim_off1 != NULL) slot1 = dim_off1[start_offset + i] + 1;
+      }
+      if (slot1 != 0) {
         if (dimkey_col2 != NULL) {
           hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-          slot = ht2[hash << 1];
-        } else slot = 1;
-        if (slot != 0) {
+          slot2 = ht2[(hash << 1) + 1];
+        } else {
+          slot2 = 1;
+          if (dim_off2 != NULL) slot2 = dim_off2[start_offset + i] + 1;
+        }
+        if (slot2 != 0) {
           if (dimkey_col3 != NULL) {
             hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-            slot = ht3[hash << 1];
-          } else slot = 1;
-          if (slot != 0) {
+            slot3 = ht3[(hash << 1) + 1];
+          } else {
+            slot3 = 1;
+            if (dim_off3 != NULL) slot3 = dim_off3[start_offset + i] + 1;
+          }
+          if (slot3 != 0) {
             if (dimkey_col4 != NULL) {
               hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-              slot = ht4[hash << 1];
-            } else slot = 1;
-            if (slot != 0) count++;
+              slot4 = ht4[(hash << 1) + 1];
+            } else {
+              slot4 = 1;
+              if (dim_off4 != NULL) slot4 = dim_off4[start_offset + i] + 1;
+            }
+            if (slot4 != 0) {
+              temp[0][count] = lo_offset;
+              temp[1][count] = slot1-1;
+              temp[2][count] = slot2-1;
+              temp[3][count] = slot3-1;
+              temp[4][count] = slot4-1;
+              count++;
+            }
           }
         }
       }
     }
     //printf("count = %d\n", count);
     int thread_off = __atomic_fetch_add(offset, count, __ATOMIC_RELAXED);
-    int j = 0;
 
-    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
-      #pragma simd
-      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
-        int hash;
-        int slot;
-        int lo_offset = lo_off[start_offset + i];
-        int dim_offset1 = 0;
-        int dim_offset2 = 0; 
-        int dim_offset3 = 0; 
-        int dim_offset4 = 0;
-
-        if (dimkey_col1 != NULL) {
-          hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-          slot = ht1[hash << 1];
-          dim_offset1 = ht1[(hash << 1) + 1] - 1;
-        } else {
-          slot = 1;
-          if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
-        }
-        if (slot != 0) {
-          if (dimkey_col2 != NULL) {
-            hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-            slot = ht2[hash << 1];
-            dim_offset2 = ht2[(hash << 1) + 1] - 1;
-          } else {
-            slot = 1;
-            if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
-          }
-          if (slot != 0) {
-            if (dimkey_col3 != NULL) {
-              hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-              slot = ht3[hash << 1];
-              dim_offset3 = ht3[(hash << 1) + 1] - 1;
-              //printf("dimoffset= %d\n", dim_offset3);
-            } else {
-              slot = 1;
-              if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
-            }
-            if (slot != 0) {
-              if (dimkey_col4 != NULL) {
-                hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-                slot = ht4[hash << 1];
-                dim_offset4 = ht4[(hash << 1) + 1] - 1;
-              } else {
-                slot = 1;
-                if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
-              }
-              if (slot != 0) {
-                //printf("thread off = %d\n", thread_off + j);
-                h_lo_off[thread_off+j] = lo_offset;
-                if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
-                if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
-                if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
-                if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
-                j++;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    for (int i = end_batch ; i < end; i++) {
-      int hash;
-      int slot;
-      int lo_offset = lo_off[start_offset + i];
-      int dim_offset1 = 0;
-      int dim_offset2 = 0; 
-      int dim_offset3 = 0; 
-      int dim_offset4 = 0;
-
-      if (dimkey_col1 != NULL) {
-        hash = HASH(dimkey_col1[lo_offset], dim_len1, min_key1);
-        slot = ht1[hash << 1];
-        dim_offset1 = ht1[(hash << 1) + 1] - 1;
-      } else {
-        slot = 1;
-        if (dim_off1 != NULL) dim_offset1 = dim_off1[start_offset + i];
-      }
-      if (slot != 0) {
-        if (dimkey_col2 != NULL) {
-          hash = HASH(dimkey_col2[lo_offset], dim_len2, min_key2);
-          slot = ht2[hash << 1];
-          dim_offset2 = ht2[(hash << 1) + 1] - 1;
-        } else {
-          slot = 1;
-          if (dim_off2 != NULL) dim_offset2 = dim_off2[start_offset + i];
-        }
-        if (slot != 0) {
-          if (dimkey_col3 != NULL) {
-            hash = HASH(dimkey_col3[lo_offset], dim_len3, min_key3);
-            slot = ht3[hash << 1];
-            dim_offset3 = ht3[(hash << 1) + 1] - 1;
-            //printf("dimoffset= %d\n", dim_offset3);
-          } else {
-            slot = 1;
-            if (dim_off3 != NULL) dim_offset3 = dim_off3[start_offset + i];
-          }
-          if (slot != 0) {
-            if (dimkey_col4 != NULL) {
-              hash = HASH(dimkey_col4[lo_offset], dim_len4, min_key4);
-              slot = ht4[hash << 1];
-              dim_offset4 = ht4[(hash << 1) + 1] - 1;
-            } else {
-              slot = 1;
-              if (dim_off4 != NULL) dim_offset4 = dim_off4[start_offset + i];
-            }
-            if (slot != 0) {
-              //printf("thread off = %d\n", thread_off + j);
-              h_lo_off[thread_off+j] = lo_offset;
-              if (h_dim_off1 != NULL) h_dim_off1[thread_off+j] = dim_offset1;
-              if (h_dim_off2 != NULL) h_dim_off2[thread_off+j] = dim_offset2;
-              if (h_dim_off3 != NULL) h_dim_off3[thread_off+j] = dim_offset3;
-              if (h_dim_off4 != NULL) h_dim_off4[thread_off+j] = dim_offset4;
-              j++;
-            }
-          }
-        }
-      }
+    for (int i = 0; i < count; i++) {
+      h_lo_off[thread_off+i] = temp[0][i];
+      if (h_dim_off1 != NULL) h_dim_off1[thread_off+i] = temp[1][i];
+      if (h_dim_off2 != NULL) h_dim_off2[thread_off+i] = temp[2][i];
+      if (h_dim_off3 != NULL) h_dim_off3[thread_off+i] = temp[3][i];
+      if (h_dim_off4 != NULL) h_dim_off4[thread_off+i] = temp[4][i];
     }
 
   });
@@ -1093,7 +833,6 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
   }
 }
 
-
 void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, int* dimkey_col4, int* aggr_col,
   int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
   int min_val1, int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4, 
@@ -1109,12 +848,12 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
       #pragma simd
       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
         int hash;
-        int slot;
+        long long slot;
         int dim_val1, dim_val2, dim_val3, dim_val4;
         if (dimkey_col1 != NULL) {
           hash = HASH_WM(dimkey_col1[start_index + i], dim_len1, min_key1);
-          slot = ht1[hash << 1];
-          dim_val1 = ht1[(hash << 1) + 1];
+          slot = reinterpret_cast<long long*>(ht1)[hash];
+          dim_val1 = slot >> 32;
         } else {
           slot = 1;
           dim_val1 = 0;
@@ -1122,8 +861,8 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
         if (slot != 0) {
           if (dimkey_col2 != NULL) {
             hash = HASH_WM(dimkey_col2[start_index + i], dim_len2, min_key2);
-            slot = ht2[hash << 1];
-            dim_val2 = ht2[(hash << 1) + 1];
+            slot = reinterpret_cast<long long*>(ht2)[hash];
+            dim_val2 = slot >> 32;
           } else {
             slot = 1;
             dim_val2 = 0;
@@ -1131,8 +870,8 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
           if (slot != 0) {
             if (dimkey_col3 != NULL) {
               hash = HASH_WM(dimkey_col3[start_index + i], dim_len3, min_key3);
-              slot = ht3[hash << 1];
-              dim_val3 = ht3[(hash << 1) + 1];
+              slot = reinterpret_cast<long long*>(ht3)[hash];
+              dim_val3 = slot >> 32;
             } else {
               slot = 1;
               dim_val3 = 0;
@@ -1140,8 +879,8 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
             if (slot != 0) {
               if (dimkey_col4 != NULL) {
                 hash = HASH_WM(dimkey_col4[start_index + i], dim_len4, min_key4);
-                slot = ht4[hash << 1];
-                dim_val4 = ht4[(hash << 1) + 1];
+                slot = reinterpret_cast<long long*>(ht4)[hash];
+                dim_val4 = slot >> 32;
               } else {
                 slot = 1;
                 dim_val4 = 0;
@@ -1162,12 +901,12 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
 
     for (int i = end_batch ; i < end; i++) {
       int hash;
-      int slot;
+      long long slot;
       int dim_val1, dim_val2, dim_val3, dim_val4;
       if (dimkey_col1 != NULL) {
         hash = HASH_WM(dimkey_col1[start_index + i], dim_len1, min_key1);
-        slot = ht1[hash << 1];
-        dim_val1 = ht1[(hash << 1) + 1];
+        slot = reinterpret_cast<long long*>(ht1)[hash];
+        dim_val1 = slot >> 32;
       } else {
         slot = 1;
         dim_val1 = 0;
@@ -1175,8 +914,8 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
       if (slot != 0) {
         if (dimkey_col2 != NULL) {
           hash = HASH_WM(dimkey_col2[start_index + i], dim_len2, min_key2);
-          slot = ht2[hash << 1];
-          dim_val2 = ht2[(hash << 1) + 1];
+          slot = reinterpret_cast<long long*>(ht2)[hash];
+          dim_val2 = slot >> 32;
         } else {
           slot = 1;
           dim_val2 = 0;
@@ -1184,8 +923,8 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
         if (slot != 0) {
           if (dimkey_col3 != NULL) {
             hash = HASH_WM(dimkey_col3[start_index + i], dim_len3, min_key3);
-            slot = ht3[hash << 1];
-            dim_val3 = ht3[(hash << 1) + 1];
+            slot = reinterpret_cast<long long*>(ht3)[hash];
+            dim_val3 = slot >> 32;
           } else {
             slot = 1;
             dim_val3 = 0;
@@ -1193,8 +932,8 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
           if (slot != 0) {
             if (dimkey_col4 != NULL) {
               hash = HASH_WM(dimkey_col4[start_index + i], dim_len4, min_key4);
-              slot = ht4[hash << 1];
-              dim_val4 = ht4[(hash << 1) + 1];
+              slot = reinterpret_cast<long long*>(ht4)[hash];
+              dim_val4 = slot >> 32;
             } else {
               slot = 1;
               dim_val4 = 0;
@@ -1206,6 +945,153 @@ void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, in
               res[hash * 6 + 2] = dim_val3;
               res[hash * 6 + 3] = dim_val4;
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggr_col[i + start_index]), __ATOMIC_RELAXED);
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+void probe_group_by_CPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
+  int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, int* dimkey_col4, int* aggr_col,
+  int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
+  int min_val1, int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4, 
+  int total_val, int min_key1, int min_key2, int min_key3, int min_key4, int fact_len, int start_index) {
+
+  // Probe
+  parallel_for(blocked_range<size_t>(0, fact_len, fact_len/NUM_THREADS + 4), [&](auto range) {
+    int start = range.begin();
+    int end = range.end();
+    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int hash;
+        long long slot;
+        int dim_val1, dim_val2, dim_val3, dim_val4;
+        int lo_offset = lo_off[start_index + i];
+        if (dim_off1 == NULL && dimkey_col1 != NULL) {
+          hash = HASH_WM(dimkey_col1[lo_offset], dim_len1, min_key1);
+          slot = reinterpret_cast<long long*>(ht1)[hash];
+          dim_val1 = slot >> 32;
+        } else if (dim_off1 != NULL && dimkey_col1 != NULL){
+          slot = 1;
+          dim_val1 = dimkey_col1[dim_off1[start_index + i]];
+        } else {
+          slot = 1;
+          dim_val1 = 0;
+        }
+        if (slot != 0) {
+          if (dim_off2 == NULL && dimkey_col2 != NULL) {
+            hash = HASH_WM(dimkey_col2[lo_offset], dim_len2, min_key2);
+            slot = reinterpret_cast<long long*>(ht2)[hash];
+            dim_val2 = slot >> 32;
+          } else if (dim_off2 != NULL && dimkey_col2 != NULL){
+            slot = 1;
+            dim_val2 = dimkey_col2[dim_off2[start_index + i]];
+          } else {
+            slot = 1;
+            dim_val2 = 0;
+          }
+          if (slot != 0) {
+            if (dim_off3 == NULL && dimkey_col3 != NULL) {
+              hash = HASH_WM(dimkey_col3[lo_offset], dim_len3, min_key3);
+              slot = reinterpret_cast<long long*>(ht3)[hash];
+              dim_val3 = slot >> 32;
+            } else if (dim_off3 != NULL && dimkey_col3 != NULL){
+              slot = 1;
+              dim_val3 = dimkey_col3[dim_off3[start_index + i]];
+            } else {
+              slot = 1;
+              dim_val3 = 0;
+            }
+            if (slot != 0) {
+              if (dim_off4 == NULL && dimkey_col4 != NULL) {
+                hash = HASH_WM(dimkey_col4[lo_offset], dim_len4, min_key4);
+                slot = reinterpret_cast<long long*>(ht4)[hash];
+                dim_val4 = slot >> 32;
+              } else if (dim_off4 != NULL && dimkey_col4 != NULL){
+                slot = 1;
+                dim_val4 = dimkey_col4[dim_off4[start_index + i]];
+              } else {
+                slot = 1;
+                dim_val4 = 0;
+              }
+              if (slot != 0) {
+                hash = ((dim_val1 - min_val1) * unique_val1 + (dim_val2 - min_val2) * unique_val2 +  (dim_val3 - min_val3) * unique_val3 + (dim_val4 - min_val4) * unique_val4) % total_val;
+                res[hash * 6] = dim_val1;
+                res[hash * 6 + 1] = dim_val2;
+                res[hash * 6 + 2] = dim_val3;
+                res[hash * 6 + 3] = dim_val4;
+                __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggr_col[lo_offset]), __ATOMIC_RELAXED);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    for (int i = end_batch ; i < end; i++) {
+      int hash;
+      long long slot;
+      int dim_val1, dim_val2, dim_val3, dim_val4;
+      int lo_offset = lo_off[start_index + i];
+      if (dim_off1 == NULL && dimkey_col1 != NULL) {
+        hash = HASH_WM(dimkey_col1[lo_offset], dim_len1, min_key1);
+        slot = reinterpret_cast<long long*>(ht1)[hash];
+        dim_val1 = slot >> 32;
+      } else if (dim_off1 != NULL && dimkey_col1 != NULL){
+        slot = 1;
+        dim_val1 = dimkey_col1[dim_off1[start_index + i]];
+      } else {
+        slot = 1;
+        dim_val1 = 0;
+      }
+      if (slot != 0) {
+        if (dim_off2 == NULL && dimkey_col2 != NULL) {
+          hash = HASH_WM(dimkey_col2[lo_offset], dim_len2, min_key2);
+          slot = reinterpret_cast<long long*>(ht2)[hash];
+          dim_val2 = slot >> 32;
+        } else if (dim_off2 != NULL && dimkey_col2 != NULL){
+          slot = 1;
+          dim_val2 = dimkey_col2[dim_off2[start_index + i]];
+        } else {
+          slot = 1;
+          dim_val2 = 0;
+        }
+        if (slot != 0) {
+          if (dim_off3 == NULL && dimkey_col3 != NULL) {
+            hash = HASH_WM(dimkey_col3[lo_offset], dim_len3, min_key3);
+            slot = reinterpret_cast<long long*>(ht3)[hash];
+            dim_val3 = slot >> 32;
+          } else if (dim_off3 != NULL && dimkey_col3 != NULL){
+            slot = 1;
+            dim_val3 = dimkey_col3[dim_off3[start_index + i]];
+          } else {
+            slot = 1;
+            dim_val3 = 0;
+          }
+          if (slot != 0) {
+            if (dim_off4 == NULL && dimkey_col4 != NULL) {
+              hash = HASH_WM(dimkey_col4[lo_offset], dim_len4, min_key4);
+              slot = reinterpret_cast<long long*>(ht4)[hash];
+              dim_val4 = slot >> 32;
+            } else if (dim_off4 != NULL && dimkey_col4 != NULL){
+              slot = 1;
+              dim_val4 = dimkey_col4[dim_off4[start_index + i]];
+            } else {
+              slot = 1;
+              dim_val4 = 0;
+            }
+            if (slot != 0) {
+              hash = ((dim_val1 - min_val1) * unique_val1 + (dim_val2 - min_val2) * unique_val2 +  (dim_val3 - min_val3) * unique_val3 + (dim_val4 - min_val4) * unique_val4) % total_val;
+              res[hash * 6] = dim_val1;
+              res[hash * 6 + 1] = dim_val2;
+              res[hash * 6 + 2] = dim_val3;
+              res[hash * 6 + 3] = dim_val4;
+              __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggr_col[lo_offset]), __ATOMIC_RELAXED);
             }
           }
         }
@@ -1278,13 +1164,13 @@ void build_filter_CPU(int *filter_col, int compare, int *dim_key, int* dim_val, 
 }
 
 __global__
-void runAggregationQ2GPU(int* gpuCache, int* lo_idx, int* p_idx, int* d_idx, int* d_t_table, int num_tuples, int* res, int num_slots) {
+void runAggregationQ2GPU(int* gpuCache, int* lo_idx, int* p_idx, int* d_idx, int* lo_off, int* part_off, int* date_off, int num_tuples, int* res, int num_slots) {
   int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
   if (offset < num_tuples) {
-    int revenue_idx = d_t_table[(offset * 6)];
-    int brand_idx = d_t_table[(offset * 6) + 1];
-    int year_idx = d_t_table[(offset * 6) + 3];
+    int revenue_idx = lo_off[offset];
+    int brand_idx = part_off[offset];
+    int year_idx = date_off[offset];
 
     int revenue_seg = lo_idx[revenue_idx / SEGMENT_SIZE];
     int brand_seg = p_idx[brand_idx / SEGMENT_SIZE];
@@ -1304,8 +1190,8 @@ void runAggregationQ2GPU(int* gpuCache, int* lo_idx, int* p_idx, int* d_idx, int
   }
 }
 
-void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* lo_off, int* part_off, int* date_off, int t_table_len, int* res, int num_slots) {
-  parallel_for(blocked_range<size_t>(0, t_table_len, t_table_len/NUM_THREADS + 4), [&](auto range) {
+void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* lo_off, int* part_off, int* date_off, int num_tuples, int* res, int num_slots) {
+  parallel_for(blocked_range<size_t>(0, num_tuples, num_tuples/NUM_THREADS + 4), [&](auto range) {
     int start = range.begin();
     int end = range.end();
     int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
@@ -1332,8 +1218,13 @@ void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* lo_of
   });
 }
 
-// void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* t_table, int t_table_len, int* res, int num_slots) {
-//   parallel_for(blocked_range<size_t>(0, t_table_len, t_table_len/NUM_THREADS + 4), [&](auto range) {
+// void probe_group_by_CPU(int* dimkey_col1, int* dimkey_col2, int* dimkey_col3, int* dimkey_col4, int* aggr_col,
+//   int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
+//   int min_val1, int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4, 
+//   int total_val, int min_key1, int min_key2, int min_key3, int min_key4, int start_index) {
+
+//   // Probe
+//   parallel_for(blocked_range<size_t>(0, fact_len, fact_len/NUM_THREADS + 4), [&](auto range) {
 //     int start = range.begin();
 //     int end = range.end();
 //     int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
@@ -1341,25 +1232,109 @@ void runAggregationQ2CPU(int* lo_revenue, int* p_brand1, int* d_year, int* lo_of
 //     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
 //       #pragma simd
 //       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
-//         if (t_table[i * 6] != 0) {
-//           int brand = p_brand1[t_table[(i * 6) + 1]];
-//           int year = d_year[t_table[(i * 6) + 3]];
-//           int hash = (brand * 7 + (year - 1992)) % num_slots;
-//           res[hash * 6 + 1] = brand;
-//           res[hash * 6 + 2] = year;
-//           __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(lo_revenue[t_table[i * 6]]), __ATOMIC_RELAXED);
+//         int hash;
+//         int slot;
+//         int dim_val1, dim_val2, dim_val3, dim_val4;
+//         if (dimkey_col1 != NULL) {
+//           hash = HASH_WM(dimkey_col1[start_index + i], dim_len1, min_key1);
+//           slot = ht1[hash << 1];
+//           dim_val1 = ht1[(hash << 1) + 1];
+//         } else {
+//           slot = 1;
+//           dim_val1 = 0;
+//         }
+//         if (slot != 0) {
+//           if (dimkey_col2 != NULL) {
+//             hash = HASH_WM(dimkey_col2[start_index + i], dim_len2, min_key2);
+//             slot = ht2[hash << 1];
+//             dim_val2 = ht2[(hash << 1) + 1];
+//           } else {
+//             slot = 1;
+//             dim_val2 = 0;
+//           }
+//           if (slot != 0) {
+//             if (dimkey_col3 != NULL) {
+//               hash = HASH_WM(dimkey_col3[start_index + i], dim_len3, min_key3);
+//               slot = ht3[hash << 1];
+//               dim_val3 = ht3[(hash << 1) + 1];
+//             } else {
+//               slot = 1;
+//               dim_val3 = 0;
+//             }
+//             if (slot != 0) {
+//               if (dimkey_col4 != NULL) {
+//                 hash = HASH_WM(dimkey_col4[start_index + i], dim_len4, min_key4);
+//                 slot = ht4[hash << 1];
+//                 dim_val4 = ht4[(hash << 1) + 1];
+//               } else {
+//                 slot = 1;
+//                 dim_val4 = 0;
+//               }
+//               if (slot != 0) {
+//                 hash = ((dim_val1 - min_val1) * unique_val1 + (dim_val2 - min_val2) * unique_val2 +  (dim_val3 - min_val3) * unique_val3 + (dim_val4 - min_val4) * unique_val4) % total_val;
+//                 res[hash * 6] = dim_val1;
+//                 res[hash * 6 + 1] = dim_val2;
+//                 res[hash * 6 + 2] = dim_val3;
+//                 res[hash * 6 + 3] = dim_val4;
+//                 __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggr_col[i + start_index]), __ATOMIC_RELAXED);
+//               }
+//             }
+//           }
 //         }
 //       }
 //     }
+
 //     for (int i = end_batch ; i < end; i++) {
-//       if (t_table[i * 6] != 0) {
-//         int brand = p_brand1[t_table[(i * 6) + 1]];
-//         int year = d_year[t_table[(i * 6) + 3]];
-//         int hash = (brand * 7 + (year - 1992)) % num_slots;
-//         res[hash * 6 + 1] = brand;
-//         res[hash * 6 + 2] = year;
-//         __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(lo_revenue[t_table[i * 6]]), __ATOMIC_RELAXED);
+//       int hash;
+//       int slot;
+//       int dim_val1, dim_val2, dim_val3, dim_val4;
+//       if (dimkey_col1 != NULL) {
+//         hash = HASH_WM(dimkey_col1[start_index + i], dim_len1, min_key1);
+//         slot = ht1[hash << 1];
+//         dim_val1 = ht1[(hash << 1) + 1];
+//       } else {
+//         slot = 1;
+//         dim_val1 = 0;
+//       }
+//       if (slot != 0) {
+//         if (dimkey_col2 != NULL) {
+//           hash = HASH_WM(dimkey_col2[start_index + i], dim_len2, min_key2);
+//           slot = ht2[hash << 1];
+//           dim_val2 = ht2[(hash << 1) + 1];
+//         } else {
+//           slot = 1;
+//           dim_val2 = 0;
+//         }
+//         if (slot != 0) {
+//           if (dimkey_col3 != NULL) {
+//             hash = HASH_WM(dimkey_col3[start_index + i], dim_len3, min_key3);
+//             slot = ht3[hash << 1];
+//             dim_val3 = ht3[(hash << 1) + 1];
+//           } else {
+//             slot = 1;
+//             dim_val3 = 0;
+//           }
+//           if (slot != 0) {
+//             if (dimkey_col4 != NULL) {
+//               hash = HASH_WM(dimkey_col4[start_index + i], dim_len4, min_key4);
+//               slot = ht4[hash << 1];
+//               dim_val4 = ht4[(hash << 1) + 1];
+//             } else {
+//               slot = 1;
+//               dim_val4 = 0;
+//             }
+//             if (slot != 0) {
+//               hash = ((dim_val1 - min_val1) * unique_val1 + (dim_val2 - min_val2) * unique_val2 +  (dim_val3 - min_val3) * unique_val3 + (dim_val4 - min_val4) * unique_val4) % total_val;
+//               res[hash * 6] = dim_val1;
+//               res[hash * 6 + 1] = dim_val2;
+//               res[hash * 6 + 2] = dim_val3;
+//               res[hash * 6 + 3] = dim_val4;
+//               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggr_col[i + start_index]), __ATOMIC_RELAXED);
+//             }
+//           }
+//         }
 //       }
 //     }
 //   });
+
 // }
