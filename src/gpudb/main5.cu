@@ -10,10 +10,10 @@ int main () {
 
 	CacheManager* cm = new CacheManager(1000000000, 25);
 
-	cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 6);
-	cm->cacheColumnSegmentInGPU(cm->lo_partkey, 6);
-	cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 6);
-	cm->cacheColumnSegmentInGPU(cm->lo_revenue, 6);
+	cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 60);
+	cm->cacheColumnSegmentInGPU(cm->lo_partkey, 60);
+	cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 60);
+	cm->cacheColumnSegmentInGPU(cm->lo_revenue, 60);
 	cm->cacheColumnSegmentInGPU(cm->d_datekey, 1);
 	cm->cacheColumnSegmentInGPU(cm->d_year, 1);
 	cm->cacheColumnSegmentInGPU(cm->p_partkey, 1);
@@ -36,8 +36,10 @@ int main () {
 
   for (int trial = 0; trial < 3; trial++) {
 
-    chrono::high_resolution_clock::time_point st, finish;
+    chrono::high_resolution_clock::time_point st, finish, bGPU1, bGPU2, pGPU1, pGPU2, tr1, tr2;
     st = chrono::high_resolution_clock::now();
+
+    bGPU1 = chrono::high_resolution_clock::now();
 
   	int d_val_len = 19981230 - 19920101 + 1;
 
@@ -83,6 +85,11 @@ int main () {
         build_GPU<<<(SEGMENT_SIZE + 127)/128, 128>>>(dim_key, dim_val, SEGMENT_SIZE, d_ht_d, d_val_len, 19920101, segment_number, 0);
     }
 
+    bGPU2 = chrono::high_resolution_clock::now();
+    std::chrono::duration<double> buildtimeGPU = bGPU2 - bGPU1;
+
+    pGPU1 = chrono::high_resolution_clock::now();
+
     int *d_res;
     int res_size = ((1998-1992+1) * (5 * 5 * 40));
     int res_array_size = res_size * 6;
@@ -90,7 +97,7 @@ int main () {
     g_allocator.DeviceAllocate((void**)&d_res, res_array_size * sizeof(int));
     cudaMemset(d_res, 0, res_array_size * sizeof(int));
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 60; i++) {
      	int tile_items = 128*4;
      	int idx_key1 = cm->segment_list[cm->lo_suppkey->column_id][i];
      	int idx_key2 = cm->segment_list[cm->lo_partkey->column_id][i];
@@ -102,14 +109,34 @@ int main () {
       int* dim_key3 = cm->gpuCache + idx_key3 * SEGMENT_SIZE;
       int* aggr = cm->gpuCache + idx_aggr * SEGMENT_SIZE;
 
-    	probe_group_by_GPU<128,4><<<(SEGMENT_SIZE + tile_items - 1)/tile_items, 128>>>
-      (dim_key1, dim_key2, dim_key3, NULL, aggr, 
-  			SEGMENT_SIZE, d_ht_s, S_LEN, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, d_res,
-  			0, 1, 0, 7, 1992, 1, 0, 0, res_size, 0, 0, 19920101, 0);
+      if (i == 59) {
+
+        probe_group_by_GPU<128,4><<<((LO_LEN % SEGMENT_SIZE) + tile_items - 1)/tile_items, 128>>>
+          (dim_key1, dim_key2, dim_key3, NULL, aggr, 
+            (LO_LEN % SEGMENT_SIZE), d_ht_s, S_LEN, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, d_res,
+            0, 1, 0, 7, 1992, 1, 0, 0, res_size, 0, 0, 19920101, 0);
+
+      } else {
+
+        probe_group_by_GPU<128,4><<<(SEGMENT_SIZE + tile_items - 1)/tile_items, 128>>>
+        (dim_key1, dim_key2, dim_key3, NULL, aggr, 
+          SEGMENT_SIZE, d_ht_s, S_LEN, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, d_res,
+          0, 1, 0, 7, 1992, 1, 0, 0, res_size, 0, 0, 19920101, 0);
+
+      }
     }
+
+    pGPU2 = chrono::high_resolution_clock::now();
+    std::chrono::duration<double> probetimeGPU = pGPU2 - pGPU1;
+
+    tr1 = chrono::high_resolution_clock::now();
+
     int* res = new int[res_array_size];
     memset(res, 0, res_array_size * sizeof(int));
     cudaMemcpy(res, d_res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost);
+
+    tr2 = chrono::high_resolution_clock::now();
+    std::chrono::duration<double> transfertime = tr2 - tr1;
 
     finish = chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = finish - st;
@@ -125,6 +152,9 @@ int main () {
 
     cout << "Res Count: " << res_count << endl;
     cout << "Time Taken Total: " << diff.count() * 1000 << endl;
+    cout << "Build GPU Time Taken Total: " << buildtimeGPU.count() * 1000 << endl;
+    cout << "Probe GPU Time Taken Total: " << probetimeGPU.count() * 1000 << endl;
+    cout << "Transfer Time Taken Total: " << transfertime.count() * 1000 << endl;
 
     delete res;
 

@@ -7,13 +7,13 @@
 
 using namespace std;
 
-#define SF 1
+#define SF 10
 
 #define BASE_PATH "/home/cc/Implementation-GPUDB/test/ssb/data/"
 
 #if SF == 1
 #define DATA_DIR BASE_PATH "s1_columnar/"
-#define LO_LEN 6000000
+#define LO_LEN 6001171
 #define P_LEN 200000
 #define S_LEN 2000
 #define C_LEN 30000

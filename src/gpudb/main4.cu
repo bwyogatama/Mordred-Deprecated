@@ -10,10 +10,10 @@ int main () {
 
 	CacheManager* cm = new CacheManager(1000000000, 25);
 
-	cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 6);
-	cm->cacheColumnSegmentInGPU(cm->lo_partkey, 6);
-	cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 6);
-	cm->cacheColumnSegmentInGPU(cm->lo_revenue, 6);
+	cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 60);
+	cm->cacheColumnSegmentInGPU(cm->lo_partkey, 60);
+	cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 60);
+	cm->cacheColumnSegmentInGPU(cm->lo_revenue, 60);
 	cm->cacheColumnSegmentInGPU(cm->d_datekey, 1);
 	cm->cacheColumnSegmentInGPU(cm->d_year, 1);
 	cm->cacheColumnSegmentInGPU(cm->p_partkey, 1);
@@ -36,8 +36,10 @@ int main () {
 
   for (int trial = 0; trial < 3; trial++) {
 
-    chrono::high_resolution_clock::time_point st, finish;
+    chrono::high_resolution_clock::time_point st, finish, bCPU1, bCPU2, pCPU1, pCPU2;
     st = chrono::high_resolution_clock::now();
+
+    bCPU1 = chrono::high_resolution_clock::now();
 
   	int d_val_len = 19981230 - 19920101 + 1;
 
@@ -55,8 +57,8 @@ int main () {
     int* res = new int[res_array_size];
     memset(res, 0, res_array_size * sizeof(int));
 
-    int start_index = 0;
-    int CPU_len = 6000000;
+    int start_index = 40000000;
+    int CPU_len = 19986214;
 
     build_filter_CPU(cm->h_s_region, 1, cm->h_s_suppkey, NULL, S_LEN, h_ht_s, S_LEN, 0, 2);
 
@@ -64,10 +66,18 @@ int main () {
 
     build_CPU(cm->h_d_datekey, cm->h_d_year, D_LEN, h_ht_d, d_val_len, 19920101, 0);
 
+    bCPU2 = chrono::high_resolution_clock::now();
+    std::chrono::duration<double> buildtimeCPU = bCPU2 - bCPU1;
+
+    pCPU1 = chrono::high_resolution_clock::now();
+
     probe_group_by_CPU(cm->h_lo_suppkey, cm->h_lo_partkey, cm->h_lo_orderdate, NULL, cm->h_lo_revenue,
       CPU_len, h_ht_s, S_LEN, h_ht_p, P_LEN, h_ht_d, d_val_len, NULL, 0, res,
       0, 0, 0, 7, 1992, 1, 0, 0, res_size,
       0, 0, 19920101, 0, start_index);
+
+    pCPU2 = chrono::high_resolution_clock::now();
+    std::chrono::duration<double> probetimeCPU = pCPU2 - pCPU1;
 
     finish = chrono::high_resolution_clock::now();
     std::chrono::duration<double> diff = finish - st;
@@ -83,6 +93,8 @@ int main () {
 
     cout << "Res Count: " << res_count << endl;
     cout << "Time Taken Total: " << diff.count() * 1000 << endl;
+    cout << "Build CPU Time Taken Total: " << buildtimeCPU.count() * 1000 << endl;
+    cout << "Probe CPU Time Taken Total: " << probetimeCPU.count() * 1000 << endl;
 
     delete h_ht_p;
     delete h_ht_s;

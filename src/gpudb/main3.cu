@@ -9,10 +9,10 @@ int main () {
 
   CacheManager* cm = new CacheManager(1000000000, 25);
 
-  cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 6);
-  cm->cacheColumnSegmentInGPU(cm->lo_partkey, 6);
-  cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 6);
-  cm->cacheColumnSegmentInGPU(cm->lo_revenue, 6);
+  cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 60);
+  cm->cacheColumnSegmentInGPU(cm->lo_partkey, 60);
+  cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 60);
+  cm->cacheColumnSegmentInGPU(cm->lo_revenue, 60);
   cm->cacheColumnSegmentInGPU(cm->d_datekey, 1);
   cm->cacheColumnSegmentInGPU(cm->d_year, 1);
   cm->cacheColumnSegmentInGPU(cm->p_partkey, 1);
@@ -85,10 +85,10 @@ int main () {
     // int *h_date_off = new int[LO_LEN];
 
     int *d_lo_off, *d_supp_off, *d_part_off, *d_date_off;
-    g_allocator.DeviceAllocate((void**)&d_lo_off, LO_LEN * sizeof(int));
-    g_allocator.DeviceAllocate((void**)&d_supp_off, LO_LEN * sizeof(int));
-    g_allocator.DeviceAllocate((void**)&d_part_off, LO_LEN * sizeof(int));
-    g_allocator.DeviceAllocate((void**)&d_date_off, LO_LEN * sizeof(int));
+    g_allocator.DeviceAllocate((void**)&d_lo_off, 13000000 * sizeof(int));
+    g_allocator.DeviceAllocate((void**)&d_supp_off, 13000000 * sizeof(int));
+    //g_allocator.DeviceAllocate((void**)&d_part_off, 13000000 * sizeof(int));
+    g_allocator.DeviceAllocate((void**)&d_date_off, 13000000 * sizeof(int));
 
     int *d_res;
     int res_size = ((1998-1992+1) * (5 * 5 * 40));
@@ -107,7 +107,7 @@ int main () {
     cudaMalloc((void **)&total, sizeof(int));
     cudaMemset(total, 0, sizeof(int));
 
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 60; i++) {
 
       start_index = h_total;
 
@@ -119,33 +119,44 @@ int main () {
       int* dim_key1 = cm->gpuCache + idx_key1 * SEGMENT_SIZE;
       int* dim_key2 = cm->gpuCache + idx_key2 * SEGMENT_SIZE;
 
-      probe_GPU<128,4><<<(SEGMENT_SIZE + tile_items - 1)/tile_items, 128>>> 
-      (dim_key1, dim_key2, NULL, NULL,
-        d_ht_s, S_LEN, d_ht_d, d_val_len, NULL, 0, NULL, 0, 0, 19920101, 0, 0, 
-        d_lo_off, d_supp_off, d_date_off, NULL, NULL,
-        SEGMENT_SIZE, total, start_offset);
+      if (i == 59) {
 
-      // cudaMemcpy(&h_total, total, sizeof(int), cudaMemcpyDeviceToHost);
+        probe_GPU<128,4><<<((LO_LEN % SEGMENT_SIZE) + tile_items - 1)/tile_items, 128>>> 
+        (dim_key1, dim_key2, NULL, NULL,
+          d_ht_s, S_LEN, d_ht_d, d_val_len, NULL, 0, NULL, 0, 0, 19920101, 0, 0, 
+          d_lo_off, d_supp_off, d_date_off, NULL, NULL,
+          (LO_LEN % SEGMENT_SIZE), total, start_offset);
 
-      // printf("h_total = %d\n", h_total);
+      } else {
 
-      // cudaMemcpy(lo_off + start_index, d_lo_off + start_index , (h_total - start_index) * sizeof(int), cudaMemcpyDeviceToHost);
-      // cudaMemcpy(supp_off + start_index, d_supp_off + start_index , (h_total - start_index) * sizeof(int), cudaMemcpyDeviceToHost);
-      // cudaMemcpy(date_off + start_index, d_date_off + start_index , (h_total - start_index) * sizeof(int), cudaMemcpyDeviceToHost);
+        probe_GPU<128,4><<<(SEGMENT_SIZE + tile_items - 1)/tile_items, 128>>> 
+        (dim_key1, dim_key2, NULL, NULL,
+          d_ht_s, S_LEN, d_ht_d, d_val_len, NULL, 0, NULL, 0, 0, 19920101, 0, 0, 
+          d_lo_off, d_supp_off, d_date_off, NULL, NULL,
+          SEGMENT_SIZE, total, start_offset);
 
-      // probe_CPU(lo_off, supp_off, date_off, NULL, NULL,
-      //   NULL, NULL, cm->h_lo_partkey, NULL,
-      //   NULL, 0, NULL, 0, h_ht_p, P_LEN, NULL, 0,
-      //   0, 0, 0, 0,
-      //   h_lo_off, h_supp_off, h_date_off, h_part_off, NULL, 
-      //   (h_total - start_index), start_index, &offset);
+        // cudaMemcpy(&h_total, total, sizeof(int), cudaMemcpyDeviceToHost);
 
-      // probe_group_by_CPU2(lo_off, supp_off, NULL, date_off, NULL,
-      //   NULL, cm->h_lo_partkey, cm->h_d_year, NULL, cm->h_lo_revenue,
-      //   NULL, 0, h_ht_p, P_LEN, NULL, 0, NULL, 0, res,
-      //   0, 0, 0, 7, 1992, 1, 0, 0, res_size,
-      //   0, 0, 19920101, 0,
-      //   (h_total - start_index), start_index);
+        // printf("h_total = %d\n", h_total);
+
+        // cudaMemcpy(lo_off + start_index, d_lo_off + start_index , (h_total - start_index) * sizeof(int), cudaMemcpyDeviceToHost);
+        // cudaMemcpy(supp_off + start_index, d_supp_off + start_index , (h_total - start_index) * sizeof(int), cudaMemcpyDeviceToHost);
+        // cudaMemcpy(date_off + start_index, d_date_off + start_index , (h_total - start_index) * sizeof(int), cudaMemcpyDeviceToHost);
+
+        // probe_CPU(lo_off, supp_off, date_off, NULL, NULL,
+        //   NULL, NULL, cm->h_lo_partkey, NULL,
+        //   NULL, 0, NULL, 0, h_ht_p, P_LEN, NULL, 0,
+        //   0, 0, 0, 0,
+        //   h_lo_off, h_supp_off, h_date_off, h_part_off, NULL, 
+        //   (h_total - start_index), start_index, &offset);
+
+        // probe_group_by_CPU2(lo_off, supp_off, NULL, date_off, NULL,
+        //   NULL, cm->h_lo_partkey, cm->h_d_year, NULL, cm->h_lo_revenue,
+        //   NULL, 0, h_ht_p, P_LEN, NULL, 0, NULL, 0, res,
+        //   0, 0, 0, 7, 1992, 1, 0, 0, res_size,
+        //   0, 0, 19920101, 0,
+        //   (h_total - start_index), start_index);
+      }
     }
 
     cudaMemcpy(&h_total, total, sizeof(int), cudaMemcpyDeviceToHost);
