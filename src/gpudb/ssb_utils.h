@@ -7,7 +7,7 @@
 
 using namespace std;
 
-#define SF 10
+#define SF 1
 
 #define BASE_PATH "/home/cc/Implementation-GPUDB/test/ssb/data/"
 
@@ -36,7 +36,7 @@ using namespace std;
 
 #define BATCH_SIZE 128
 #define NUM_THREADS 48
-#define SEGMENT_SIZE 1000000
+#define SEGMENT_SIZE 1000
 
 int index_of(string* arr, int len, string val) {
   for (int i=0; i<len; i++)

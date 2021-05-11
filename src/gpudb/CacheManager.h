@@ -452,7 +452,6 @@ CacheManager::updateColumnInGPU() {
 			deleteColumnSegmentInGPU(column, column->tot_seg_in_GPU - temp);
 		}
 	}
-	//sendMetadata();
 }
 
 void

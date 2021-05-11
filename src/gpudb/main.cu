@@ -6,21 +6,25 @@
 bool g_verbose = false;  // Whether to display input/output to console
 cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
 
+__global__ void print_kernel() {
+    printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
+}
+
 int main () {
 
 	CacheManager* cm = new CacheManager(1000000000, 25);
 
-  cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 60);
-  cm->cacheColumnSegmentInGPU(cm->lo_partkey, 60);
-  cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 60);
-  cm->cacheColumnSegmentInGPU(cm->lo_revenue, 60);
-  cm->cacheColumnSegmentInGPU(cm->d_datekey, 1);
-  cm->cacheColumnSegmentInGPU(cm->d_year, 1);
-  cm->cacheColumnSegmentInGPU(cm->p_partkey, 1);
-  cm->cacheColumnSegmentInGPU(cm->p_category, 1);
-  cm->cacheColumnSegmentInGPU(cm->p_brand1, 1);
-  cm->cacheColumnSegmentInGPU(cm->s_suppkey, 1);
-  cm->cacheColumnSegmentInGPU(cm->s_region, 1);
+  cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 6000);
+  cm->cacheColumnSegmentInGPU(cm->lo_partkey, 6000);
+  cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 6000);
+  cm->cacheColumnSegmentInGPU(cm->lo_revenue, 6000);
+  cm->cacheColumnSegmentInGPU(cm->d_datekey, 3);
+  cm->cacheColumnSegmentInGPU(cm->d_year, 3);
+  cm->cacheColumnSegmentInGPU(cm->p_partkey, 200);
+  cm->cacheColumnSegmentInGPU(cm->p_category, 200);
+  cm->cacheColumnSegmentInGPU(cm->p_brand1, 200);
+  cm->cacheColumnSegmentInGPU(cm->s_suppkey, 2);
+  cm->cacheColumnSegmentInGPU(cm->s_region, 2);
 
   cm->constructListSegmentInGPU(cm->s_suppkey);
   cm->constructListSegmentInGPU(cm->s_region);
@@ -71,17 +75,17 @@ int main () {
   	cudaMemset(d_ht_p, 0, 2 * P_LEN * sizeof(int));
   	cudaMemset(d_ht_s, 0, 2 * S_LEN * sizeof(int));
 
-  	for (int i = 0; i < 1; i++) {
+  	for (int i = 0; i < 2; i++) {
   		int idx_key = cm->segment_list[cm->s_suppkey->column_id][i];
   		int idx_filter = cm->segment_list[cm->s_region->column_id][i];
       int* dim_key = cm->gpuCache + idx_key * SEGMENT_SIZE;
       int* filter_col = cm->gpuCache + idx_filter * SEGMENT_SIZE;
       int segment_number = i;
-  		build_filter_GPU<<<((S_LEN % SEGMENT_SIZE) + 127)/128, 128>>>(filter_col, 1, dim_key, NULL, S_LEN % SEGMENT_SIZE, d_ht_s, S_LEN, 0, segment_number, 2);
-      //build_filter_GPU<<<(SEGMENT_SIZE + 127)/128, 128>>>(filter_col, 1, dim_key, NULL, SEGMENT_SIZE, d_ht_s, S_LEN, 0, segment_number, 2);
+  		//build_filter_GPU<<<((S_LEN % SEGMENT_SIZE) + 127)/128, 128>>>(filter_col, 1, dim_key, NULL, S_LEN % SEGMENT_SIZE, d_ht_s, S_LEN, 0, segment_number, 2);
+      build_filter_GPU<<<(SEGMENT_SIZE + 127)/128, 128>>>(filter_col, 1, dim_key, NULL, SEGMENT_SIZE, d_ht_s, S_LEN, 0, segment_number, 2);
   	}
 
-  	for (int i = 0; i < 1; i++) {
+  	for (int i = 0; i < 200; i++) {
   		int idx_key = cm->segment_list[cm->p_partkey->column_id][i];
   		int idx_filter = cm->segment_list[cm->p_category->column_id][i];
   		int idx_value = cm->segment_list[cm->p_brand1->column_id][i];
@@ -89,16 +93,17 @@ int main () {
       int* dim_key = cm->gpuCache + idx_key * SEGMENT_SIZE;
       int* dim_val = cm->gpuCache + idx_value * SEGMENT_SIZE;
       int segment_number = i;
-  		build_filter_GPU<<<((P_LEN % SEGMENT_SIZE) + 127)/128, 128>>>(filter_col, 1, dim_key, dim_val, P_LEN % SEGMENT_SIZE, d_ht_p, P_LEN, 0, segment_number, 0);
+  		//build_filter_GPU<<<((P_LEN % SEGMENT_SIZE) + 127)/128, 128>>>(filter_col, 1, dim_key, dim_val, P_LEN % SEGMENT_SIZE, d_ht_p, P_LEN, 0, segment_number, 0);
+      build_filter_GPU<<<(SEGMENT_SIZE + 127)/128, 128>>>(filter_col, 1, dim_key, dim_val, SEGMENT_SIZE, d_ht_p, P_LEN, 0, segment_number, 0);
   	}
 
-  	for (int i = 0; i < 1; i++) {
+  	for (int i = 0; i < 3; i++) {
   		int idx_key = cm->segment_list[cm->d_datekey->column_id][i];
   		int idx_value = cm->segment_list[cm->d_year->column_id][i];
       int* dim_key = cm->gpuCache + idx_key * SEGMENT_SIZE;
       int* dim_val = cm->gpuCache + idx_value * SEGMENT_SIZE;
       int segment_number = i;
-      if (i == 0)
+      if (i == 2)
         build_GPU<<<((D_LEN % SEGMENT_SIZE) + 127)/128, 128>>>(dim_key, dim_val, D_LEN % SEGMENT_SIZE, d_ht_d, d_val_len, 19920101, segment_number, 0);
       else
         build_GPU<<<(SEGMENT_SIZE + 127)/128, 128>>>(dim_key, dim_val, SEGMENT_SIZE, d_ht_d, d_val_len, 19920101, segment_number, 0);
@@ -119,7 +124,7 @@ int main () {
     g_allocator.DeviceAllocate((void**)&d_res, res_array_size * sizeof(int));
     cudaMemset(d_res, 0, res_array_size * sizeof(int));
 
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 6000; i++) {
      	int tile_items = 128*4;
      	int idx_key1 = cm->segment_list[cm->lo_suppkey->column_id][i];
      	int idx_key2 = cm->segment_list[cm->lo_partkey->column_id][i];
@@ -149,8 +154,11 @@ int main () {
 
     pCPU1 = chrono::high_resolution_clock::now();
 
-    int start_index = 40000000;
-    int CPU_len = 19986214;
+    // int start_index = 40000000;
+    // int CPU_len = 19986214;
+
+    int start_index = 0;
+    int CPU_len = 0;
 
     probe_group_by_CPU(cm->h_lo_suppkey, cm->h_lo_partkey, cm->h_lo_orderdate, NULL, cm->h_lo_revenue,
       CPU_len, h_ht_s, S_LEN, h_ht_p, P_LEN, h_ht_d, d_val_len, NULL, 0, res,
