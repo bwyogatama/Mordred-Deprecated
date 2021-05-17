@@ -197,6 +197,12 @@ public:
 
 	void updateColumnInGPU();
 
+	void updateColumnFrequency(ColumnInfo* column);
+
+	void updateQueryFrequency(ColumnInfo* column, int freq);
+
+	void updateColumnTimestamp(ColumnInfo* column, double timestamp);
+
 	void weightAdjustment();
 
 	void loadColumnToCPU();
@@ -435,6 +441,23 @@ CacheManager::updateColumnWeight() {
 }
 
 void
+CacheManager::updateColumnFrequency(ColumnInfo* column) {
+	column->stats->col_freq++;
+}
+
+void
+CacheManager::updateQueryFrequency(ColumnInfo* column, int freq) {
+	if (freq > column->stats->query_freq) {
+		column->stats->query_freq = freq;
+	}
+}
+
+void
+CacheManager::updateColumnTimestamp(ColumnInfo* column, double timestamp) {
+	column->stats->timestamp = timestamp;
+}
+
+void
 CacheManager::updateColumnInGPU() {
 	int sum = 0;
 	for (int i = 0; i < TOT_COLUMN; i++) {
@@ -532,6 +555,7 @@ CacheManager::loadColumnToCPU() {
 	h_d_datekey = loadColumn<int>("d_datekey", D_LEN);
 	h_d_year = loadColumn<int>("d_year", D_LEN);
 	h_d_yearmonthnum = loadColumn<int>("d_yearmonthnum", D_LEN);
+
 
 	lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, h_lo_orderkey);
 	lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 1, h_lo_orderdate);

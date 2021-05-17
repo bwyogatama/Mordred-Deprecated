@@ -9,6 +9,13 @@ class ColumnInfo;
 class QueryOptimizer {
 public:
 	CacheManager* cm;
+
+	vector<ColumnInfo*> querySelectColumn;
+	vector<ColumnInfo*> queryBuildColumn;
+	vector<ColumnInfo*> queryProbeColumn;
+	vector<ColumnInfo*> queryGroupByColumn;
+	vector<ColumnInfo*> queryAggrColumn;
+
 	vector<vector<ColumnInfo*>> join;
 	unordered_map<ColumnInfo*, vector<ColumnInfo*>> groupby_probe;
 	unordered_map<ColumnInfo*, vector<ColumnInfo*>> groupby_hash;
@@ -34,7 +41,6 @@ public:
 	map<ColumnInfo*, pair<int, int>> transfer;
 
 	QueryOptimizer();
-	int generate_rand_query();
 	void parseQuery(int query);
 	void parseQuery11();
 	void parseQuery21();
@@ -55,11 +61,6 @@ QueryOptimizer::QueryOptimizer() {
 	cm = new CacheManager(1000000000, 25);
 }
 
-int 
-QueryOptimizer::generate_rand_query() {
-	return rand() % 4;
-}
-
 void 
 QueryOptimizer::parseQuery(int query) {
 	if (query == 0) parseQuery11();
@@ -70,6 +71,12 @@ QueryOptimizer::parseQuery(int query) {
 
 void
 QueryOptimizer::clearVector() {
+	querySelectColumn.clear();
+	queryBuildColumn.clear();
+	queryProbeColumn.clear();
+	queryGroupByColumn.clear();
+	queryAggrColumn.clear();
+
 	join.clear();
 	groupby_probe.clear();
 	groupby_hash.clear();
@@ -94,8 +101,33 @@ QueryOptimizer::clearVector() {
 }
 
 void 
+QueryOptimizer::parseQuery11() {
+	querySelectColumn.push_back(cm->lo_discount);
+	querySelectColumn.push_back(cm->lo_quantity);
+	querySelectColumn.push_back(cm->d_year);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->p_brand1);
+	queryAggrColumn.push_back(cm->lo_extendedprice);
+	queryAggrColumn.push_back(cm->lo_discount);
+}
+
+void 
 QueryOptimizer::parseQuery21() {
-	clearVector();
+	// clearVector();
+
+	querySelectColumn.push_back(cm->p_category);
+	querySelectColumn.push_back(cm->s_region);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->p_partkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_partkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->p_brand1);
+	queryAggrColumn.push_back(cm->lo_revenue);
 
 	join[0].push_back(cm->lo_suppkey);
 	join[0].push_back(cm->s_suppkey);
@@ -111,9 +143,46 @@ QueryOptimizer::parseQuery21() {
 	groupby_hash[cm->p_partkey].push_back(cm->p_brand1);
 	groupby_hash[cm->d_datekey].push_back(cm->d_year);
 
-	patching();
-	latematerializationflex();
+	// patching();
+	// latematerializationflex();
 }
+
+void 
+QueryOptimizer::parseQuery31() {
+	querySelectColumn.push_back(cm->d_year);
+	querySelectColumn.push_back(cm->c_region);
+	querySelectColumn.push_back(cm->s_region);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->c_custkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_custkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->c_nation);
+	queryGroupByColumn.push_back(cm->s_nation);
+	queryAggrColumn.push_back(cm->lo_revenue);
+}
+
+void 
+QueryOptimizer::parseQuery41() {
+	querySelectColumn.push_back(cm->p_mfgr);
+	querySelectColumn.push_back(cm->c_region);
+	querySelectColumn.push_back(cm->s_region);
+	queryBuildColumn.push_back(cm->p_partkey);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->c_custkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_partkey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_custkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->c_nation);
+	queryAggrColumn.push_back(cm->lo_supplycost);
+	queryAggrColumn.push_back(cm->lo_revenue);
+}
+
 
 void 
 QueryOptimizer::latematerialization() {
@@ -460,22 +529,6 @@ QueryOptimizer::patching() {
 		}
 	}
 }
-
-void 
-QueryOptimizer::parseQuery11() {
-
-}
-
-void 
-QueryOptimizer::parseQuery31() {
-
-}
-
-void 
-QueryOptimizer::parseQuery41() {
-
-}
-
 #endif
 
 	/*selectGPUpipelineCol.resize(select_probe.size()+1);

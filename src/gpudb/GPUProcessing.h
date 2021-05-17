@@ -342,7 +342,7 @@ __global__ void probe_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_GPU2(
   int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
-  int* gpuCache, int* lo_idx, int* dimkey_idx1, int* dimkey_idx2, int* dimkey_idx3, int* dimkey_idx4, int* aggr_idx,
+  int* gpuCache, int* dimkey_idx1, int* dimkey_idx2, int* dimkey_idx3, int* dimkey_idx4, int* aggr_idx,
   int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
   int min_key1, int min_key2, int min_key3, int min_key4,
   int* out_lo_off, int* out_dim_off1, int* out_dim_off2, int* out_dim_off3, int* out_dim_off4, 
@@ -403,15 +403,16 @@ __global__ void probe_GPU2(
     // Barrier for smem reuse
     __syncthreads();
 
-    if (lo_off == NULL) {
-      int dimkey_seg1 = dimkey_idx1[segment_index];
-      int* ptr = gpuCache + dimkey_seg1 * SEGMENT_SIZE;
-      BlockLoadInt(temp_storage.load_items).Load(ptr + segment_tile_offset, items);
-      // Barrier for smem reuse
-      __syncthreads();
-    }
-
     if (dimkey_idx1 != NULL && dim_off1 == NULL) {
+
+      if (lo_off == NULL) {
+        int dimkey_seg1 = dimkey_idx1[segment_index];
+        int* ptr = gpuCache + dimkey_seg1 * SEGMENT_SIZE;
+        BlockLoadInt(temp_storage.load_items).Load(ptr + segment_tile_offset, items);
+        // Barrier for smem reuse
+        __syncthreads();
+      }
+
       #pragma unroll
       for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
       {
@@ -604,15 +605,16 @@ __global__ void probe_GPU2(
     // Barrier for smem reuse
     __syncthreads();
 
-    if (lo_off == NULL) {
-      int dimkey_seg1 = dimkey_idx1[segment_index];
-      int* ptr = gpuCache + dimkey_seg1 * SEGMENT_SIZE;
-      BlockLoadInt(temp_storage.load_items).Load(ptr + segment_tile_offset, items, num_tile_items);
-      // Barrier for smem reuse
-      __syncthreads();
-    }
-
     if (dimkey_idx1 != NULL && dim_off1 == NULL) {
+
+      if (lo_off == NULL) {
+        int dimkey_seg1 = dimkey_idx1[segment_index];
+        int* ptr = gpuCache + dimkey_seg1 * SEGMENT_SIZE;
+        BlockLoadInt(temp_storage.load_items).Load(ptr + segment_tile_offset, items, num_tile_items);
+        // Barrier for smem reuse
+        __syncthreads();
+      }
+
       #pragma unroll
       for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
       {
@@ -1195,7 +1197,7 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
-  int* gpuCache, int* lo_idx, int* dimkey_idx1, int* dimkey_idx2, int* dimkey_idx3, int* dimkey_idx4, int* aggr_idx,
+  int* gpuCache, int* dimkey_idx1, int* dimkey_idx2, int* dimkey_idx3, int* dimkey_idx4, int* aggr_idx,
   int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
   int min_val1,int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4,
   int total_val, int min_key1, int min_key2, int min_key3, int min_key4) {
@@ -1471,7 +1473,7 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
 
     __syncthreads();
 
-    if (lo_off == NULL) {
+    if (lo_off == NULL && aggr_idx != NULL) {
       int aggr_seg = aggr_idx[segment_index];
       int* ptr = gpuCache + aggr_seg * SEGMENT_SIZE;
       BlockLoadInt(temp_storage.load_items).Load(ptr + segment_tile_offset, aggrval);
@@ -1481,7 +1483,7 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
 
     #pragma unroll
     for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
-      if (lo_off != NULL) {
+      if (lo_off != NULL && aggr_idx != NULL) {
         int aggr_seg = aggr_idx[items_lo[ITEM] / SEGMENT_SIZE];
         aggrval[ITEM] = gpuCache[aggr_seg * SEGMENT_SIZE + (items_lo[ITEM] % SEGMENT_SIZE)];
       }
@@ -1504,9 +1506,6 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
     __syncthreads();
 
     if (dim_off1 == NULL && dimkey_idx1 != NULL) { //normal operation, here dimkey_idx will be lo_partkey, lo_suppkey, etc (the join key column)
-
-      // Barrier for smem reuse
-      __syncthreads();
 
       if (lo_off == NULL) {
         int dimkey_seg1 = dimkey_idx1[segment_index];
@@ -1753,7 +1752,7 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
 
     __syncthreads();
 
-    if (lo_off == NULL) {
+    if (lo_off == NULL && aggr_idx != NULL) {
       int aggr_seg = aggr_idx[segment_index];
       int* ptr = gpuCache + aggr_seg * SEGMENT_SIZE;
       BlockLoadInt(temp_storage.load_items).Load(ptr + segment_tile_offset, aggrval, num_tile_items);
@@ -1764,7 +1763,7 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
     #pragma unroll
     for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
       if (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items) {
-        if (lo_off != NULL) {
+        if (lo_off != NULL && aggr_idx != NULL) {
           int aggr_seg = aggr_idx[items_lo[ITEM] / SEGMENT_SIZE];
           aggrval[ITEM] = gpuCache[aggr_seg * SEGMENT_SIZE + (items_lo[ITEM] % SEGMENT_SIZE)];
         }

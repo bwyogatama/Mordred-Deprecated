@@ -141,47 +141,47 @@ int main () {
 
         probe_GPU<128,4><<<((LO_LEN % SEGMENT_SIZE) + tile_items - 1)/tile_items, 128>>> 
         (dim_key1, dim_key2, NULL, NULL,
-          d_ht_s, S_LEN, d_ht_p, P_LEN, NULL, 0, NULL, 0, 
+          (LO_LEN % SEGMENT_SIZE), d_ht_s, S_LEN, d_ht_p, P_LEN, NULL, 0, NULL, 0, 
           0, 0, 0, 0, 
           d_lo_off, d_supp_off, d_part_off, NULL, NULL,
-          (LO_LEN % SEGMENT_SIZE), total, start_offset);
+          total, start_offset);
 
         // probe_GPU<128,4><<<((LO_LEN % SEGMENT_SIZE) + tile_items - 1)/tile_items, 128>>> 
         // (dim_key1, NULL, dim_key3, NULL,
-        //   d_ht_s, S_LEN, NULL, 0, d_ht_d, d_val_len, NULL, 0, 
+        //   (LO_LEN % SEGMENT_SIZE), d_ht_s, S_LEN, NULL, 0, d_ht_d, d_val_len, NULL, 0, 
         //   0, 0, 19920101, 0, 
         //   d_lo_off, d_supp_off, NULL, d_date_off, NULL,
-        //   (LO_LEN % SEGMENT_SIZE), total, start_offset);
+        //   total, start_offset);
 
         // probe_GPU<128,4><<<((LO_LEN % SEGMENT_SIZE) + tile_items - 1)/tile_items, 128>>> 
         // (NULL, dim_key2, dim_key3, NULL,
-        //   NULL, 0, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, 
+        //   (LO_LEN % SEGMENT_SIZE), NULL, 0, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, 
         //   0, 0, 19920101, 0, 
         //   d_lo_off, NULL, d_part_off, d_date_off, NULL,
-        //   (LO_LEN % SEGMENT_SIZE), total, start_offset);
+        //   total, start_offset);
 
       } else {
 
         probe_GPU<128,4><<<(SEGMENT_SIZE + tile_items - 1)/tile_items, 128>>> 
         (dim_key1, dim_key2, NULL, NULL,
-          d_ht_s, S_LEN, d_ht_p, P_LEN, NULL, 0, NULL, 0, 
+          SEGMENT_SIZE, d_ht_s, S_LEN, d_ht_p, P_LEN, NULL, 0, NULL, 0, 
           0, 0, 0, 0, 
           d_lo_off, d_supp_off, d_part_off, NULL, NULL,
-          SEGMENT_SIZE, total, start_offset);
+          total, start_offset);
 
         // probe_GPU<128,4><<<(SEGMENT_SIZE + tile_items - 1)/tile_items, 128>>> 
         // (dim_key1, NULL, dim_key3, NULL,
-        //   d_ht_s, S_LEN, NULL, 0, d_ht_d, d_val_len, NULL, 0, 
+        //   SEGMENT_SIZE, d_ht_s, S_LEN, NULL, 0, d_ht_d, d_val_len, NULL, 0, 
         //   0, 0, 19920101, 0, 
         //   d_lo_off, d_supp_off, NULL, d_date_off, NULL,
-        //   SEGMENT_SIZE, total, start_offset);
+        //   total, start_offset);
 
         // probe_GPU<128,4><<<(SEGMENT_SIZE + tile_items - 1)/tile_items, 128>>> 
         // (NULL, dim_key2, dim_key3, NULL,
-        //   NULL, 0, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, 
+        //   SEGMENT_SIZE, NULL, 0, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, 
         //   0, 0, 19920101, 0, 
         //   d_lo_off, NULL, d_part_off, d_date_off, NULL,
-        //   SEGMENT_SIZE, total, start_offset);
+        //   total, start_offset);
       }
     }
 
@@ -211,21 +211,21 @@ int main () {
 
     pCPU1 = chrono::high_resolution_clock::now();
 
-    probe_group_by_CPU2(lo_off, supp_off, part_off, NULL, NULL,
+    probe_group_by_CPU(lo_off, supp_off, part_off, NULL, NULL,
       NULL, cm->h_p_brand1, cm->h_lo_orderdate, NULL, cm->h_lo_revenue,
       NULL, 0, NULL, 0, h_ht_d, d_val_len, NULL, 0, res,
       0, 0, 0, 7, 1992, 1, 0, 0, res_size,
       0, 0, 19920101, 0,
       h_total, 0);
 
-    // probe_group_by_CPU2(lo_off, supp_off, NULL, date_off, NULL,
+    // probe_group_by_CPU(lo_off, supp_off, NULL, date_off, NULL,
     //   NULL, cm->h_lo_partkey, cm->h_d_year, NULL, cm->h_lo_revenue,
     //   NULL, 0, h_ht_p, P_LEN, NULL, 0, NULL, 0, res,
     //   0, 0, 0, 7, 1992, 1, 0, 0, res_size,
     //   0, 0, 19920101, 0,
     //   h_total, 0);
 
-    // probe_group_by_CPU2(lo_off, NULL, part_off, date_off, NULL,
+    // probe_group_by_CPU(lo_off, NULL, part_off, date_off, NULL,
     //   cm->h_lo_suppkey, cm->h_p_brand1, cm->h_d_year, NULL, cm->h_lo_revenue,
     //   h_ht_s, S_LEN, NULL, 0, NULL, 0, NULL, 0, res,
     //   0, 0, 0, 7, 1992, 1, 0, 0, res_size,

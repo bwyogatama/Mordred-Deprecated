@@ -2,14 +2,8 @@
 
 //tbb::task_scheduler_init init(1); // Use the default number of threads.
 
-bool g_verbose = false;  // Whether to display input/output to console
-cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
-
-
-__global__ void print_kernel() {
-    printf("print anjing\n");
-}
-
+// bool g_verbose = false;  // Whether to display input/output to console
+// cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
 
 int main () {
 
@@ -153,7 +147,6 @@ int main () {
     g_allocator.DeviceAllocate((void**)&d_dimkey_idx3, cm->cache_total_seg * sizeof(int));
     g_allocator.DeviceAllocate((void**)&d_aggr_idx, cm->cache_total_seg * sizeof(int)); 
 
-    cudaMemcpy(d_lo_idx, cm->segment_list[cm->lo_revenue->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_group_idx, cm->segment_list[cm->p_brand1->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_dimkey_idx1, cm->segment_list[cm->lo_suppkey->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_dimkey_idx2, cm->segment_list[cm->lo_partkey->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
@@ -167,17 +160,17 @@ int main () {
 
     int tile_items = 125*4;
 
-    // probe_group_by_GPU2<128,4><<<(h_total + tile_items - 1)/tile_items, 128>>>(d_lo_off, NULL, d_part_off, NULL, NULL,
-    //   cm->gpuCache, d_lo_idx, d_dimkey_idx1, d_group_idx, d_dimkey_idx2, NULL, d_aggr_idx, h_total, 
-    //   d_ht_s, S_LEN, NULL, 0, d_ht_d, d_val_len, NULL, 0, d_res,
-    //   0, 0, 0, 7, 1992, 1, 0, 0, res_size,
-    //   0, 0, 19920101, 0);
-
-    probe_group_by_GPU2<125,4><<<(6000000 + tile_items - 1)/tile_items, 125>>>(NULL, NULL, NULL, NULL, NULL,
-      cm->gpuCache, d_lo_idx, d_dimkey_idx1, d_dimkey_idx2, d_dimkey_idx3, NULL, d_aggr_idx, 6000000, 
-      d_ht_s, S_LEN, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, d_res,
+    probe_group_by_GPU2<128,4><<<(h_total + tile_items - 1)/tile_items, 128>>>(d_lo_off, NULL, d_part_off, NULL, NULL,
+      cm->gpuCache, d_dimkey_idx1, d_group_idx, d_dimkey_idx3, NULL, d_aggr_idx, h_total, 
+      d_ht_s, S_LEN, NULL, 0, d_ht_d, d_val_len, NULL, 0, d_res,
       0, 0, 0, 7, 1992, 1, 0, 0, res_size,
       0, 0, 19920101, 0);
+
+    // probe_group_by_GPU2<125,4><<<(6000000 + tile_items - 1)/tile_items, 125>>>(NULL, NULL, NULL, NULL, NULL,
+    //   cm->gpuCache, d_dimkey_idx1, d_dimkey_idx2, d_dimkey_idx3, NULL, d_aggr_idx, 6000000, 
+    //   d_ht_s, S_LEN, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0, d_res,
+    //   0, 0, 0, 7, 1992, 1, 0, 0, res_size,
+    //   0, 0, 19920101, 0);
 
     cudaDeviceSynchronize();
 

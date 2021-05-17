@@ -72,9 +72,9 @@ int main () {
     pCPU1 = chrono::high_resolution_clock::now();
 
     probe_group_by_CPU(cm->h_lo_suppkey, cm->h_lo_partkey, cm->h_lo_orderdate, NULL, cm->h_lo_revenue,
-      CPU_len, h_ht_s, S_LEN, h_ht_p, P_LEN, h_ht_d, d_val_len, NULL, 0, res,
+      h_ht_s, S_LEN, h_ht_p, P_LEN, h_ht_d, d_val_len, NULL, 0, res,
       0, 0, 0, 7, 1992, 1, 0, 0, res_size,
-      0, 0, 19920101, 0, start_index);
+      0, 0, 19920101, 0, CPU_len, start_index);
 
     pCPU2 = chrono::high_resolution_clock::now();
     std::chrono::duration<double> probetimeCPU = pCPU2 - pCPU1;

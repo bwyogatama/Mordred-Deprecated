@@ -3,8 +3,8 @@
 #include <chrono>
 #include <atomic>
 
-bool g_verbose = false;  // Whether to display input/output to console
-cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
+// bool g_verbose = false;  // Whether to display input/output to console
+// cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
 
 int main () {
 
@@ -135,7 +135,6 @@ int main () {
     g_allocator.DeviceAllocate((void**)&d_dimkey_idx3, cm->cache_total_seg * sizeof(int));
     g_allocator.DeviceAllocate((void**)&d_aggr_idx, cm->cache_total_seg * sizeof(int)); 
 
-    cudaMemcpy(d_lo_idx, cm->segment_list[cm->lo_revenue->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_dimkey_idx1, cm->segment_list[cm->lo_suppkey->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_dimkey_idx2, cm->segment_list[cm->lo_partkey->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_dimkey_idx3, cm->segment_list[cm->lo_orderdate->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice);
@@ -144,12 +143,12 @@ int main () {
     int tile_items = 125*4;
 
     probe_GPU2<125, 4><<<(6000000 + tile_items - 1)/tile_items, 125>>>(
-    NULL, NULL, NULL, NULL, NULL,
-    cm->gpuCache, d_lo_idx, d_dimkey_idx1, d_dimkey_idx2, d_dimkey_idx3, NULL, d_aggr_idx, 6000000,
-    d_ht_s, S_LEN, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0,
-    0, 0, 19920101, 0,
-    d_lo_off, d_supp_off, d_part_off, d_date_off, NULL, 
-    total, 0);
+      NULL, NULL, NULL, NULL, NULL,
+      cm->gpuCache, d_dimkey_idx1, d_dimkey_idx2, d_dimkey_idx3, NULL, d_aggr_idx, 6000000,
+      d_ht_s, S_LEN, d_ht_p, P_LEN, d_ht_d, d_val_len, NULL, 0,
+      0, 0, 19920101, 0,
+      d_lo_off, d_supp_off, d_part_off, d_date_off, NULL, 
+      total, 0);
 
     pGPU2 = chrono::high_resolution_clock::now();
     std::chrono::duration<double> probetimeGPU = pGPU2 - pGPU1;

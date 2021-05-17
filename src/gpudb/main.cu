@@ -3,8 +3,8 @@
 #include <chrono>
 #include <atomic>
 
-bool g_verbose = false;  // Whether to display input/output to console
-cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
+// bool g_verbose = false;  // Whether to display input/output to console
+// cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
 
 __global__ void print_kernel() {
     printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
@@ -160,10 +160,11 @@ int main () {
     int start_index = 0;
     int CPU_len = 0;
 
-    probe_group_by_CPU(cm->h_lo_suppkey, cm->h_lo_partkey, cm->h_lo_orderdate, NULL, cm->h_lo_revenue,
-      CPU_len, h_ht_s, S_LEN, h_ht_p, P_LEN, h_ht_d, d_val_len, NULL, 0, res,
+    probe_group_by_CPU(NULL, NULL, NULL, NULL, NULL,
+      cm->h_lo_suppkey, cm->h_lo_partkey, cm->h_lo_orderdate, NULL, cm->h_lo_revenue,
+      h_ht_s, S_LEN, h_ht_p, P_LEN, h_ht_d, d_val_len, NULL, 0, res,
       0, 0, 0, 7, 1992, 1, 0, 0, res_size,
-      0, 0, 19920101, 0, start_index);
+      0, 0, 19920101, 0, CPU_len, start_index);
 
     pCPU2 = chrono::high_resolution_clock::now();
     std::chrono::duration<double> probetimeCPU = pCPU2 - pCPU1;
