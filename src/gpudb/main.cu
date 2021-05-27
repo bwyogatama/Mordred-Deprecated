@@ -6,10 +6,6 @@
 // bool g_verbose = false;  // Whether to display input/output to console
 // cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device memory
 
-__global__ void print_kernel() {
-    printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
-}
-
 int main () {
 
 	CacheManager* cm = new CacheManager(1000000000, 25);
@@ -26,17 +22,17 @@ int main () {
   cm->cacheColumnSegmentInGPU(cm->s_suppkey, 2);
   cm->cacheColumnSegmentInGPU(cm->s_region, 2);
 
-  cm->constructListSegmentInGPU(cm->s_suppkey);
-  cm->constructListSegmentInGPU(cm->s_region);
-  cm->constructListSegmentInGPU(cm->p_partkey);
-  cm->constructListSegmentInGPU(cm->p_category);
-  cm->constructListSegmentInGPU(cm->p_brand1);
-  cm->constructListSegmentInGPU(cm->d_datekey);
-  cm->constructListSegmentInGPU(cm->d_year);
-  cm->constructListSegmentInGPU(cm->lo_suppkey);
-  cm->constructListSegmentInGPU(cm->lo_partkey);
-  cm->constructListSegmentInGPU(cm->lo_orderdate);
-  cm->constructListSegmentInGPU(cm->lo_revenue);
+  // cm->constructListSegmentInGPU(cm->s_suppkey);
+  // cm->constructListSegmentInGPU(cm->s_region);
+  // cm->constructListSegmentInGPU(cm->p_partkey);
+  // cm->constructListSegmentInGPU(cm->p_category);
+  // cm->constructListSegmentInGPU(cm->p_brand1);
+  // cm->constructListSegmentInGPU(cm->d_datekey);
+  // cm->constructListSegmentInGPU(cm->d_year);
+  // cm->constructListSegmentInGPU(cm->lo_suppkey);
+  // cm->constructListSegmentInGPU(cm->lo_partkey);
+  // cm->constructListSegmentInGPU(cm->lo_orderdate);
+  // cm->constructListSegmentInGPU(cm->lo_revenue);
 
   for (int trial = 0; trial < 3; trial++) {
 

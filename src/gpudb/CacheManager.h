@@ -158,6 +158,7 @@ public:
 	vector<custom_priority_queue> next_seg_to_cache; //a priority queue to store the special segment to be cached to GPU
 	vector<unordered_map<int, Segment*>> index_to_segment; //track which segment has been created from a particular segment id
 	vector<unordered_map<int, Segment*>> special_segment; //special segment id (segment with priority) to segment itself
+	char** segment_bitmap; //bitmap to store information which segment is in GPU
 
 	int *h_lo_orderkey, *h_lo_orderdate, *h_lo_custkey, *h_lo_suppkey, *h_lo_partkey, *h_lo_revenue, *h_lo_discount, *h_lo_quantity, *h_lo_extendedprice, *h_lo_supplycost;
 	int *h_c_custkey, *h_c_nation, *h_c_region, *h_c_city;
@@ -185,7 +186,7 @@ public:
 
 	void deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment);
 
-	void constructListSegmentInGPU(ColumnInfo* column);
+	//void constructListSegmentInGPU(ColumnInfo* column);
 
 	void updateSegmentTablePriority(string table_name, int segment_idx, int priority);
 
@@ -245,11 +246,6 @@ CacheManager::CacheManager(size_t cache_size, int _TOT_COLUMN) {
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
 
-	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
-	for (int i = 0; i < TOT_COLUMN; i++) {
-		segment_list[i] = (int*) malloc(cache_total_seg * sizeof(int));
-	}
-
 	next_seg_to_cache.resize(TOT_COLUMN);
 	index_to_segment.resize(TOT_COLUMN);
 	special_segment.resize(TOT_COLUMN);
@@ -259,6 +255,16 @@ CacheManager::CacheManager(size_t cache_size, int _TOT_COLUMN) {
 	}
 
 	loadColumnToCPU();
+
+	segment_bitmap = (char**) malloc (TOT_COLUMN * sizeof(char*));
+	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		int n = allColumn[i]->total_segment;
+		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
+		segment_list[i] = (int*) malloc(n * sizeof(int));
+		memset(segment_bitmap[i], 0, n * sizeof(char));
+		memset(segment_list[i], -1, n * sizeof(int));
+	}
 }
 
 void
@@ -300,6 +306,10 @@ CacheManager::cacheSegmentInGPU(Segment* seg) {
 	empty_gpu_segment.pop();
 	assert(cache_mapper.find(seg) == cache_mapper.end());
 	cache_mapper[seg] = idx;
+	assert(segment_bitmap[seg->column->column_id][seg->segment_id] == 0x00);
+	segment_bitmap[seg->column->column_id][seg->segment_id] = 0x01;
+	assert(segment_list[seg->column->column_id][seg->segment_id] == -1);
+	segment_list[seg->column->column_id][seg->segment_id] = idx;
 	cached_seg_in_GPU[seg->column->column_id].push(seg);
 	CubDebugExit(cudaMemcpy(&gpuCache[idx * SEGMENT_SIZE], seg->seg_ptr, SEGMENT_SIZE * sizeof(int), cudaMemcpyHostToDevice));
 	allColumn[seg->column->column_id]->tot_seg_in_GPU++;
@@ -331,6 +341,10 @@ CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 		int idx = cache_mapper[seg];
 		int ret = cache_mapper.erase(seg);
 		assert(ret == 1);
+		assert(segment_bitmap[column->column_id][seg->segment_id] == 0x01);
+		segment_bitmap[column->column_id][seg->segment_id] = 0x00;
+		assert(segment_list[seg->column->column_id][seg->segment_id] != -1);
+		segment_list[column->column_id][seg->segment_id] = -1;
 		empty_gpu_segment.push(idx);
 		column->tot_seg_in_GPU--;
 		if (special_segment[column->column_id].find(seg->segment_id) != special_segment[column->column_id].end()) {
@@ -351,16 +365,16 @@ CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 	}
 }
 
-void
-CacheManager::constructListSegmentInGPU(ColumnInfo* column) {
-	vector<Segment*> temp = cached_seg_in_GPU[column->column_id].return_stack();
-	delete segment_list[column->column_id];
-	//segment_list[column->column_id] = (int*) malloc(temp.size() * sizeof(int));
-	segment_list[column->column_id] = (int*) malloc(cache_total_seg * sizeof(int));
-	for (int i = 0; i < temp.size(); i++) {
-		segment_list[column->column_id][i] = cache_mapper[temp[i]];
-	}
-}
+// void
+// CacheManager::constructListSegmentInGPU(ColumnInfo* column) {
+// 	vector<Segment*> temp = cached_seg_in_GPU[column->column_id].return_stack();
+// 	delete segment_list[column->column_id];
+// 	//segment_list[column->column_id] = (int*) malloc(temp.size() * sizeof(int));
+// 	segment_list[column->column_id] = (int*) malloc(cache_total_seg * sizeof(int));
+// 	for (int i = 0; i < temp.size(); i++) {
+// 		segment_list[column->column_id][i] = cache_mapper[temp[i]];
+// 	}
+// }
 
 void
 CacheManager::updateSegmentTablePriority(string table_name, int segment_idx, int priority) {
