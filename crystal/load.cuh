@@ -46,6 +46,21 @@ __device__ __forceinline__ void BlockLoad(
   }
 }
 
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockLoadCrystal(
+    T* inp,
+    T  (&items)[ITEMS_PER_THREAD],
+    int num_items
+    ) {
+  T* block_itr = inp;
+
+  if ((BLOCK_THREADS * ITEMS_PER_THREAD) == num_items) {
+    BlockLoadDirect<T, BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, block_itr, items);
+  } else {
+    BlockLoadDirect<T, BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, block_itr, items, num_items);
+  }
+}
+
 #if 0
 
 template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREAD>

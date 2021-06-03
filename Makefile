@@ -43,25 +43,6 @@ $(OBJ)/cpu/%.o: $(SRC)/cpu/%.cpp
 $(BIN)/cpu/%: $(OBJ)/cpu/%.o
 	$(CXX) -ltbb $^ -o $@
 
-$(OBJ)/gpudb/main.o: $(SRC)/gpudb/main.cu
-	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
-
-$(BIN)/gpudb/main: $(OBJ)/gpudb/main.o
-	$(NVCC) -ltbb $(SM_TARGETS) -lcurand $^ -o $@
-
-$(OBJ)/gpudb/main2.o: $(SRC)/gpudb/main2.cu
-	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
-
-$(BIN)/gpudb/main2: $(OBJ)/gpudb/main2.o
-	$(NVCC) -ltbb $(SM_TARGETS) -lcurand $^ -o $@
-
-$(OBJ)/gpudb/main3.o: $(SRC)/gpudb/main3.cu
-	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
-
-$(BIN)/gpudb/main3: $(OBJ)/gpudb/main3.o
-	$(NVCC) -ltbb $(SM_TARGETS) -lcurand $^ -o $@
-
-
 setup:
 	if [ ! -d "cub"  ]; then \
     wget https://github.com/NVlabs/cub/archive/1.6.4.zip; \

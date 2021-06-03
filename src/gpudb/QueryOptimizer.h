@@ -22,6 +22,8 @@ public:
 	unordered_map<ColumnInfo*, vector<ColumnInfo*>> select_probe;
 	unordered_map<ColumnInfo*, vector<ColumnInfo*>> select_build;
 
+	unordered_map<ColumnInfo*, ColumnInfo*> fkey_pkey;
+
 	// vector<pair<int, int>> joinGPU;
 	// vector<pair<int, int>> joinCPU;
 	// pair<int, int> groupbyCPU;
@@ -55,14 +57,14 @@ public:
 	void parseQuery31();
 	void parseQuery41();
 
-	void constructPipeline(vector<pair<int, int>>& CPUPipeline, vector<pair<int, int>>& GPUPipeline, 
-		vector<vector<ColumnInfo*>>& CPUPipelineCol, vector<vector<ColumnInfo*>>& GPUPipelineCol, multimap<int, ColumnInfo*>& temp, 
-		ColumnInfo* column, int N);
+	// void constructPipeline(vector<pair<int, int>>& CPUPipeline, vector<pair<int, int>>& GPUPipeline, 
+	// 	vector<vector<ColumnInfo*>>& CPUPipelineCol, vector<vector<ColumnInfo*>>& GPUPipelineCol, multimap<int, ColumnInfo*>& temp, 
+	// 	ColumnInfo* column, int N);
 
 	void clearVector();
 
 	void dataDrivenOperatorPlacement();
-	void groupBitmap(bool groupGPUcheck, bool joinGPUcheck);
+	void groupBitmap();
 
 	// void latematerialization();
 	// void latematerializationflex();
@@ -71,7 +73,11 @@ public:
 };
 
 QueryOptimizer::QueryOptimizer() {
-	cm = new CacheManager(1000000000, 25);
+	cm = new CacheManager(1000000000);
+	fkey_pkey[cm->lo_orderdate] = cm->d_datekey;
+	fkey_pkey[cm->lo_partkey] = cm->p_partkey;
+	fkey_pkey[cm->lo_custkey] = cm->c_custkey;
+	fkey_pkey[cm->lo_suppkey] = cm->s_suppkey;
 }
 
 void 
@@ -85,14 +91,14 @@ QueryOptimizer::parseQuery(int query) {
 void
 QueryOptimizer::clearVector() {
 
-	for (int i = 0; i < join.size()+1; i++) {
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		free(segment_group[i]);
 		free(segment_group_count[i]);
 	}
 
 	free(segment_group);
 	free(segment_group_count);
-	
+	free(joinGPUcheck);
 
 	join.clear();
 	groupby_probe.clear();
@@ -167,9 +173,9 @@ QueryOptimizer::parseQuery21() {
 	groupbyGPUPipelineCol.resize(64);
 	groupbyCPUPipelineCol.resize(64);
 
-	segment_group = (short**) malloc (4 * sizeof(short*)); //4 tables, 64 possible segment group
-	segment_group_count = (short**) malloc (4 * sizeof(short*));
-	for (int i = 0; i < 4; i++) {
+	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
+	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		segment_group[i] = (short*) malloc (64 * cm->lo_orderdate->total_segment * sizeof(short));
 		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
 		memset(segment_group_count[i], 0, 64 * sizeof(short));
@@ -246,27 +252,28 @@ QueryOptimizer::dataDrivenOperatorPlacement() {
 	// 	printf("%x\n", cm->segment_bitmap[cm->lo_partkey->column_id][i]);
 	// }
 
-	groupBitmap(groupGPUcheck, joinGPUcheck);
+	groupBitmap();
 }
 
 void
 QueryOptimizer::groupBitmap() {
-	unsigned short temp;
 
 	for (int i = 0; i < cm->lo_orderdate->total_segment; i++) {
-		temp = 0;
+		unsigned short temp = 0;
 
 		for (int j = 0; j < select_probe[cm->lo_orderdate].size(); j++) {
 			ColumnInfo* column = select_probe[cm->lo_orderdate][j];
 			bool isGPU = cm->segment_bitmap[column->column_id][i];
-			temp = temp | (isGPU << (select_probe.size() - j - 1));
+			//temp = temp | (isGPU << (select_probe[cm->lo_orderdate].size() - j - 1));
+			temp = temp | (isGPU << j);
 		}
 
 		temp = temp << join.size();
 
 		for (int j = 0; j < join.size(); j++) {
 			bool isGPU = cm->segment_bitmap[join[j].first->column_id][i];
-			temp = temp | (isGPU << (join.size() - j - 1));
+			//temp = temp | (isGPU << (join.size() - j - 1));
+			temp = temp | (isGPU << j);
 		}
 
 		temp = temp << groupby_probe[cm->lo_orderdate].size();
@@ -274,65 +281,83 @@ QueryOptimizer::groupBitmap() {
 		for (int j = 0; j < groupby_probe.size(); j++) {
 			ColumnInfo* column = groupby_probe[cm->lo_orderdate][j];
 			bool isGPU = cm->segment_bitmap[column->column_id][i];
-			temp = temp | (isGPU << (join.size() - j - 1));
+			//temp = temp | (isGPU << (join.size() - j - 1));
+			temp = temp | (isGPU << j);
 		}
 
-		segment_group[0][temp * cm->lo_orderdate->total_segment + segment_group_count[0][temp]] = i;
-		segment_group_count[0][temp]++;
+		segment_group[cm->lo_orderdate->table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[cm->lo_orderdate->table_id][temp]] = i;
+		segment_group_count[cm->lo_orderdate->table_id][temp]++;
 		//printf("temp = %d count = %d\n", temp, segment_group_count[0][temp]);
 	}
 
+	for (unsigned short i = 0; i < 64; i++) { //64 segment groups
+		if (segment_group_count[cm->lo_orderdate->table_id][i] > 0) {
+
+			unsigned short  bit = 1;
+			unsigned short sg = i;
+			for (int j = 0; j < groupby_probe[cm->lo_orderdate].size(); j++) {
+				bit = (sg & (1 << j)) >> j;
+				if (bit == 0) break;
+			}
+
+			for (int j = 0; j < groupby_probe[cm->lo_orderdate].size(); j++) {
+				if (bit & groupGPUcheck) groupbyGPUPipelineCol[i].push_back(groupby_probe[cm->lo_orderdate][j]);
+				else groupbyCPUPipelineCol[i].push_back(groupby_probe[cm->lo_orderdate][j]);
+			}
+
+			sg = sg >> groupby_probe[cm->lo_orderdate].size();
+
+			//cout << sg << endl;
+
+			for (int j = 0; j < join.size(); j++) {
+				bit = (sg & (1 << j)) >> j;
+				//printf("%d %d %d\n", j, bit, joinGPUcheck[j]);
+				if (bit && joinGPUcheck[j]) joinGPUPipelineCol[i].push_back(join[j].first);
+				else joinCPUPipelineCol[i].push_back(join[j].first);
+			}
+
+			// for (int k = 0; k < joinGPUPipelineCol[i].size(); k++) {
+			// 	cout << joinGPUPipelineCol[i][k]->column_name << endl;
+			// }
+
+			sg = sg >> join.size();
+
+			for (int j = 0; j < select_probe[cm->lo_orderdate].size(); j++) {
+				bit = (sg & (1 << j)) >> j;
+				if (bit && joinGPUcheck[j]) selectGPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
+				else selectCPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
+			}
+
+			sg = sg >> select_probe[cm->lo_orderdate].size();
+		}
+	}
+
+	// for (int j = 0; j < 64; j++) {
+	// 	if (segment_group_count[0][j] > 0) {
+	// 		printf("%d %d\n", j, segment_group_count[0][j]);
+	// 	}
+	// 	for (int i = 0; i < joinGPUPipelineCol[j].size(); i++) {
+	// 		cout << joinGPUPipelineCol[j][i]->column_name << endl;
+	// 	}
+	// }
+
 	for (int i = 0; i < join.size(); i++) {
-		temp = 0;
 		
 		for (int j = 0; j < join[i].second->total_segment; j++) {
-			temp = 0;
+			unsigned short temp = 0;
 
 			for (int k = 0; k < select_build[join[i].second].size(); k++) {
 
 				ColumnInfo* column = select_build[join[i].second][k];
 				bool isGPU = cm->segment_bitmap[column->column_id][j];
-				temp = temp | (isGPU << (select_build.size() - k - 1));
+				//temp = temp | (isGPU << (select_build[join[i].second].size() - k - 1));
+				temp = temp | (isGPU << k);
 
 			}
 
-			segment_group[i+1][temp * join[i].second->total_segment + segment_group_count[i+1][temp]] = j;
-			segment_group_count[i+1][temp]++;
+			segment_group[join[i].second->table_id][temp * join[i].second->total_segment + segment_group_count[join[i].second->table_id][temp]] = j;
+			segment_group_count[join[i].second->table_id][temp]++;
 
-		}
-	}
-
-	for (int i = 0; i < 64; i++) {
-		if (segment_group_count[0][i] > 0) {
-
-			int bit = 1;
-			for (int j = groupby_probe[cm->lo_orderdate].size()-1; j >= 0; j--) {
-				bit = (temp && (1 << j)) >> j;
-				if (bit == 0) break;
-			}
-
-			for (int j = groupby_probe[cm->lo_orderdate].size()-1; j >= 0; j--) {
-				if (bit && groupGPUcheck) groupbyGPUPipelineCol[temp].push_back(groupby_probe[cm->lo_orderdate][j]);
-				else groupbyCPUPipelineCol[temp].push_back(groupby_probe[cm->lo_orderdate][j]);
-			}
-
-			temp = temp >> groupby_probe[cm->lo_orderdate].size();
-
-			for (int j = join.size()-1; j >= 0; j--) {
-				bit = (temp && (1 << j)) >> j;
-				if (bit && joinGPUcheck[i]) joinGPUPipelineCol[temp].push_back(join[j].first);
-				else joinCPUPipelineCol[temp].push_back(join[j].first);
-			}
-
-			temp = temp >> join.size();
-
-			for (int j = select_probe[cm->lo_orderdate].size()-1; j >= 0; j--) {
-				bit = (temp && (1 << j)) >> j;
-				if (bit && joinGPUcheck[i]) selectGPUPipelineCol[temp].push_back(select_probe[cm->lo_orderdate][j]);
-				else selectCPUPipelineCol[temp].push_back(select_probe[cm->lo_orderdate][j]);
-			}
-
-			temp = temp >> select_probe[cm->lo_orderdate].size();
 		}
 	}
 }

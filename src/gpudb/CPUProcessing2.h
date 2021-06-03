@@ -16,7 +16,7 @@ void probe_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* di
   int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
   int min_key1, int min_key2, int min_key3, int min_key4,
   int* h_lo_off, int* h_dim_off1, int* h_dim_off2, int* h_dim_off3, int* h_dim_off4,
-  int start_offset, int* segment_group, int* offset) {
+  int start_offset, int* offset, int* segment_group) {
 
   // Probe
   parallel_for(blocked_range<size_t>(0, h_total, h_total/NUM_THREADS + 4), [&](auto range) {
@@ -377,6 +377,7 @@ void filter_CPU(int* off_col, int *filter_col1, int* filter_col2, int compare1, 
 
     for (int i = range.begin(); i < range.end(); i++) {
       bool selection_flag = 1;
+      int col_offset;
 
       if (off_col != NULL) col_offset = off_col[start_offset + i];
       else col_offset = start_offset + i;
@@ -409,7 +410,7 @@ void filter_CPU(int* off_col, int *filter_col1, int* filter_col2, int compare1, 
       }
     }
 
-    int thread_off = __atomic_fetch_add(offset, count, __ATOMIC_RELAXED);
+    int thread_off = __atomic_fetch_add(total, count, __ATOMIC_RELAXED);
 
     for (int i = 0; i < count; i++) {
       out_off[thread_off+i] = temp[i];

@@ -63,10 +63,11 @@ public:
 
 class ColumnInfo{
 public:
-	ColumnInfo(string _column_name, string _table_name, int _LEN, int _column_id, int* _col_ptr);
+	ColumnInfo(string _column_name, string _table_name, int _LEN, int _column_id, int _table_id, int* _col_ptr);
 	Statistics* stats;
 	string column_name;
 	string table_name;
+	int table_id;
 	int LEN;
 	int column_id;
 	int* col_ptr; //ptr to the beginning of the column
@@ -149,6 +150,7 @@ public:
 	int* gpuCache;
 	int cache_total_seg;
 	int TOT_COLUMN;
+	int TOT_TABLE;
 	vector<ColumnInfo*> allColumn;
 
 	queue<int> empty_gpu_segment; //free list
@@ -172,7 +174,7 @@ public:
 	ColumnInfo *p_partkey, *p_brand1, *p_category, *p_mfgr;
 	ColumnInfo *d_datekey, *d_year, *d_yearmonthnum;
 
-	CacheManager(size_t cache_size, int _TOT_COLUMN);
+	CacheManager(size_t cache_size);
 
 	~CacheManager();
 
@@ -188,7 +190,7 @@ public:
 
 	//void constructListSegmentInGPU(ColumnInfo* column);
 
-	void updateSegmentTablePriority(string table_name, int segment_idx, int priority);
+	void updateSegmentTablePriority(int table_id, int segment_idx, int priority);
 
 	void updateSegmentPriority(Segment* seg, int priority);
 
@@ -221,8 +223,8 @@ Segment::Segment(ColumnInfo* _column, int* _seg_ptr)
 	segment_id = (seg_ptr - col_ptr)/seg_size;
 }
 
-ColumnInfo::ColumnInfo(string _column_name, string _table_name, int _LEN, int _column_id, int* _col_ptr)
-: column_name(_column_name), table_name(_table_name), LEN(_LEN), column_id(_column_id), col_ptr(_col_ptr) {
+ColumnInfo::ColumnInfo(string _column_name, string _table_name, int _LEN, int _column_id, int _table_id, int* _col_ptr)
+: column_name(_column_name), table_name(_table_name), LEN(_LEN), column_id(_column_id), table_id(_table_id), col_ptr(_col_ptr) {
 	stats = new Statistics();
 	tot_seg_in_GPU = 0;
 	weight = 0;
@@ -236,9 +238,10 @@ ColumnInfo::getSegment(int index) {
 	return seg;
 }
 
-CacheManager::CacheManager(size_t cache_size, int _TOT_COLUMN) {
+CacheManager::CacheManager(size_t cache_size) {
 	cache_total_seg = cache_size/SEGMENT_SIZE;
-	TOT_COLUMN = _TOT_COLUMN;
+	TOT_COLUMN = 25;
+	TOT_TABLE = 5;
 
 	CubDebugExit(cudaMalloc((void**) &gpuCache, cache_size * sizeof(int)));
 	CubDebugExit(cudaMemset(gpuCache, 0, cache_size * sizeof(int)));
@@ -377,10 +380,10 @@ CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 // }
 
 void
-CacheManager::updateSegmentTablePriority(string table_name, int segment_idx, int priority) {
+CacheManager::updateSegmentTablePriority(int table_id, int segment_idx, int priority) {
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		int column_id = allColumn[i]->column_id;
-		if (allColumn[i]->table_name == table_name) {
+		if (allColumn[i]->table_id == table_id) {
 			if (index_to_segment[column_id].find(segment_idx) != index_to_segment[column_id].end()) { // the segment is created already
 				Segment* seg = index_to_segment[column_id][segment_idx]; //get the segment
 				if (special_segment[column_id].find(segment_idx) == special_segment[column_id].end()) { // kalau segment sudah dibuat tapi bukan special segment (segment biasa yg udah dicache)
@@ -571,35 +574,35 @@ CacheManager::loadColumnToCPU() {
 	h_d_yearmonthnum = loadColumn<int>("d_yearmonthnum", D_LEN);
 
 
-	lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, h_lo_orderkey);
-	lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 1, h_lo_orderdate);
-	lo_custkey = new ColumnInfo("lo_custkey", "lo", LO_LEN, 2, h_lo_custkey);
-	lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 3, h_lo_suppkey);
-	lo_partkey = new ColumnInfo("lo_partkey", "lo", LO_LEN, 4, h_lo_partkey);
-	lo_revenue = new ColumnInfo("lo_revenue", "lo", LO_LEN, 5, h_lo_revenue);
-	lo_discount = new ColumnInfo("lo_discount", "lo", LO_LEN, 6, h_lo_discount);
-	lo_quantity = new ColumnInfo("lo_quantity", "lo", LO_LEN, 7, h_lo_quantity);
-	lo_extendedprice = new ColumnInfo("lo_extendedprice", "lo", LO_LEN, 8, h_lo_extendedprice);
-	lo_supplycost = new ColumnInfo("lo_supplycost", "lo", LO_LEN, 9, h_lo_supplycost);
+	lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, 0, h_lo_orderkey);
+	lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 1, 0, h_lo_orderdate);
+	lo_custkey = new ColumnInfo("lo_custkey", "lo", LO_LEN, 2, 0, h_lo_custkey);
+	lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 3, 0, h_lo_suppkey);
+	lo_partkey = new ColumnInfo("lo_partkey", "lo", LO_LEN, 4, 0, h_lo_partkey);
+	lo_revenue = new ColumnInfo("lo_revenue", "lo", LO_LEN, 5, 0, h_lo_revenue);
+	lo_discount = new ColumnInfo("lo_discount", "lo", LO_LEN, 6, 0, h_lo_discount);
+	lo_quantity = new ColumnInfo("lo_quantity", "lo", LO_LEN, 7, 0, h_lo_quantity);
+	lo_extendedprice = new ColumnInfo("lo_extendedprice", "lo", LO_LEN, 8, 0, h_lo_extendedprice);
+	lo_supplycost = new ColumnInfo("lo_supplycost", "lo", LO_LEN, 9, 0, h_lo_supplycost);
 
-	c_custkey = new ColumnInfo("c_custkey", "c", C_LEN, 10, h_c_custkey);
-	c_nation = new ColumnInfo("c_nation", "c", C_LEN, 11, h_c_nation);
-	c_region = new ColumnInfo("c_region", "c", C_LEN, 12, h_c_region);
-	c_city = new ColumnInfo("c_city", "c", C_LEN, 13, h_c_city);
+	c_custkey = new ColumnInfo("c_custkey", "c", C_LEN, 10, 2, h_c_custkey);
+	c_nation = new ColumnInfo("c_nation", "c", C_LEN, 11, 2, h_c_nation);
+	c_region = new ColumnInfo("c_region", "c", C_LEN, 12, 2, h_c_region);
+	c_city = new ColumnInfo("c_city", "c", C_LEN, 13, 2, h_c_city);
 
-	s_suppkey = new ColumnInfo("s_suppkey", "s", S_LEN, 14, h_s_suppkey);	
-	s_nation = new ColumnInfo("s_nation", "s", S_LEN, 15, h_s_nation);
-	s_region = new ColumnInfo("s_region", "s", S_LEN, 16, h_s_region);
-	s_city = new ColumnInfo("s_city", "s", S_LEN, 17, h_s_city);
+	s_suppkey = new ColumnInfo("s_suppkey", "s", S_LEN, 14, 3, h_s_suppkey);	
+	s_nation = new ColumnInfo("s_nation", "s", S_LEN, 15, 3, h_s_nation);
+	s_region = new ColumnInfo("s_region", "s", S_LEN, 16, 3, h_s_region);
+	s_city = new ColumnInfo("s_city", "s", S_LEN, 17, 3, h_s_city);
 
-	p_partkey = new ColumnInfo("p_partkey", "p", P_LEN, 18, h_p_partkey);
-	p_brand1 = new ColumnInfo("p_brand1", "p", P_LEN, 19, h_p_brand1);
-	p_category = new ColumnInfo("p_category", "p", P_LEN, 20, h_p_category);
-	p_mfgr = new ColumnInfo("p_mfgr", "p", P_LEN, 21, h_p_mfgr);
+	p_partkey = new ColumnInfo("p_partkey", "p", P_LEN, 18, 1, h_p_partkey);
+	p_brand1 = new ColumnInfo("p_brand1", "p", P_LEN, 19, 1, h_p_brand1);
+	p_category = new ColumnInfo("p_category", "p", P_LEN, 20, 1, h_p_category);
+	p_mfgr = new ColumnInfo("p_mfgr", "p", P_LEN, 21, 1, h_p_mfgr);
 
-	d_datekey = new ColumnInfo("d_datekey", "d", D_LEN, 22, h_d_datekey);
-	d_year = new ColumnInfo("d_year", "d", D_LEN, 23, h_d_year);
-	d_yearmonthnum = new ColumnInfo("d_yearmonthnum", "d", D_LEN, 24, h_d_yearmonthnum);
+	d_datekey = new ColumnInfo("d_datekey", "d", D_LEN, 22, 4, h_d_datekey);
+	d_year = new ColumnInfo("d_year", "d", D_LEN, 23, 4, h_d_year);
+	d_yearmonthnum = new ColumnInfo("d_yearmonthnum", "d", D_LEN, 24, 4, h_d_yearmonthnum);
 
 	allColumn[0] = lo_orderkey;
 	allColumn[1] = lo_orderdate;
