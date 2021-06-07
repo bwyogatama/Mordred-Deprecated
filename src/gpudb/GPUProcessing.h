@@ -1,3 +1,6 @@
+#ifndef _GPU_PROCESSING_H_
+#define _GPU_PROCESSING_H_
+
 #include <cub/cub.cuh>
 #include <curand.h>
 
@@ -8,8 +11,6 @@
 
 using namespace cub;
 
-#define HASH_WM(X,Y,Z) ((X-Z) % Y)
-
 #define CUB_STDERR
 
 #define CHECK_ERROR() { \
@@ -18,9 +19,12 @@ using namespace cub;
   if(error != cudaSuccess) \
   { \
     printf("CUDA error: %s\n", cudaGetErrorString(error)); \
+    gpuErrchk(error); \
     exit(-1); \
   } \
 }
+
+#define cudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d!\n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -170,7 +174,7 @@ __device__ __forceinline__ void BlockProbeGroupByGPU2(
 }
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
-__device__ __forceinline__ void BlockProbeGPUHelper(
+__device__ __forceinline__ void BlockPassThroughOffset(
     int tid,
     int  (&items)[ITEMS_PER_THREAD],
     int  (&offset)[ITEMS_PER_THREAD],
@@ -189,7 +193,7 @@ __device__ __forceinline__ void BlockProbeGPUHelper(
 }
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
-__device__ __forceinline__ void BlockProbeGroupByGPUHelper(
+__device__ __forceinline__ void BlockSetGroupValZero(
     int tid,
     int  (&items)[ITEMS_PER_THREAD],
     int  (&res)[ITEMS_PER_THREAD],
@@ -208,7 +212,7 @@ __device__ __forceinline__ void BlockProbeGroupByGPUHelper(
 }
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
-__device__ __forceinline__ void BlockProbeGroupByGPUHelper2(
+__device__ __forceinline__ void BlockReadFilteredOffset(
     int tid,
     int  (&items)[ITEMS_PER_THREAD],
     int  (&res)[ITEMS_PER_THREAD],
@@ -301,7 +305,6 @@ __device__ __forceinline__ void BlockBuildOffsetGPU2(
   {
     if (tid + (ITEM * BLOCK_THREADS) < num_items) {
       int dimkey_seg = dimkey_idx[items[ITEM] / SEGMENT_SIZE];
-      //printf("%d %d\n", items[ITEM], dimkey_seg);
       int key = gpuCache[dimkey_seg * SEGMENT_SIZE + (items[ITEM] % SEGMENT_SIZE)];
 
       // Out-of-bounds items are selection_flags
@@ -319,7 +322,6 @@ __device__ __forceinline__ void BlockReadOffsetGPU(
     int  (&items)[ITEMS_PER_THREAD], //equal to items
     int* gpuCache,
     int* col_idx,
-    int* off_col,
     int num_items
     ) {
 
@@ -327,10 +329,8 @@ __device__ __forceinline__ void BlockReadOffsetGPU(
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
   {
     if (tid + (ITEM * BLOCK_THREADS) < num_items) {
-      if (off_col != NULL) {
-        int col_seg = col_idx[items_off[ITEM] / SEGMENT_SIZE];
-        items[ITEM] = gpuCache[col_seg * SEGMENT_SIZE + (items_off[ITEM] % SEGMENT_SIZE)];
-      }
+      int col_seg = col_idx[items_off[ITEM] / SEGMENT_SIZE];
+      items[ITEM] = gpuCache[col_seg * SEGMENT_SIZE + (items_off[ITEM] % SEGMENT_SIZE)];
     }
   }
 }
@@ -338,7 +338,7 @@ __device__ __forceinline__ void BlockReadOffsetGPU(
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_key4,
-  int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
   int min_key1, int min_key2, int min_key3, int min_key4,
   int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4, 
   int *total, int start_offset) {
@@ -368,11 +368,11 @@ __global__ void probe_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_
   int c_t_count = 0; //Prefix sum of t_count
   __shared__ int block_off;
 
-  int num_tiles = (fact_len + tile_size - 1) / tile_size;
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
   int num_tile_items = tile_size;
   bool is_last_tile = false;
   if (blockIdx.x == num_tiles - 1) {
-    num_tile_items = fact_len - tile_offset;
+    num_tile_items = num_tuples - tile_offset;
     is_last_tile = true;
   }
 
@@ -424,34 +424,16 @@ __global__ void probe_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_
     // Barrier for smem reuse
     __syncthreads();
 
-    /*
-     * Join with date table.
-     */
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
-        int hash = HASH(items[ITEM], dim_len4, min_key4); //19920101
-        if (selection_flags[ITEM]) {
-          int slot = ht4[(hash << 1) + 1];
-          if (slot != 0) {
-            t_count++;
-            dim_offset4[ITEM] = slot - 1;
-          } else {
-            selection_flags[ITEM] = 0;
-          }
-        }
-      }
-    }
-  } else {
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
-        if (selection_flags[ITEM]) {
-          t_count++;
-        }
-      }
+    BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset4, selection_flags, ht4, dim_len4, min_key4, num_tile_items);
+  }
+
+  //Barrier
+  __syncthreads();
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+      if(selection_flags[ITEM]) t_count++;
     }
   }
 
@@ -471,6 +453,7 @@ __global__ void probe_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_
     if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
       if(selection_flags[ITEM]) {
         int offset = block_off + c_t_count++;
+        cudaAssert(lo_off != NULL);
         lo_off[offset] = start_offset + blockIdx.x * tile_size + threadIdx.x * ITEMS_PER_THREAD + ITEM;
         if (dim_off1 != NULL) dim_off1[offset] = dim_offset1[ITEM];
         if (dim_off2 != NULL) dim_off2[offset] = dim_offset2[ITEM];
@@ -485,7 +468,7 @@ template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_GPU2(
   int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
   int* gpuCache, int* dimkey_idx1, int* dimkey_idx2, int* dimkey_idx3, int* dimkey_idx4,
-  int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
   int min_key1, int min_key2, int min_key3, int min_key4,
   int* out_lo_off, int* out_dim_off1, int* out_dim_off2, int* out_dim_off3, int* out_dim_off4, 
   int *total, int start_offset, int* segment_group = NULL) {
@@ -531,11 +514,11 @@ __global__ void probe_GPU2(
   int c_t_count = 0; //Prefix sum of t_count
   __shared__ int block_off;
 
-  int num_tiles = (fact_len + tile_size - 1) / tile_size;
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
   int num_tile_items = tile_size;
   bool is_last_tile = false;
   if (blockIdx.x == num_tiles - 1) {
-    num_tile_items = fact_len - tile_offset;
+    num_tile_items = num_tuples - tile_offset;
     is_last_tile = true;
   }
 
@@ -551,7 +534,7 @@ __global__ void probe_GPU2(
   // Barrier for smem reuse
   __syncthreads();
 
-  if (dimkey_idx1 != NULL && dim_off1 == NULL) {
+  if (dimkey_idx1 != NULL) {
 
     if (lo_off == NULL) {
       int dimkey_seg1 = dimkey_idx1[segment_index];
@@ -563,18 +546,18 @@ __global__ void probe_GPU2(
 
     BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset1, selection_flags, gpuCache, dimkey_idx1, lo_off, ht1, dim_len1, min_key1, num_tile_items);
 
-  } else if (dimkey_idx1 == NULL && dim_off1 != NULL) {
+  } else if (dimkey_idx1 == NULL) {
     BlockLoadInt(temp_storage.load_items).Load(dim_off1 + tile_offset, items, num_tile_items);
 
     // Barrier for smem reuse
     __syncthreads();
 
-    BlockProbeGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, num_tile_items);
+    BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, num_tile_items);
   }
 
   __syncthreads();
 
-  if (dimkey_idx2 != NULL && dim_off2 == NULL) {
+  if (dimkey_idx2 != NULL) {
 
     if (lo_off == NULL) {
       int dimkey_seg2 = dimkey_idx2[segment_index];
@@ -586,19 +569,19 @@ __global__ void probe_GPU2(
 
     BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset2, selection_flags, gpuCache, dimkey_idx2, lo_off, ht2, dim_len2, min_key2, num_tile_items);
 
-  } else if (dimkey_idx2 == NULL && dim_off2 != NULL) {
+  } else if (dimkey_idx2 == NULL) {
     BlockLoadInt(temp_storage.load_items).Load(dim_off2 + tile_offset, items, num_tile_items);
 
     // Barrier for smem reuse
     __syncthreads();
 
-    BlockProbeGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, num_tile_items);
+    BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, num_tile_items);
 
   }
 
   __syncthreads();
 
-  if (dimkey_idx3 != NULL && dim_off3 == NULL) {
+  if (dimkey_idx3 != NULL) {
 
     if (lo_off == NULL) {
       int dimkey_seg3 = dimkey_idx3[segment_index];
@@ -610,19 +593,19 @@ __global__ void probe_GPU2(
 
     BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset3, selection_flags, gpuCache, dimkey_idx3, lo_off, ht3, dim_len3, min_key3, num_tile_items);
 
-  } else if (dimkey_idx3 == NULL && dim_off3 != NULL) {
+  } else if (dimkey_idx3 == NULL) {
     BlockLoadInt(temp_storage.load_items).Load(dim_off3 + tile_offset, items, num_tile_items);
 
     // Barrier for smem reuse
     __syncthreads();
 
-    BlockProbeGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, num_tile_items);
+    BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, num_tile_items);
 
   }
 
   __syncthreads();
 
-  if (dimkey_idx4 != NULL && dim_off4 == NULL) {
+  if (dimkey_idx4 != NULL) {
 
     if (lo_off == NULL) {
       int dimkey_seg4 = dimkey_idx4[segment_index];
@@ -632,53 +615,25 @@ __global__ void probe_GPU2(
       __syncthreads();
     }
 
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
-        if (lo_off != NULL) {
-          int dimkey_seg4 = dimkey_idx4[items_lo[ITEM] / SEGMENT_SIZE];
-          items[ITEM] = gpuCache[dimkey_seg4 * SEGMENT_SIZE + (items_lo[ITEM] % SEGMENT_SIZE)];
-        }
+    BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset4, selection_flags, gpuCache, dimkey_idx4, lo_off, ht4, dim_len4, min_key4, num_tile_items);
 
-        // Out-of-bounds items are selection_flags
-        int hash = HASH(items[ITEM], dim_len4, min_key4); //19920101
-        if (selection_flags[ITEM]) {
-          int slot = ht4[(hash << 1) + 1];
-          if (slot != 0) {
-            t_count++;
-            dim_offset4[ITEM] = slot - 1;
-          } else {
-            selection_flags[ITEM] = 0;
-          }
-        }
-      }
-    }
-  } else if (dimkey_idx4 == NULL && dim_off4 != NULL) {
+  } else if (dimkey_idx4 == NULL) {
     BlockLoadInt(temp_storage.load_items).Load(dim_off4 + tile_offset, items, num_tile_items);
 
     // Barrier for smem reuse
     __syncthreads();
 
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
-        if (selection_flags[ITEM]) {
-          t_count++;
-          dim_offset4[ITEM] = items[ITEM];
-        }
-      }
-    }
-  } else {
-    #pragma unroll
-    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
-    {
-      if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) { //?
-        if (selection_flags[ITEM]) {
-          t_count++;
-        }
-      }
+    BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset4, selection_flags, num_tile_items);
+
+  }
+
+  //Barrier
+  __syncthreads();
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
+      if(selection_flags[ITEM]) t_count++;
     }
   }
 
@@ -698,11 +653,13 @@ __global__ void probe_GPU2(
     if (!is_last_tile || (int(threadIdx.x * ITEMS_PER_THREAD) + ITEM < num_tile_items)) {
       if(selection_flags[ITEM]) {
         int offset = block_off + c_t_count++;
-        out_lo_off[offset] = start_offset + tile_idx * tile_size + threadIdx.x * ITEMS_PER_THREAD + ITEM;
+        if (lo_off != NULL) out_lo_off[offset] = items_lo[ITEM];
+        else out_lo_off[offset] = start_offset + tile_idx * tile_size + threadIdx.x * ITEMS_PER_THREAD + ITEM;
         if (out_dim_off1 != NULL) out_dim_off1[offset] = dim_offset1[ITEM];
         if (out_dim_off2 != NULL) out_dim_off2[offset] = dim_offset2[ITEM];
         if (out_dim_off3 != NULL) out_dim_off3[offset] = dim_offset3[ITEM];
         if (out_dim_off4 != NULL) out_dim_off4[offset] = dim_offset4[ITEM];
+        //printf("%d %d %d %d\n", dim_offset1[ITEM], dim_offset2[ITEM], dim_offset3[ITEM], dim_offset4[ITEM]);
       }
     }
   }
@@ -710,7 +667,7 @@ __global__ void probe_GPU2(
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* dim_key4, int* aggr, 
-  int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
   int min_val1, int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4,
   int total_val, int min_key1, int min_key2, int min_key3, int min_key4) {
 
@@ -735,11 +692,11 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
   int groupval4[ITEMS_PER_THREAD];
   int aggrval[ITEMS_PER_THREAD];
 
-  int num_tiles = (fact_len + tile_size - 1) / tile_size;
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
   int num_tile_items = tile_size;
   bool is_last_tile = false;
   if (blockIdx.x == num_tiles - 1) {
-    num_tile_items = fact_len - tile_offset;
+    num_tile_items = num_tuples - tile_offset;
     is_last_tile = true;
   }
 
@@ -760,7 +717,7 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
 
   } else {
 
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval1, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval1, selection_flags, num_tile_items);
   }
 
   __syncthreads();
@@ -774,7 +731,7 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
     BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
 
   } else {
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, num_tile_items);
   }
 
   __syncthreads();
@@ -788,7 +745,7 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
     BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
 
   } else {
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, num_tile_items);
   }
 
   __syncthreads();
@@ -802,7 +759,7 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
     BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, ht4, dim_len4, min_key4, num_tile_items);
 
   } else {
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, num_tile_items);
   }
 
   __syncthreads();
@@ -830,7 +787,7 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
   int* gpuCache, int* dimkey_idx1, int* dimkey_idx2, int* dimkey_idx3, int* dimkey_idx4, int* aggr_idx,
-  int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4, int* res,
   int min_val1,int unique_val1, int min_val2, int unique_val2, int min_val3, int unique_val3, int min_val4, int unique_val4,
   int total_val, int min_key1, int min_key2, int min_key3, int min_key4, int start_offset, int* segment_group) {
 
@@ -869,11 +826,11 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
   int groupval4[ITEMS_PER_THREAD];
   int aggrval[ITEMS_PER_THREAD];
 
-  int num_tiles = (fact_len + tile_size - 1) / tile_size;
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
   int num_tile_items = tile_size;
   bool is_last_tile = false;
   if (blockIdx.x == num_tiles - 1) {
-    num_tile_items = fact_len - tile_offset;
+    num_tile_items = num_tuples - tile_offset;
     is_last_tile = true;
   }
 
@@ -911,11 +868,11 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
     // Barrier for smem reuse
     __syncthreads();
 
-    BlockProbeGroupByGPUHelper2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval1, selection_flags, gpuCache, dimkey_idx1, num_tile_items);
+    BlockReadFilteredOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval1, selection_flags, gpuCache, dimkey_idx1, num_tile_items);
 
   } else if (dim_off1 == NULL && dimkey_idx1 == NULL) { //not doing anything (if dim_off1 == NULL && dimkey_idx1 == NULL)
 
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval1, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval1, selection_flags, num_tile_items);
 
   }
 
@@ -939,11 +896,11 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
     // Barrier for smem reuse
     __syncthreads();
 
-    BlockProbeGroupByGPUHelper2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, gpuCache, dimkey_idx2, num_tile_items);
+    BlockReadFilteredOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, gpuCache, dimkey_idx2, num_tile_items);
 
   } else if (dim_off2 == NULL && dimkey_idx2 == NULL) {
 
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, num_tile_items);
 
   }
 
@@ -967,11 +924,11 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
     // Barrier for smem reuse
     __syncthreads();
 
-    BlockProbeGroupByGPUHelper2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, gpuCache, dimkey_idx3, num_tile_items);
+    BlockReadFilteredOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, gpuCache, dimkey_idx3, num_tile_items);
 
   } else if (dim_off3 == NULL && dimkey_idx3 == NULL) {
 
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, num_tile_items);
 
   }
 
@@ -995,11 +952,11 @@ __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, i
     // Barrier for smem reuse
     __syncthreads();
 
-    BlockProbeGroupByGPUHelper2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, gpuCache, dimkey_idx4, num_tile_items);
+    BlockReadFilteredOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, gpuCache, dimkey_idx4, num_tile_items);
 
   } else if (dim_off4 == NULL && dimkey_idx4 == NULL) {
 
-    BlockProbeGroupByGPUHelper<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, num_tile_items);
+    BlockSetGroupValZero<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, num_tile_items);
 
   }
 
@@ -1143,19 +1100,35 @@ __global__ void filter_GPU(int* filter_col1, int* filter_col2, int compare1, int
     } else if (mode1 == 3) { //less than
       BlockPredLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items1, compare1, selection_flags, num_tile_items);
     }
-  }
-  if (filter_col2 != NULL) {
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(filter_col2 + tile_offset, items2, num_tile_items);
-    if (mode2 == 0) { //equal to
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
-    } else if (mode2 == 1) { //between
-      BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
-      BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare4, selection_flags, num_tile_items);
-    } else if (mode2 == 2) { //equal or equal
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
-      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare4, selection_flags, num_tile_items);
-    } else if (mode2 == 3) { //less than
-      BlockPredLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+
+    if (filter_col2 != NULL) {
+      BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(filter_col2 + tile_offset, items2, num_tile_items);
+      if (mode2 == 0) { //equal to
+        BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+      } else if (mode2 == 1) { //between
+        BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+        BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare4, selection_flags, num_tile_items);
+      } else if (mode2 == 2) { //equal or equal
+        BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+        BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare4, selection_flags, num_tile_items);
+      } else if (mode2 == 3) { //less than
+        BlockPredAndLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+      }
+    }
+  } else {
+    if (filter_col2 != NULL) {
+      BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(filter_col2 + tile_offset, items2, num_tile_items);
+      if (mode2 == 0) { //equal to
+        BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+      } else if (mode2 == 1) { //between
+        BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+        BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare4, selection_flags, num_tile_items);
+      } else if (mode2 == 2) { //equal or equal
+        BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+        BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare4, selection_flags, num_tile_items);
+      } else if (mode2 == 3) { //less than
+        BlockPredLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items2, compare3, selection_flags, num_tile_items);
+      }
     }
   }
 
@@ -1225,18 +1198,18 @@ __global__ void filter_GPU2(int* off_col, int* gpuCache, int* filter_idx, int co
 
   if (filter_idx != NULL && off_col != NULL) {
     if (mode == 0) { //equal to
-      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, off_col, num_tile_items);
+      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, num_tile_items);
       BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
     } else if (mode == 1) { //between
-      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, off_col, num_tile_items);
+      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, num_tile_items);
       BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
     } else if (mode == 2) { //equal or equal
-      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, off_col, num_tile_items);
+      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, num_tile_items);
       BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
       BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
     } else if (mode == 3) { //less than
-      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, off_col, num_tile_items);
+      BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx, num_tile_items);
       BlockPredLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
     }
   }
@@ -1244,7 +1217,9 @@ __global__ void filter_GPU2(int* off_col, int* gpuCache, int* filter_idx, int co
   #pragma unroll
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
     if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
-      if(selection_flags[ITEM]) t_count++;
+      if(selection_flags[ITEM]) {
+        t_count++;
+      }
     }
   }
 
@@ -1264,35 +1239,167 @@ __global__ void filter_GPU2(int* off_col, int* gpuCache, int* filter_idx, int co
     if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
       if(selection_flags[ITEM]) {
         int offset = block_off + c_t_count++;
-        out_off[offset] = start_offset + blockIdx.x * tile_size + (threadIdx.x + ITEM * BLOCK_THREADS);
+        //out_off[offset] = start_offset + blockIdx.x * tile_size + (threadIdx.x + ITEM * BLOCK_THREADS);
+        out_off[offset] = items_off[ITEM];
       }
     }
   }
 }
 
-__global__
-void runAggregationQ2GPU(int* gpuCache, int* lo_idx, int* p_idx, int* d_idx, int* lo_off, int* part_off, int* date_off, int num_tuples, int* res, int num_slots) {
-  int offset = blockIdx.x * blockDim.x + threadIdx.x;
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void groupByGPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4, 
+  int* gpuCache, int* aggr_idx1, int* aggr_idx2, int* group_idx1, int* group_idx2, int* group_idx3, int* group_idx4,
+  int min_val1, int min_val2, int min_val3, int min_val4, int unique_val1, int unique_val2, int unique_val3, int unique_val4,
+  int total_val, int num_tuples, int* res, int mode) {
 
-  if (offset < num_tuples) {
-    int revenue_idx = lo_off[offset];
-    int brand_idx = part_off[offset];
-    int year_idx = date_off[offset];
+  int items_off[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+  int groupval1[ITEMS_PER_THREAD];
+  int groupval2[ITEMS_PER_THREAD];
+  int groupval3[ITEMS_PER_THREAD];
+  int groupval4[ITEMS_PER_THREAD];
 
-    int revenue_seg = lo_idx[revenue_idx / SEGMENT_SIZE];
-    int brand_seg = p_idx[brand_idx / SEGMENT_SIZE];
-    int year_seg = d_idx[year_idx / SEGMENT_SIZE];
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
 
-    int revenue = gpuCache[revenue_seg * SEGMENT_SIZE + (revenue_idx % SEGMENT_SIZE)];
-    int brand = gpuCache[brand_seg * SEGMENT_SIZE + (brand_idx % SEGMENT_SIZE)];
-    int year = gpuCache[year_seg * SEGMENT_SIZE + (year_idx % SEGMENT_SIZE)];
+  int tile_offset = blockIdx.x * tile_size;
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
 
-    int hash = (brand * 7 + (year - 1992)) % num_slots;
-
-    res[hash * 6] = 0;
-    res[hash * 6 + 1] = brand;
-    res[hash * 6 + 2] = year;
-    atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(revenue));
-
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
   }
+
+  cudaAssert(lo_off != NULL);
+  BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_off + tile_offset, items_off, num_tile_items);
+
+  if (aggr_idx1 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, aggrval1, gpuCache, aggr_idx1, num_tile_items);
+  else {
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+    {
+      if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) { // CUB use blocked arrangement
+        aggrval1[ITEM] = 0;
+      }
+    }
+  }
+
+  if (aggr_idx2 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, aggrval2, gpuCache, aggr_idx2, num_tile_items);
+  else {
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+    {
+      if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) { // CUB use blocked arrangement
+        aggrval2[ITEM] = 0;
+      }
+    }
+  }
+
+  if (group_idx1 != NULL) {
+    cudaAssert(dim_off1 != NULL);
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off1 + tile_offset, items_off, num_tile_items);
+    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, groupval1, gpuCache, group_idx1, num_tile_items);    
+  } else {
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+    {
+      if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) { // CUB use blocked arrangement
+        groupval1[ITEM] = 0;
+      }
+    }
+  }
+
+  if (group_idx2 != NULL) {
+    cudaAssert(dim_off2 != NULL);
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off2 + tile_offset, items_off, num_tile_items);
+    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, groupval2, gpuCache, group_idx2, num_tile_items);    
+  } else {
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+    {
+      if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) { // CUB use blocked arrangement
+        groupval2[ITEM] = 0;
+      }
+    }
+  }
+
+  if (group_idx3 != NULL) {
+    cudaAssert(dim_off3 != NULL);
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off3 + tile_offset, items_off, num_tile_items);
+    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, groupval3, gpuCache, group_idx3, num_tile_items);    
+  } else {
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+    {
+      if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) { // CUB use blocked arrangement
+        groupval3[ITEM] = 0;
+      }
+    }
+  }
+
+  if (group_idx4 != NULL) {
+    cudaAssert(dim_off4 != NULL);
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off4 + tile_offset, items_off, num_tile_items);
+    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, groupval4, gpuCache, group_idx4, num_tile_items);   
+
+  } else {
+    #pragma unroll
+    for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+    {
+      if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) { // CUB use blocked arrangement
+        groupval4[ITEM] = 0;
+      }
+    }
+  }
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      int hash = ((groupval1[ITEM] - min_val1) * unique_val1 + (groupval2[ITEM] - min_val2) * unique_val2 +  (groupval3[ITEM] - min_val3) * unique_val3 + (groupval4[ITEM] - min_val4) * unique_val4) % total_val; //!
+
+      //printf("%d %d %d %d\n", groupval1[ITEM], groupval2[ITEM], groupval3[ITEM], groupval4[ITEM]);
+      res[hash * 6] = groupval1[ITEM];
+      res[hash * 6 + 1] = groupval2[ITEM];
+      res[hash * 6 + 2] = groupval3[ITEM];
+      res[hash * 6 + 3] = groupval4[ITEM];
+
+      //cudaAssert(groupval4[ITEM] <= 1998);
+
+      int temp;
+      if (mode == 0) temp = aggrval1[ITEM];
+      else if (mode == 1) temp = aggrval1[ITEM] - aggrval2[ITEM];
+      else if (mode == 2) temp = aggrval1[ITEM] * aggrval2[ITEM];
+      atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp));
+    }
+  }
+
 }
+
+#endif
+
+// __global__
+// void runAggregationQ2GPU(int* gpuCache, int* lo_idx, int* p_idx, int* d_idx, int* lo_off, int* part_off, int* date_off, int num_tuples, int* res, int num_slots) {
+//   int offset = blockIdx.x * blockDim.x + threadIdx.x;
+
+//   if (offset < num_tuples) {
+//     int revenue_idx = lo_off[offset];
+//     int brand_idx = part_off[offset];
+//     int year_idx = date_off[offset];
+
+//     int revenue_seg = lo_idx[revenue_idx / SEGMENT_SIZE];
+//     int brand_seg = p_idx[brand_idx / SEGMENT_SIZE];
+//     int year_seg = d_idx[year_idx / SEGMENT_SIZE];
+
+//     int revenue = gpuCache[revenue_seg * SEGMENT_SIZE + (revenue_idx % SEGMENT_SIZE)];
+//     int brand = gpuCache[brand_seg * SEGMENT_SIZE + (brand_idx % SEGMENT_SIZE)];
+//     int year = gpuCache[year_seg * SEGMENT_SIZE + (year_idx % SEGMENT_SIZE)];
+
+//     int hash = (brand * 7 + (year - 1992)) % num_slots;
+
+//     res[hash * 6] = 0;
+//     res[hash * 6 + 1] = brand;
+//     res[hash * 6 + 2] = year;
+//     atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(revenue));
+
+//   }
+// }

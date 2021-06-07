@@ -24,7 +24,7 @@ cub::CachingDeviceAllocator  g_allocator(true);  // Caching allocator for device
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void QueryKernel(int* lo_orderdate, int* lo_discount, int* lo_quantity, int* lo_extendedprice,
-    int lo_num_entries, unsigned long long* revenue) {
+    int lo_num_entries, unsigned long long* revenue, int* d_total) {
   // Load a segment of consecutive items that are blocked across threads
   int items[ITEMS_PER_THREAD];
   int selection_flags[ITEMS_PER_THREAD];
@@ -35,30 +35,44 @@ __global__ void QueryKernel(int* lo_orderdate, int* lo_discount, int* lo_quantit
   int tile_offset = blockIdx.x * TILE_SIZE;
   int num_tiles = (lo_num_entries + TILE_SIZE - 1) / TILE_SIZE;
   int num_tile_items = TILE_SIZE;
+  int t_count = 0;
 
   if (blockIdx.x == num_tiles - 1) {
     num_tile_items = lo_num_entries - tile_offset;
   }
 
-  BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_orderdate + tile_offset, items, num_tile_items);
-  BlockPredGT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 19930000, selection_flags, num_tile_items);
-  BlockPredAndLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 19940000, selection_flags, num_tile_items);
-
-  BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_quantity + tile_offset, items, num_tile_items);
-  BlockPredAndLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 25, selection_flags, num_tile_items);
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
 
   BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_discount + tile_offset, items, num_tile_items);
   BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 1, selection_flags, num_tile_items);
   BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 3, selection_flags, num_tile_items);
 
+  BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_quantity + tile_offset, items, num_tile_items);
+  BlockPredAndLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 25, selection_flags, num_tile_items);
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+  {
+    if ((threadIdx.x + (BLOCK_THREADS * ITEM) < num_tile_items))
+      if (selection_flags[ITEM]) {
+        t_count++;
+      }
+  }
+
+  BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_orderdate + tile_offset, items, num_tile_items);
+  BlockPredAndGT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 19930000, selection_flags, num_tile_items);
+  BlockPredAndLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, 19940000, selection_flags, num_tile_items);
+
+  BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_discount + tile_offset, items, num_tile_items);
   BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_extendedprice + tile_offset, items2, num_tile_items);
 
   #pragma unroll
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
   {
     if ((threadIdx.x + (BLOCK_THREADS * ITEM) < num_tile_items))
-      if (selection_flags[ITEM])
+      if (selection_flags[ITEM]) {
         sum += items[ITEM] * items2[ITEM];
+      }
   }
 
   __syncthreads();
@@ -67,8 +81,14 @@ __global__ void QueryKernel(int* lo_orderdate, int* lo_discount, int* lo_quantit
   unsigned long long aggregate = BlockSum<long long, BLOCK_THREADS, ITEMS_PER_THREAD>(sum, (long long*)buffer);
   __syncthreads();
 
+  static __shared__ int buffer2[32];
+  int tot_t_count = BlockSum<int, BLOCK_THREADS, ITEMS_PER_THREAD>(t_count, (int*)buffer2);
+  __syncthreads();
+
+
   if (threadIdx.x == 0) {
     atomicAdd(revenue, aggregate);
+    atomicAdd(d_total, tot_t_count);
   }
 }
 
@@ -87,18 +107,26 @@ float runQuery(int* lo_orderdate, int* lo_discount, int* lo_quantity, int* lo_ex
 
   cudaMemset(d_sum, 0, sizeof(long long));
 
+  int* d_total;
+  CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
+  CubDebugExit(cudaMemset(d_total, 0, sizeof(int)));
+
   // Run
   int tile_items = 128*4;
   int num_blocks = (lo_num_entries + tile_items - 1)/tile_items;
   QueryKernel<128,4><<<num_blocks, 128>>>(lo_orderdate, 
-          lo_discount, lo_quantity, lo_extendedprice, lo_num_entries, d_sum);
+          lo_discount, lo_quantity, lo_extendedprice, lo_num_entries, d_sum, d_total);
 
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time_query, start,stop);
 
   unsigned long long revenue;
+  int h_total = 0;
   CubDebugExit(cudaMemcpy(&revenue, d_sum, sizeof(long long), cudaMemcpyDeviceToHost));
+  CubDebugExit(cudaMemcpy(&h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost));
+
+  printf("%d\n", h_total);
 
   finish = chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = finish - st;

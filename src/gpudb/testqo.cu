@@ -7,17 +7,30 @@ int main() {
 
 	QueryProcessing* qp = new QueryProcessing();
 
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_orderdate, 6000);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_orderdate, 6002);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_partkey, 4000);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_suppkey, 2000);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_revenue, 6000);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_custkey, 2000);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_suppkey, 0);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_revenue, 6002);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_supplycost, 6002);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_discount, 6002);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_quantity, 6002);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_extendedprice, 6002);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->d_datekey, 3);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->d_year, 3);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_partkey, 200);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_category, 200);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_brand1, 200);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_mfgr, 200);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->c_custkey, 30);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->c_region, 30);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->c_nation, 30);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->s_suppkey, 2);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->s_region, 2);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->s_nation, 2);
+
+	printf("LOADED\n");
+
 
 	// qp->qo->parseQuery(1);
 

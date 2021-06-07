@@ -82,6 +82,22 @@ QueryOptimizer::QueryOptimizer() {
 
 void 
 QueryOptimizer::parseQuery(int query) {
+
+	selectGPUPipelineCol.resize(64);
+	selectCPUPipelineCol.resize(64);
+	joinGPUPipelineCol.resize(64);
+	joinCPUPipelineCol.resize(64);
+	groupbyGPUPipelineCol.resize(64);
+	groupbyCPUPipelineCol.resize(64);
+
+	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
+	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		segment_group[i] = (short*) malloc (64 * cm->lo_orderdate->total_segment * sizeof(short));
+		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
+		memset(segment_group_count[i], 0, 64 * sizeof(short));
+	}
+
 	if (query == 0) parseQuery11();
 	else if (query == 1) parseQuery21();
 	else if (query == 2) parseQuery31();
@@ -138,16 +154,38 @@ QueryOptimizer::parseQuery11() {
 	querySelectColumn.push_back(cm->d_year);
 	queryBuildColumn.push_back(cm->d_datekey);
 	queryProbeColumn.push_back(cm->lo_orderdate);
-	queryGroupByColumn.push_back(cm->d_year);
-	queryGroupByColumn.push_back(cm->p_brand1);
 	queryAggrColumn.push_back(cm->lo_extendedprice);
 	queryAggrColumn.push_back(cm->lo_discount);
+
+	join.resize(1);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	groupby_probe[cm->lo_orderdate].push_back(cm->lo_extendedprice);
+	groupby_probe[cm->lo_orderdate].push_back(cm->lo_discount);
+
+	select_probe[cm->lo_orderdate].push_back(cm->lo_quantity);
+	select_probe[cm->lo_orderdate].push_back(cm->lo_discount);
+
+	select_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
 
 }
 
 void 
 QueryOptimizer::parseQuery21() {
 	//clearVector();
+	querySelectColumn.push_back(cm->p_category);
+	querySelectColumn.push_back(cm->d_year);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->p_partkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_partkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->p_brand1);
+	queryAggrColumn.push_back(cm->lo_revenue);
 
 	join.resize(3);
 	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
@@ -165,21 +203,6 @@ QueryOptimizer::parseQuery21() {
 	// joinCPUPipeline.resize(join.size());
 	// selectGPUPipeline.resize(select_probe.size());
 	// selectCPUPipeline.resize(select_probe.size());
-
-	selectGPUPipelineCol.resize(64);
-	selectCPUPipelineCol.resize(64);
-	joinGPUPipelineCol.resize(64);
-	joinCPUPipelineCol.resize(64);
-	groupbyGPUPipelineCol.resize(64);
-	groupbyCPUPipelineCol.resize(64);
-
-	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
-	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		segment_group[i] = (short*) malloc (64 * cm->lo_orderdate->total_segment * sizeof(short));
-		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
-		memset(segment_group_count[i], 0, 64 * sizeof(short));
-	}
 
 	dataDrivenOperatorPlacement();
 }
@@ -199,6 +222,23 @@ QueryOptimizer::parseQuery31() {
 	queryGroupByColumn.push_back(cm->c_nation);
 	queryGroupByColumn.push_back(cm->s_nation);
 	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(3);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->c_custkey].push_back(cm->c_region);
+	select_build[cm->s_suppkey].push_back(cm->s_region);
+	select_build[cm->d_datekey].push_back(cm->d_year);
+
+	groupby_probe[cm->lo_orderdate].push_back(cm->lo_revenue);
+
+	groupby_build[cm->c_custkey].push_back(cm->c_nation);
+	groupby_build[cm->s_suppkey].push_back(cm->s_nation);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
 }
 
 void 
@@ -218,6 +258,24 @@ QueryOptimizer::parseQuery41() {
 	queryGroupByColumn.push_back(cm->c_nation);
 	queryAggrColumn.push_back(cm->lo_supplycost);
 	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(4);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_partkey, cm->p_partkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[3] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->p_partkey].push_back(cm->p_mfgr);
+	select_build[cm->c_custkey].push_back(cm->c_region);
+	select_build[cm->s_suppkey].push_back(cm->s_region);
+
+	groupby_probe[cm->lo_orderdate].push_back(cm->lo_revenue);
+	groupby_probe[cm->lo_orderdate].push_back(cm->lo_supplycost);
+
+	groupby_build[cm->c_custkey].push_back(cm->c_nation);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
 }
 
 
@@ -278,7 +336,7 @@ QueryOptimizer::groupBitmap() {
 
 		temp = temp << groupby_probe[cm->lo_orderdate].size();
 
-		for (int j = 0; j < groupby_probe.size(); j++) {
+		for (int j = 0; j < groupby_probe[cm->lo_orderdate].size(); j++) {
 			ColumnInfo* column = groupby_probe[cm->lo_orderdate][j];
 			bool isGPU = cm->segment_bitmap[column->column_id][i];
 			//temp = temp | (isGPU << (join.size() - j - 1));
@@ -324,8 +382,11 @@ QueryOptimizer::groupBitmap() {
 
 			for (int j = 0; j < select_probe[cm->lo_orderdate].size(); j++) {
 				bit = (sg & (1 << j)) >> j;
-				if (bit && joinGPUcheck[j]) selectGPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
-				else selectCPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
+				if (bit) selectGPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
+				else {
+					cout << select_probe[cm->lo_orderdate][j]->column_name << " " << i << endl;
+					selectCPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
+				}
 			}
 
 			sg = sg >> select_probe[cm->lo_orderdate].size();
