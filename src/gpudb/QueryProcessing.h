@@ -59,7 +59,7 @@ public:
   void updateStatsQuery(int query);
 
   void processQuery() {
-    int query = 0;
+    int query = 1;
     qo->parseQuery(query);
     prepareQuery(query);
     updateStatsQuery(query);
