@@ -8,14 +8,14 @@ int main() {
 	QueryProcessing* qp = new QueryProcessing();
 
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_orderdate, 6002);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_partkey, 4000);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_custkey, 2000);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_suppkey, 0);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_partkey, 6002);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_custkey, 6002);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_suppkey, 6002);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_revenue, 6002);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_supplycost, 6002);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_discount, 6002);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_quantity, 6002);
-	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_extendedprice, 6002);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_discount, 4000);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_quantity, 1000);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_extendedprice, 5000);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->d_datekey, 3);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->d_year, 3);
 	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_partkey, 200);

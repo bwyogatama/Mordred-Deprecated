@@ -59,7 +59,7 @@ public:
   void updateStatsQuery(int query);
 
   void processQuery() {
-    int query = 3;
+    int query = 0;
     qo->parseQuery(query);
     prepareQuery(query);
     updateStatsQuery(query);
@@ -172,7 +172,7 @@ QueryProcessing::switch_device_fact(int** &off_col, int* &d_off_col, int** &h_of
       off_col[i] = d_off_col + i * SEGMENT_SIZE * qo->segment_group_count[table][sg];
     }
     
-    CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
+    //CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
     CubDebugExit(cudaMemcpy(d_total, h_total, sizeof(int), cudaMemcpyHostToDevice));
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (h_off_col[i] != NULL) {
@@ -212,7 +212,7 @@ QueryProcessing::switch_device_dim(int* &d_off_col, int* &h_off_col, int* &d_tot
 
     CubDebugExit(cudaMalloc((void**) &d_off_col, SEGMENT_SIZE * qo->segment_group_count[table][sg] * sizeof(int)));
 
-    CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
+    //CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
     CubDebugExit(cudaMemcpy(d_total, h_total, sizeof(int), cudaMemcpyHostToDevice));
 
     if (h_off_col != NULL) {
@@ -256,7 +256,7 @@ QueryProcessing::call_probe_GPU(int** &off_col, int* &d_off_col, int* &d_total, 
   off_col_out = new int*[cm->TOT_TABLE] (); //initialize it to null
   CubDebugExit(cudaMalloc((void**) &d_off_col_out, cm->TOT_TABLE * SEGMENT_SIZE * qo->segment_group_count[0][sg] * sizeof(int)));
 
-  CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
+  //CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
   CubDebugExit(cudaMemset(d_total, 0, sizeof(int)));
 
   for (int i = 0; i < cm->TOT_TABLE; i++) {
@@ -528,7 +528,7 @@ QueryProcessing::call_build_filter_GPU(int* &d_off_col, int* &d_total, int* h_to
   
   CubDebugExit(cudaMalloc((void**) &d_off_col, qo->segment_group_count[table][sg] * SEGMENT_SIZE * sizeof(int)));
 
-  CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
+  //CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
   CubDebugExit(cudaMemset(d_total, 0, sizeof(int)));
 
   for (int i = 0; i < qo->segment_group_count[table][sg]; i++){
@@ -549,7 +549,7 @@ QueryProcessing::call_build_filter_GPU(int* &d_off_col, int* &d_total, int* h_to
     CHECK_ERROR();
   }
   CubDebugExit(cudaMemcpy(h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost));
-  printf("date total = %d\n", *h_total);
+  //printf("date total = %d\n", *h_total);
 
 }
 
@@ -607,7 +607,7 @@ QueryProcessing::call_probe_filter_GPU(int** &off_col, int* &d_off_col, int* &d_
     off_col_out[i] = d_off_col_out + i * SEGMENT_SIZE * qo->segment_group_count[0][sg];
   }
 
-  CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
+  //CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
   CubDebugExit(cudaMemset(d_total, 0, sizeof(int)));
 
   for (int i = 0; i < qo->selectGPUPipelineCol[sg].size(); i++) {
@@ -782,7 +782,7 @@ QueryProcessing::call_group_by_GPU(int** &off_col, int* h_total) {
 
   CHECK_ERROR();
 
-  CubDebugExit(cudaMemcpy(res, d_res, total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
+  //CubDebugExit(cudaMemcpy(res, d_res, total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   //TODO: don't forget to merge after this !!!!!!
 
 }
@@ -827,6 +827,7 @@ QueryProcessing::runQuery(int query) {
 
       int *h_off_col = NULL, *d_off_col = NULL, *d_total = NULL;
       int h_total = 0;
+      CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
 
       //cout << qo->join[i].second->column_name << endl;
 
@@ -864,7 +865,7 @@ QueryProcessing::runQuery(int query) {
 
     int** h_off_col = NULL, **off_col = NULL;
     int* d_off_col = NULL, *d_total = NULL, h_total = 0;
-    //CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
+    CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
 
     if (qo->segment_group_count[0][sg] > 0) {
 
@@ -882,6 +883,12 @@ QueryProcessing::runQuery(int query) {
 
       call_probe_CPU(h_off_col, &h_total, sg);
 
+      // call_probe_filter_GPU(off_col, d_off_col, d_total, &h_total, sg, 0);
+
+      // switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+
+      // call_probe_filter_CPU(h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
+
       // call_probe_CPU(h_off_col, &h_total, sg);
 
       // switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 0, 0);
@@ -890,14 +897,14 @@ QueryProcessing::runQuery(int query) {
 
       if (qo->groupGPUcheck) {
         if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
-          //switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 0, 0);
+          switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 0, 0);
           call_group_by_GPU(off_col, &h_total);
         } else {
-          switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+          //switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
           call_group_by_CPU(h_off_col, &h_total);
         }
       } else {
-        switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+        //switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
         call_group_by_CPU(h_off_col, &h_total);
       }
 
@@ -922,6 +929,12 @@ QueryProcessing::runQuery(int query) {
 
     }
   }
+
+  int* resGPU = new int [total_val * 6]();
+  CubDebugExit(cudaMemcpy(resGPU, d_res, total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
+
+  merge(res, resGPU, total_val);
+  delete[] resGPU;
 
   cout << "Result:" << endl;
   int res_count = 0;
@@ -968,7 +981,7 @@ QueryProcessing::prepareQuery(int query) {
     dim_len[cm->s_suppkey] = 0;
     dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
 
-    total_val = (1998-1992+1);
+    total_val = 1;
 
     ht_CPU[cm->p_partkey] = NULL;
     ht_CPU[cm->c_custkey] = NULL;

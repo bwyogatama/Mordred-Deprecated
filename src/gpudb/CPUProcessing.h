@@ -434,7 +434,7 @@ void filter_CPU(int* off_col, int *filter_col1, int* filter_col2, int compare1, 
       }
 
       if (selection_flag) {
-        temp[count] = start_offset + i;
+        temp[count] = col_offset;
         count++;        
       }
     }
@@ -557,6 +557,32 @@ void groupByCPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* d
       } else assert(0);
 
       __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
+    }
+  });
+}
+
+void merge(int* resCPU, int* resGPU, int num_tuples) {
+  parallel_for(blocked_range<size_t>(0, num_tuples, num_tuples/NUM_THREADS + 4), [&](auto range) {
+    int start = range.begin();
+    int end = range.end();
+    int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        if (resCPU[i * 6] == 0) resCPU[i * 6] = resGPU[i * 6];
+        if (resCPU[i * 6 + 1] == 0) resCPU[i * 6 + 1] = resGPU[i * 6 + 1];
+        if (resCPU[i * 6 + 2] == 0) resCPU[i * 6 + 2] = resGPU[i * 6 + 2];
+        if (resCPU[i * 6 + 3] == 0) resCPU[i * 6 + 3] = resGPU[i * 6 + 3];
+        reinterpret_cast<unsigned long long*>(resCPU)[i * 3 + 2] += reinterpret_cast<unsigned long long*>(resGPU)[i * 3 + 2];
+      }
+    }
+    for (int i = end_batch ; i < end; i++) {
+      if (resCPU[i * 6] == 0) resCPU[i * 6] = resGPU[i * 6];
+      if (resCPU[i * 6 + 1] == 0) resCPU[i * 6 + 1] = resGPU[i * 6 + 1];
+      if (resCPU[i * 6 + 2] == 0) resCPU[i * 6 + 2] = resGPU[i * 6 + 2];
+      if (resCPU[i * 6 + 3] == 0) resCPU[i * 6 + 3] = resGPU[i * 6 + 3];
+      reinterpret_cast<unsigned long long*>(resCPU)[i * 3 + 2] += reinterpret_cast<unsigned long long*>(resGPU)[i * 3 + 2];
     }
   });
 }
