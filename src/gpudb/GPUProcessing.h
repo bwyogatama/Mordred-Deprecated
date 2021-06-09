@@ -567,7 +567,7 @@ __global__ void probe_GPU2(
     //BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset1, selection_flags, gpuCache, dimkey_idx1, lo_off, ht1, dim_len1, min_key1, num_tile_items);
     BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
 
-  } else {
+  } else if (dim_off1 != NULL) {
     //BlockLoadInt(temp_storage.load_items).Load(dim_off1 + tile_offset, items, num_tile_items);
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off1 + tile_offset, items, num_tile_items);
 
@@ -575,6 +575,8 @@ __global__ void probe_GPU2(
     __syncthreads();
 
     BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, num_tile_items);
+  } else {
+    cudaAssert(0);
   }
 
   __syncthreads();
@@ -596,7 +598,7 @@ __global__ void probe_GPU2(
     //BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset2, selection_flags, gpuCache, dimkey_idx2, lo_off, ht2, dim_len2, min_key2, num_tile_items);
     BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
 
-  } else if (dimkey_idx2 == NULL) {
+  } else if (dim_off2 != NULL) {
     //BlockLoadInt(temp_storage.load_items).Load(dim_off2 + tile_offset, items, num_tile_items);
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off2 + tile_offset, items, num_tile_items);
 
@@ -605,6 +607,8 @@ __global__ void probe_GPU2(
 
     BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, num_tile_items);
 
+  } else {
+    cudaAssert(0);
   }
 
   __syncthreads();
@@ -626,7 +630,7 @@ __global__ void probe_GPU2(
     //BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset3, selection_flags, gpuCache, dimkey_idx3, lo_off, ht3, dim_len3, min_key3, num_tile_items);
     BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
 
-  } else if (dimkey_idx3 == NULL) {
+  } else if (dim_off3 != NULL) {
     //BlockLoadInt(temp_storage.load_items).Load(dim_off3 + tile_offset, items, num_tile_items);
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off3 + tile_offset, items, num_tile_items);
 
@@ -635,6 +639,8 @@ __global__ void probe_GPU2(
 
     BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, num_tile_items);
 
+  } else {
+    cudaAssert(0);
   }
 
   __syncthreads();
@@ -656,7 +662,7 @@ __global__ void probe_GPU2(
     //BlockProbeGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, items_lo, dim_offset4, selection_flags, gpuCache, dimkey_idx4, lo_off, ht4, dim_len4, min_key4, num_tile_items);
     BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset4, selection_flags, ht4, dim_len4, min_key4, num_tile_items);
 
-  } else if (dimkey_idx4 == NULL) {
+  } else if (dim_off4 != NULL) {
     //BlockLoadInt(temp_storage.load_items).Load(dim_off4 + tile_offset, items, num_tile_items);
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off4 + tile_offset, items, num_tile_items);
 
@@ -665,6 +671,8 @@ __global__ void probe_GPU2(
 
     BlockPassThroughOffset<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset4, selection_flags, num_tile_items);
 
+  } else {
+    cudaAssert(0);
   }
 
   //Barrier
@@ -826,6 +834,8 @@ __global__ void probe_group_by_GPU(int* dim_key1, int* dim_key2, int* dim_key3, 
   }
 }
 
+
+//THIS WILL NOT WORKING!!! DIM_OFF CAN NO LONGER BE NULL 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_group_by_GPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
   int* gpuCache, int* dimkey_idx1, int* dimkey_idx2, int* dimkey_idx3, int* dimkey_idx4, int* aggr_idx,

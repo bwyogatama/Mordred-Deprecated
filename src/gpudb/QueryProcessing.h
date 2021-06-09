@@ -32,7 +32,7 @@ public:
   int* res;
   int* d_res;
 
-  vector<int> query_freq;
+  vector<uint64_t> query_freq;
   unordered_map<ColumnInfo*, int> compare1;
   unordered_map<ColumnInfo*, int> compare2;
   unordered_map<ColumnInfo*, int> mode;
@@ -58,13 +58,17 @@ public:
 
   void updateStatsQuery(int query);
 
-  void processQuery() {
-    int query = 1;
+  void processQuery(int query) {
     qo->parseQuery(query);
+    // printf("1\n");
     prepareQuery(query);
+    // printf("2\n");
     updateStatsQuery(query);
+    // printf("3\n");
     runQuery(query);
+    // printf("4\n");
     endQuery(query);
+    // printf("5\n");
   };
 
   void switch_device_fact(int** &off_col, int* &d_off_col, int** &h_off_col, int* &d_total, int* h_total, int sg, int mode, int table);
@@ -101,26 +105,48 @@ QueryProcessing::endQuery(int query) {
   unique_val.clear();
   dim_len.clear();
 
-  if (ht_p != NULL) free(ht_p);
-  if (ht_c != NULL) free(ht_c);
-  if (ht_s != NULL) free(ht_s);
-  if (ht_d != NULL) free(ht_d);
-  if (d_ht_p != NULL) g_allocator.DeviceFree(d_ht_p);
-  if (d_ht_c != NULL) g_allocator.DeviceFree(d_ht_c);
-  if (d_ht_s != NULL) g_allocator.DeviceFree(d_ht_s);
-  if (d_ht_d != NULL) g_allocator.DeviceFree(d_ht_d);
+  if (ht_p != NULL) {
+    free(ht_p); ht_p = NULL;
+  }
+  if (ht_c != NULL) {
+    free(ht_c); ht_c = NULL;
+  }
+  if (ht_s != NULL) {
+    free(ht_s); ht_s = NULL;
+  }
+  if (ht_d != NULL) {
+    free(ht_d); ht_d = NULL;
+  }
+  if (d_ht_p != NULL) {
+    CubDebugExit(g_allocator.DeviceFree(d_ht_p)); d_ht_p = NULL;
+  }
+  if (d_ht_c != NULL) {
+    CubDebugExit(g_allocator.DeviceFree(d_ht_c)); d_ht_c = NULL;
+  }
+  if (d_ht_s != NULL) {
+    CubDebugExit(g_allocator.DeviceFree(d_ht_s)); d_ht_s = NULL;
+  }
+  if (d_ht_d != NULL) {
+    CubDebugExit(g_allocator.DeviceFree(d_ht_d)); d_ht_d = NULL;
+  }
   
   unordered_map<ColumnInfo*, int*>::iterator it;
   for (it = col_idx.begin(); it != col_idx.end(); it++) {
-    g_allocator.DeviceFree(it->second);
+    CubDebugExit(g_allocator.DeviceFree(it->second));
   }
 
   ht_CPU.clear();
   ht_GPU.clear();
   col_idx.clear();
 
+  compare1.clear();
+  compare2.clear();
+  mode.clear();
+
   delete[] res;
-  g_allocator.DeviceFree(d_res);
+  res = NULL;
+  CubDebugExit(g_allocator.DeviceFree(d_res));
+  d_res = NULL;
 
   qo->clearVector();
 }
@@ -246,7 +272,7 @@ QueryProcessing::call_probe_GPU(int** &off_col, int* &d_off_col, int* &d_total, 
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_idx[4] = {}, *fkey_col[4] = {}; //initialize it to null
   ColumnInfo* fkey[4] = {};
-  int start_offset, idx_fkey, LEN;
+  int start_offset = 0, idx_fkey, LEN;
 
   int tile_items = 128*4;
 
@@ -340,7 +366,7 @@ QueryProcessing::call_probe_GPU(int** &off_col, int* &d_off_col, int* &d_total, 
   if (off_col != NULL) {
     assert(d_off_col != NULL);
     assert(off_col != NULL);
-    cudaFree(d_off_col);
+    CubDebugExit(cudaFree(d_off_col));
     //free(off_col);
     delete[] off_col;
   }
@@ -356,7 +382,7 @@ QueryProcessing::call_probe_CPU(int** &h_off_col, int* h_total, int sg) {
   int **off_col_out;
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_col[4] = {};
-  int start_offset, out_total, LEN;
+  int start_offset = 0, out_total = 0, LEN;
 
   if(qo->joinCPUPipelineCol[sg].size() == 0) return;
 
@@ -381,8 +407,6 @@ QueryProcessing::call_probe_CPU(int** &h_off_col, int* h_total, int sg) {
     _min_key[table_id - 1] = min_key[pkey];
     _dim_len[table_id - 1] = dim_len[pkey];
   }
-
-  out_total = 0;
 
   if (h_off_col == NULL) {
     for (int i = 0; i < qo->segment_group_count[0][sg]; i++) {
@@ -410,7 +434,8 @@ QueryProcessing::call_probe_CPU(int** &h_off_col, int* h_total, int sg) {
         ht[0], _dim_len[0], ht[1], _dim_len[1], ht[2], _dim_len[2], ht[3], _dim_len[3],
         _min_key[0], _min_key[1], _min_key[2], _min_key[3],
         off_col_out[0], off_col_out[1], off_col_out[2], off_col_out[3], off_col_out[4],
-        start_offset, &out_total, NULL);
+        0, &out_total, NULL);
+
   }
 
   if (h_off_col != NULL) {
@@ -661,7 +686,7 @@ QueryProcessing::call_probe_filter_GPU(int** &off_col, int* &d_off_col, int* &d_
 
     assert(filter_idx != NULL);
 
-    cout << filter[1]->column_name << endl;
+    //cout << filter[1]->column_name << endl;
 
     filter_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128>>>
         (off_col[0], cm->gpuCache, filter_idx, _compare1[1], _compare2[1], off_col_out[0], 
@@ -673,7 +698,7 @@ QueryProcessing::call_probe_filter_GPU(int** &off_col, int* &d_off_col, int* &d_
     assert(d_off_col != NULL);
     //free(off_col);
     delete[] off_col;
-    cudaFree(d_off_col);
+    CubDebugExit(cudaFree(d_off_col));
   }
 
   off_col = off_col_out;
@@ -733,7 +758,8 @@ QueryProcessing::call_probe_filter_CPU(int** &h_off_col, int* h_total, int sg, i
   }
 
   if (h_off_col != NULL) {
-    if (h_off_col[0] != NULL) delete[] h_off_col[0]; //free(h_off_col[0]);
+    for (int i = 0; i < cm->TOT_TABLE; i++)
+      if (h_off_col[i] != NULL) delete[] h_off_col[i]; //free(h_off_col[i]);
     //free(h_off_col);
     delete[] h_off_col;
   }
@@ -825,6 +851,8 @@ QueryProcessing::runQuery(int query) {
 
     for (int sg = 0; sg < 2; sg++) {
 
+      //printf("%d\n", sg);
+
       int *h_off_col = NULL, *d_off_col = NULL, *d_total = NULL;
       int h_total = 0;
       CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
@@ -853,18 +881,21 @@ QueryProcessing::runQuery(int query) {
           switch_device_dim(d_off_col, h_off_col, d_total, &h_total, sg, 1, qo->join[i].second->table_id);
           call_build_CPU(h_off_col, &h_total, qo->join[i].second->table_id);
 
-          cudaFree(d_off_col);
+          CubDebugExit(cudaFree(d_off_col));
           
         }
 
       }
+
+      CubDebugExit(cudaFree(d_total));
     }
   }
 
   for (int sg = 0; sg < 64; sg++) {
 
     int** h_off_col = NULL, **off_col = NULL;
-    int* d_off_col = NULL, *d_total = NULL, h_total = 0;
+    int* d_off_col = NULL, *d_total = NULL;
+    int h_total = 0;
     CubDebugExit(cudaMalloc((void**) &d_total, sizeof(int)));
 
     if (qo->segment_group_count[0][sg] > 0) {
@@ -883,6 +914,17 @@ QueryProcessing::runQuery(int query) {
 
       call_probe_CPU(h_off_col, &h_total, sg);
 
+      if (qo->groupGPUcheck) {
+        if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
+          switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 0, 0);
+          call_group_by_GPU(off_col, &h_total);
+        } else {
+          call_group_by_CPU(h_off_col, &h_total);
+        }
+      } else {
+        call_group_by_CPU(h_off_col, &h_total);
+      }
+
       // call_probe_filter_GPU(off_col, d_off_col, d_total, &h_total, sg, 0);
 
       // switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
@@ -895,18 +937,17 @@ QueryProcessing::runQuery(int query) {
 
       // call_probe_GPU(off_col, d_off_col, d_total, &h_total, sg);
 
-      if (qo->groupGPUcheck) {
-        if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
-          switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-          call_group_by_GPU(off_col, &h_total);
-        } else {
-          //switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-          call_group_by_CPU(h_off_col, &h_total);
-        }
-      } else {
-        //switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-        call_group_by_CPU(h_off_col, &h_total);
-      }
+      // if (qo->groupGPUcheck) {
+      //   if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
+      //     call_group_by_GPU(off_col, &h_total);
+      //   } else {
+      //     switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+      //     call_group_by_CPU(h_off_col, &h_total);
+      //   }
+      // } else {
+      //   switch_device_fact(off_col, d_off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+      //   call_group_by_CPU(h_off_col, &h_total);
+      // }
 
       // for (int i = 0; i < h_total2; i++) {
       //   bool found = false;
@@ -925,9 +966,11 @@ QueryProcessing::runQuery(int query) {
         delete[] h_off_col;
       }
       if (off_col != NULL) delete[] off_col;
-      if (d_off_col != NULL) cudaFree(d_off_col);
+      if (d_off_col != NULL) CubDebugExit(cudaFree(d_off_col));
 
     }
+
+    CubDebugExit(cudaFree(d_total));
   }
 
   int* resGPU = new int [total_val * 6]();
@@ -983,12 +1026,12 @@ QueryProcessing::prepareQuery(int query) {
 
     total_val = 1;
 
-    ht_CPU[cm->p_partkey] = NULL;
-    ht_CPU[cm->c_custkey] = NULL;
-    ht_CPU[cm->s_suppkey] = NULL;
-    ht_CPU[cm->d_datekey] = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
+    ht_p = NULL;
+    ht_c = NULL;
+    ht_s = NULL;
+    ht_d = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
 
-    memset(ht_CPU[cm->d_datekey], 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
+    memset(ht_d, 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
 
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_d, 2 * dim_len[cm->d_datekey] * sizeof(int)));
     d_ht_p = NULL;
@@ -1027,18 +1070,19 @@ QueryProcessing::prepareQuery(int query) {
 
     total_val = ((1998-1992+1) * (5 * 5 * 40));
 
-    ht_CPU[cm->p_partkey] = (int*)malloc(2 * dim_len[cm->p_partkey] * sizeof(int));
-    ht_CPU[cm->c_custkey] = NULL;
-    ht_CPU[cm->s_suppkey] = (int*)malloc(2 * dim_len[cm->s_suppkey] * sizeof(int));
-    ht_CPU[cm->d_datekey] = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
+    ht_p = (int*)malloc(2 * dim_len[cm->p_partkey] * sizeof(int));
+    ht_c = NULL;
+    ht_s = (int*)malloc(2 * dim_len[cm->s_suppkey] * sizeof(int));
+    ht_d = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
 
-    memset(ht_CPU[cm->d_datekey], 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
-    memset(ht_CPU[cm->p_partkey], 0, 2 * dim_len[cm->p_partkey] * sizeof(int));
-    memset(ht_CPU[cm->s_suppkey], 0, 2 * dim_len[cm->s_suppkey] * sizeof(int));
+    memset(ht_d, 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
+    memset(ht_p, 0, 2 * dim_len[cm->p_partkey] * sizeof(int));
+    memset(ht_s, 0, 2 * dim_len[cm->s_suppkey] * sizeof(int));
 
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_p, 2 * dim_len[cm->p_partkey] * sizeof(int)));
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_s, 2 * dim_len[cm->s_suppkey] * sizeof(int)));
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_d, 2 * dim_len[cm->d_datekey] * sizeof(int)));
+    d_ht_c = NULL;
 
     CubDebugExit(cudaMemset(d_ht_p, 0, 2 * dim_len[cm->p_partkey] * sizeof(int)));
     CubDebugExit(cudaMemset(d_ht_s, 0, 2 * dim_len[cm->s_suppkey] * sizeof(int)));
@@ -1077,24 +1121,25 @@ QueryProcessing::prepareQuery(int query) {
 
     total_val = ((1998-1992+1) * 25 * 25);
 
-    ht_CPU[cm->p_partkey] = NULL;
-    ht_CPU[cm->c_custkey] = (int*)malloc(2 * dim_len[cm->c_custkey] * sizeof(int));
-    ht_CPU[cm->s_suppkey] = (int*)malloc(2 * dim_len[cm->s_suppkey] * sizeof(int));
-    ht_CPU[cm->d_datekey] = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
+    ht_p = NULL;
+    ht_c = (int*)malloc(2 * dim_len[cm->c_custkey] * sizeof(int));
+    ht_s = (int*)malloc(2 * dim_len[cm->s_suppkey] * sizeof(int));
+    ht_d = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
 
-    memset(ht_CPU[cm->d_datekey], 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
-    memset(ht_CPU[cm->c_custkey], 0, 2 * dim_len[cm->c_custkey] * sizeof(int));
-    memset(ht_CPU[cm->s_suppkey], 0, 2 * dim_len[cm->s_suppkey] * sizeof(int));
+    memset(ht_d, 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
+    memset(ht_c, 0, 2 * dim_len[cm->c_custkey] * sizeof(int));
+    memset(ht_s, 0, 2 * dim_len[cm->s_suppkey] * sizeof(int));
 
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_c, 2 * dim_len[cm->c_custkey] * sizeof(int)));
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_s, 2 * dim_len[cm->s_suppkey] * sizeof(int)));
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_d, 2 * dim_len[cm->d_datekey] * sizeof(int)));
+    d_ht_p = NULL;
 
     CubDebugExit(cudaMemset(d_ht_c, 0, 2 * dim_len[cm->c_custkey] * sizeof(int)));
     CubDebugExit(cudaMemset(d_ht_s, 0, 2 * dim_len[cm->s_suppkey] * sizeof(int)));
     CubDebugExit(cudaMemset(d_ht_d, 0, 2 * dim_len[cm->d_datekey] * sizeof(int)));
 
-  } else {
+  } else if (query == 3) {
 
     mode[cm->c_region] = 0;
     compare1[cm->c_region] = 1;
@@ -1127,15 +1172,15 @@ QueryProcessing::prepareQuery(int query) {
 
     total_val = ((1998-1992+1) * 25);
 
-    ht_CPU[cm->p_partkey] = (int*)malloc(2 * dim_len[cm->p_partkey] * sizeof(int));
-    ht_CPU[cm->c_custkey] = (int*)malloc(2 * dim_len[cm->c_custkey] * sizeof(int));
-    ht_CPU[cm->s_suppkey] = (int*)malloc(2 * dim_len[cm->s_suppkey] * sizeof(int));
-    ht_CPU[cm->d_datekey] = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
+    ht_p = (int*)malloc(2 * dim_len[cm->p_partkey] * sizeof(int));
+    ht_c = (int*)malloc(2 * dim_len[cm->c_custkey] * sizeof(int));
+    ht_s = (int*)malloc(2 * dim_len[cm->s_suppkey] * sizeof(int));
+    ht_d = (int*)malloc(2 * dim_len[cm->d_datekey] * sizeof(int));
 
-    memset(ht_CPU[cm->d_datekey], 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
-    memset(ht_CPU[cm->p_partkey], 0, 2 * dim_len[cm->p_partkey] * sizeof(int));
-    memset(ht_CPU[cm->s_suppkey], 0, 2 * dim_len[cm->s_suppkey] * sizeof(int));
-    memset(ht_CPU[cm->c_custkey], 0, 2 * dim_len[cm->c_custkey] * sizeof(int));
+    memset(ht_d, 0, 2 * dim_len[cm->d_datekey] * sizeof(int));
+    memset(ht_p, 0, 2 * dim_len[cm->p_partkey] * sizeof(int));
+    memset(ht_s, 0, 2 * dim_len[cm->s_suppkey] * sizeof(int));
+    memset(ht_c, 0, 2 * dim_len[cm->c_custkey] * sizeof(int));
 
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_p, 2 * dim_len[cm->p_partkey] * sizeof(int)));
     CubDebugExit(g_allocator.DeviceAllocate((void**)&d_ht_s, 2 * dim_len[cm->s_suppkey] * sizeof(int)));
@@ -1149,10 +1194,22 @@ QueryProcessing::prepareQuery(int query) {
 
   }
 
+  int* temp = new int [2 * dim_len[cm->s_suppkey]];
+  CubDebugExit(cudaMemcpy(temp, d_ht_s, 2 * dim_len[cm->s_suppkey] * sizeof(int), cudaMemcpyDeviceToHost));
+  for (int i = 0; i < 2 * dim_len[cm->s_suppkey]; i++) {
+    assert(ht_s[i] == 0);
+    assert(temp[i] == 0);
+  }
+
   ht_GPU[cm->p_partkey] = d_ht_p;
   ht_GPU[cm->c_custkey] = d_ht_c;
   ht_GPU[cm->s_suppkey] = d_ht_s;
   ht_GPU[cm->d_datekey] = d_ht_d;
+
+  ht_CPU[cm->p_partkey] = ht_p;
+  ht_CPU[cm->c_custkey] = ht_c;
+  ht_CPU[cm->s_suppkey] = ht_s;
+  ht_CPU[cm->d_datekey] = ht_d;
 
   int res_array_size = total_val * 6;
   res = new int[res_array_size];

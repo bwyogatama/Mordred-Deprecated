@@ -384,7 +384,7 @@ QueryOptimizer::groupBitmap() {
 				bit = (sg & (1 << j)) >> j;
 				if (bit) selectGPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
 				else {
-					cout << select_probe[cm->lo_orderdate][j]->column_name << " " << i << endl;
+					//cout << select_probe[cm->lo_orderdate][j]->column_name << " " << i << endl;
 					selectCPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
 				}
 			}

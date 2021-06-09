@@ -44,8 +44,8 @@ public:
 		query_freq = 0;
 		timestamp = 0;
 	};
-	int col_freq;
-	int query_freq;
+	uint64_t col_freq;
+	uint64_t query_freq;
 	uint64_t timestamp;
 };
 
@@ -116,7 +116,7 @@ class custom_priority_queue {
 public:
 	vector<Segment*> queue;
     bool empty() { return queue.size()==0; } 
-    void push(Segment* x) { //const so that it can't be modified, passed by reference so that large object not get copied 
+    void push(Segment* x) {
         queue.push_back(x);
         percolateDown();
     } 
@@ -207,6 +207,8 @@ public:
 	void updateColumnTimestamp(ColumnInfo* column, double timestamp);
 
 	void weightAdjustment();
+
+	void runReplacement(int strategy);
 
 	void loadColumnToCPU();
 };
@@ -540,6 +542,49 @@ CacheManager::weightAdjustment() {
 		}
 	} while (remainder != 0 && !stop);
 }
+
+void
+CacheManager::runReplacement(int strategy) {
+	std::multimap<uint64_t, ColumnInfo*> access_frequency_map;
+	std::map<ColumnInfo*, uint64_t>::const_iterator it;
+
+	if (strategy == 0) { //LEAST FREQUENTLY USED
+		for (int i = 0; i < TOT_COLUMN; i++) {
+			access_frequency_map.insert({allColumn[i]->stats->col_freq, allColumn[i]});
+		}
+	} else if (strategy == 1) { //LEAST RECENTLY USED
+		for (int i = 0; i < TOT_COLUMN; i++) {
+			access_frequency_map.insert({allColumn[i]->stats->timestamp, allColumn[i]});
+		}
+	}
+
+	int temp_buffer_size = 0;
+	std::set<ColumnInfo*> columns_to_place;
+	std::multimap<uint64_t, ColumnInfo*>::reverse_iterator cit;
+
+    for(cit=access_frequency_map.rbegin(); cit!=access_frequency_map.rend(); ++cit){
+        if(temp_buffer_size + cit->second->total_segment < cache_total_seg && cit->first>0){
+            temp_buffer_size+=cit->second->LEN;
+            columns_to_place.insert(cit->second);
+        }
+    }
+
+    assert(temp_buffer_size <= cache_total_seg);
+
+    for (int i = 0; i < TOT_COLUMN; i++) {
+		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
+			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
+		}
+    }
+
+    std::set<ColumnInfo*>::const_iterator cit2;
+    for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
+    	if ((*cit2)->tot_seg_in_GPU == 0) {
+    		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
+    	}
+    }
+
+};
 
 void
 CacheManager::loadColumnToCPU() {
