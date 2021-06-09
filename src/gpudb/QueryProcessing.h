@@ -130,14 +130,14 @@ QueryProcessing::endQuery(int query) {
     CubDebugExit(g_allocator.DeviceFree(d_ht_d)); d_ht_d = NULL;
   }
   
-  unordered_map<ColumnInfo*, int*>::iterator it;
-  for (it = col_idx.begin(); it != col_idx.end(); it++) {
-    CubDebugExit(g_allocator.DeviceFree(it->second));
-  }
+  // unordered_map<ColumnInfo*, int*>::iterator it;
+  // for (it = col_idx.begin(); it != col_idx.end(); it++) {
+  //   CubDebugExit(g_allocator.DeviceFree(it->second));
+  // }
 
   ht_CPU.clear();
   ht_GPU.clear();
-  col_idx.clear();
+  //col_idx.clear();
 
   compare1.clear();
   compare2.clear();
@@ -281,6 +281,7 @@ QueryProcessing::call_probe_GPU(int** &off_col, int* &d_off_col, int* &d_total, 
   //off_col_out = (int**) malloc(cm->TOT_TABLE * sizeof(int*));
   off_col_out = new int*[cm->TOT_TABLE] (); //initialize it to null
   CubDebugExit(cudaMalloc((void**) &d_off_col_out, cm->TOT_TABLE * SEGMENT_SIZE * qo->segment_group_count[0][sg] * sizeof(int)));
+  //CubDebugExit(cudaMalloc((void**) &d_off_col_out, cm->TOT_TABLE * 500000 * sizeof(int)));
 
   //CubDebugExit(cudaMalloc((void **)&d_total, sizeof(int)));
   CubDebugExit(cudaMemset(d_total, 0, sizeof(int)));
@@ -392,6 +393,7 @@ QueryProcessing::call_probe_CPU(int** &h_off_col, int* h_total, int sg) {
 
   for (int i = 0; i < cm->TOT_TABLE; i++) {
     off_col_out[i] = new int[SEGMENT_SIZE * qo->segment_group_count[0][sg]];
+    //off_col_out[i] = new int[500000];
   }
 
   for (int i = 0; i < qo->joinCPUPipelineCol[sg].size(); i++) {
@@ -847,6 +849,10 @@ QueryProcessing::call_group_by_CPU(int** &h_off_col, int* h_total) {
 
 void
 QueryProcessing::runQuery(int query) {
+
+  chrono::high_resolution_clock::time_point st, finish;
+  st = chrono::high_resolution_clock::now();
+
   for (int i = 0; i < qo->join.size(); i++) {
 
     for (int sg = 0; sg < 2; sg++) {
@@ -979,6 +985,9 @@ QueryProcessing::runQuery(int query) {
   merge(res, resGPU, total_val);
   delete[] resGPU;
 
+  finish = chrono::high_resolution_clock::now();
+  std::chrono::duration<double> diff = finish - st;
+
   cout << "Result:" << endl;
   int res_count = 0;
   for (int i=0; i<total_val; i++) {
@@ -987,7 +996,8 @@ QueryProcessing::runQuery(int query) {
       res_count++;
     }
   }
-  printf("Res count = %d\n", res_count);
+  cout << "Res count = " << res_count << endl;
+  cout << "Time Taken Total: " << diff.count() * 1000 << endl;
 
 }
 

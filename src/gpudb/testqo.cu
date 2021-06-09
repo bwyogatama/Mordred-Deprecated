@@ -44,6 +44,8 @@ int main() {
 	// qp->processQuery(2);
 	// qp->processQuery(3);
 
+	QueryProcessing* qp = new QueryProcessing();
+
 	bool exit = 0;
 	string input;
 
@@ -60,21 +62,28 @@ int main() {
 		cin >> input;
 
 		if (input.compare("1") == 0) {
-			//qo->processQuery(0);
 			cout << "Executing Query 1.1" << endl;
+			qp->processQuery(0);
 		} else if (input.compare("2") == 0) {
 			cout << "Executing Query 2.1" << endl;
+			qp->processQuery(1);
 		} else if (input.compare("3") == 0) {
 			cout << "Executing Query 3.1" << endl;
+			qp->processQuery(2);
 		} else if (input.compare("4") == 0) {
 			cout << "Executing Query 4.1" << endl;
+			qp->processQuery(3);
 		} else if (input.compare("5") == 0) {
 			cout << "LFU Replacement" << endl;
+			qp->cm->runReplacement(0);
 		} else if (input.compare("6") == 0) {
 			cout << "LRU Replacement" << endl;
+			qp->cm->runReplacement(1);
 		} else if (input.compare("7") == 0) {
 			exit = true;
 		}
+
+		cout << endl;
 
 	}
 
