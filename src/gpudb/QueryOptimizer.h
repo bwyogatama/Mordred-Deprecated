@@ -73,7 +73,7 @@ public:
 };
 
 QueryOptimizer::QueryOptimizer() {
-	cm = new CacheManager(1000000000);
+	cm = new CacheManager(400000000);
 	fkey_pkey[cm->lo_orderdate] = cm->d_datekey;
 	fkey_pkey[cm->lo_partkey] = cm->p_partkey;
 	fkey_pkey[cm->lo_custkey] = cm->c_custkey;
@@ -176,7 +176,7 @@ void
 QueryOptimizer::parseQuery21() {
 	//clearVector();
 	querySelectColumn.push_back(cm->p_category);
-	querySelectColumn.push_back(cm->d_year);
+	querySelectColumn.push_back(cm->s_region);
 	queryBuildColumn.push_back(cm->s_suppkey);
 	queryBuildColumn.push_back(cm->p_partkey);
 	queryBuildColumn.push_back(cm->d_datekey);
@@ -414,7 +414,11 @@ QueryOptimizer::groupBitmap() {
 				//temp = temp | (isGPU << (select_build[join[i].second].size() - k - 1));
 				temp = temp | (isGPU << k);
 
+				// cout << select_build[join[i].second][k]->column_name << endl;
+				// cout << temp << endl;
+
 			}
+
 
 			segment_group[join[i].second->table_id][temp * join[i].second->total_segment + segment_group_count[join[i].second->table_id][temp]] = j;
 			segment_group_count[join[i].second->table_id][temp]++;

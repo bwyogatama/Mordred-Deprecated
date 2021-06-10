@@ -7,7 +7,7 @@
 
 using namespace std;
 
-#define SF 1
+#define SF 10
 
 #define BASE_PATH "/home/cc/Implementation-GPUDB/test/ssb/data/"
 

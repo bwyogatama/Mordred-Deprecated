@@ -280,6 +280,7 @@ CacheManager::cacheColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 			cacheSegmentFromQueue(column);
 		} else {
 			int segment_idx = (column->seg_ptr - column->col_ptr)/SEGMENT_SIZE;
+			//cout << segment_idx << endl;
 			if (segment_idx >= column->total_segment) {
 				segment_idx = 0;
 				column->seg_ptr = column->col_ptr;
@@ -359,13 +360,20 @@ CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 			assert(seg->priority == 0);
 			delete seg;
 			column->seg_ptr -= SEGMENT_SIZE;
-			int segment_idx = (column->seg_ptr - column->col_ptr)/SEGMENT_SIZE;
+			int segment_idx = (column->seg_ptr - SEGMENT_SIZE - column->col_ptr)/SEGMENT_SIZE;
 			while (special_segment[column->column_id].find(segment_idx) != special_segment[column->column_id].end()) { //selama next segment pointer masih termasuk special segment
 				segment_idx--;
 				column->seg_ptr -= SEGMENT_SIZE;
-				assert(segment_idx > 0);
+				assert(segment_idx >= 0);
 			}
-			assert(cache_mapper.find(index_to_segment[column->column_id][segment_idx]) != cache_mapper.end());
+			if (segment_idx < 0) {
+				column->seg_ptr = column->col_ptr;
+				segment_idx = 0;
+			} else {
+				assert(cache_mapper.find(index_to_segment[column->column_id][segment_idx]) != cache_mapper.end());				
+			}
+			//cout << segment_idx << endl;
+
 		}
 	}
 }
@@ -569,6 +577,7 @@ CacheManager::runReplacement(int strategy) {
         }
     }
 
+    cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
@@ -687,35 +696,35 @@ CacheManager::loadColumnToCPU() {
 CacheManager::~CacheManager() {
 	CubDebugExit(cudaFree((void**) &gpuCache));
 
-	delete h_lo_orderkey;
-	delete h_lo_orderdate;
-	delete h_lo_custkey;
-	delete h_lo_suppkey;
-	delete h_lo_partkey;
-	delete h_lo_revenue;
-	delete h_lo_discount; 
-	delete h_lo_quantity;
-	delete h_lo_extendedprice;
-	delete h_lo_supplycost;
+	delete[] h_lo_orderkey;
+	delete[] h_lo_orderdate;
+	delete[] h_lo_custkey;
+	delete[] h_lo_suppkey;
+	delete[] h_lo_partkey;
+	delete[] h_lo_revenue;
+	delete[] h_lo_discount; 
+	delete[] h_lo_quantity;
+	delete[] h_lo_extendedprice;
+	delete[] h_lo_supplycost;
 
-	delete h_c_custkey;
-	delete h_c_nation;
-	delete h_c_region;
-	delete h_c_city;
+	delete[] h_c_custkey;
+	delete[] h_c_nation;
+	delete[] h_c_region;
+	delete[] h_c_city;
 
-	delete h_s_suppkey;
-	delete h_s_nation;
-	delete h_s_region;
-	delete h_s_city;
+	delete[] h_s_suppkey;
+	delete[] h_s_nation;
+	delete[] h_s_region;
+	delete[] h_s_city;
 
-	delete h_p_partkey;
-	delete h_p_brand1;
-	delete h_p_category;
-	delete h_p_mfgr;
+	delete[] h_p_partkey;
+	delete[] h_p_brand1;
+	delete[] h_p_category;
+	delete[] h_p_mfgr;
 
-	delete h_d_datekey;
-	delete h_d_year;
-	delete h_d_yearmonthnum;
+	delete[] h_d_datekey;
+	delete[] h_d_year;
+	delete[] h_d_yearmonthnum;
 
 	delete lo_orderkey;
 	delete lo_orderdate;
