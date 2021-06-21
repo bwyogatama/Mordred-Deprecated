@@ -49,8 +49,9 @@ public:
 
 	short** segment_group;
 	short** segment_group_count;
+	int* last_segment;
 
-	QueryOptimizer();
+	QueryOptimizer(size_t cache_size, size_t _processing_size);
 	void parseQuery(int query);
 	void parseQuery11();
 	void parseQuery21();
@@ -72,8 +73,8 @@ public:
 
 };
 
-QueryOptimizer::QueryOptimizer() {
-	cm = new CacheManager(400000000);
+QueryOptimizer::QueryOptimizer(size_t cache_size, size_t _processing_size) {
+	cm = new CacheManager(cache_size, _processing_size);
 	fkey_pkey[cm->lo_orderdate] = cm->d_datekey;
 	fkey_pkey[cm->lo_partkey] = cm->p_partkey;
 	fkey_pkey[cm->lo_custkey] = cm->c_custkey;
@@ -97,6 +98,7 @@ QueryOptimizer::parseQuery(int query) {
 		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
 		memset(segment_group_count[i], 0, 64 * sizeof(short));
 	}
+	last_segment = new int[cm->TOT_TABLE];
 
 	if (query == 0) parseQuery11();
 	else if (query == 1) parseQuery21();
@@ -346,6 +348,12 @@ QueryOptimizer::groupBitmap() {
 		segment_group[cm->lo_orderdate->table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[cm->lo_orderdate->table_id][temp]] = i;
 		segment_group_count[cm->lo_orderdate->table_id][temp]++;
 		//printf("temp = %d count = %d\n", temp, segment_group_count[0][temp]);
+
+		if (i == cm->lo_orderdate->total_segment - 1) {
+			if (cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) {
+				last_segment[0] = temp;
+			}
+		}
 	}
 
 	for (unsigned short i = 0; i < 64; i++) { //64 segment groups
@@ -369,7 +377,6 @@ QueryOptimizer::groupBitmap() {
 
 			for (int j = 0; j < join.size(); j++) {
 				bit = (sg & (1 << j)) >> j;
-				//printf("%d %d %d\n", j, bit, joinGPUcheck[j]);
 				if (bit && joinGPUcheck[j]) joinGPUPipelineCol[i].push_back(join[j].first);
 				else joinCPUPipelineCol[i].push_back(join[j].first);
 			}
@@ -393,15 +400,6 @@ QueryOptimizer::groupBitmap() {
 		}
 	}
 
-	// for (int j = 0; j < 64; j++) {
-	// 	if (segment_group_count[0][j] > 0) {
-	// 		printf("%d %d\n", j, segment_group_count[0][j]);
-	// 	}
-	// 	for (int i = 0; i < joinGPUPipelineCol[j].size(); i++) {
-	// 		cout << joinGPUPipelineCol[j][i]->column_name << endl;
-	// 	}
-	// }
-
 	for (int i = 0; i < join.size(); i++) {
 		
 		for (int j = 0; j < join[i].second->total_segment; j++) {
@@ -419,9 +417,14 @@ QueryOptimizer::groupBitmap() {
 
 			}
 
-
 			segment_group[join[i].second->table_id][temp * join[i].second->total_segment + segment_group_count[join[i].second->table_id][temp]] = j;
 			segment_group_count[join[i].second->table_id][temp]++;
+
+			if (j == join[i].second->total_segment - 1) {
+				if (join[i].second->LEN % SEGMENT_SIZE != 0) {
+					last_segment[join[i].second->table_id] = temp;
+				}
+			}
 
 		}
 	}

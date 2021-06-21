@@ -3,14 +3,18 @@
 #include <chrono>
 #include <atomic>
 
+//tbb::task_scheduler_init init(1);
+
 int main() {
 
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_orderdate, 7);
+	QueryProcessing* qp = new QueryProcessing(1000000000, 1000000000);
+
+	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_orderdate, 6);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_partkey, 6);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_custkey, 4);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_suppkey, 3);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_revenue, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_supplycost, 7);
+	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_supplycost, 6);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_discount, 2);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_quantity, 2);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_extendedprice, 4);
@@ -27,24 +31,10 @@ int main() {
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->s_region, 1);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->s_nation, 1);
 
-	// qp->qo->parseQuery(1);
-
-	// printf("hi\n");
-
-	// for (int i = 0; i < qo->joinCPUPipelineCol.size(); i++) {
-	// 	for (int j = 0; j < qo->joinCPUPipelineCol[i].size(); j++) {
-	// 		if (qo->joinCPUPipelineCol[i][j] != NULL) {
-	// 			cout << qo->joinCPUPipelineCol[i][j]->column_name << endl;
-	// 		}
-	// 	}
-	// }
-
 	// qp->processQuery(0);
 	// qp->processQuery(1);
 	// qp->processQuery(2);
 	// qp->processQuery(3);
-
-	QueryProcessing* qp = new QueryProcessing();
 
 	bool exit = 0;
 	string input;

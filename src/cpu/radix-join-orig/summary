@@ -1,0 +1,20 @@
+main > PRAiS
+
+Padding Tuples ? 
+
+> join_init_run
+
+creates task queue ; allocates part of r / s to each thread - split by cache lines
+
+> prj_thread
+
+Pass 1: parallel_radix_partition_optimized
+
+((task = task_queue_get_atomic(join_queue))) => 
+  join_function
+
+In essence => K+V - tuple_t - radix join 
+K+V K+V 
+
+
+https://twitter.com/_onurmutlu_/status/1015924702358003712

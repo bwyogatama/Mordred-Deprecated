@@ -37,7 +37,7 @@ using namespace std;
 
 #define BATCH_SIZE 128
 #define NUM_THREADS 48
-#define SEGMENT_SIZE 1000000
+#define SEGMENT_SIZE 1048576
 
 int index_of(string* arr, int len, string val) {
   for (int i=0; i<len; i++)

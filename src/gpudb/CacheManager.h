@@ -148,7 +148,9 @@ public:
 class CacheManager {
 public:
 	int* gpuCache;
-	int cache_total_seg;
+	int* gpuProcessing, *cpuProcessing;
+	int gpuPointer, cpuPointer;
+	int cache_total_seg, processing_size;
 	int TOT_COLUMN;
 	int TOT_TABLE;
 	vector<ColumnInfo*> allColumn;
@@ -174,7 +176,7 @@ public:
 	ColumnInfo *p_partkey, *p_brand1, *p_category, *p_mfgr;
 	ColumnInfo *d_datekey, *d_year, *d_yearmonthnum;
 
-	CacheManager(size_t cache_size);
+	CacheManager(size_t cache_size, size_t _processing_size);
 
 	~CacheManager();
 
@@ -211,6 +213,10 @@ public:
 	void runReplacement(int strategy);
 
 	void loadColumnToCPU();
+
+	int* customMalloc(int size);
+
+	int* customCudaMalloc(int size);
 };
 
 Segment::Segment(ColumnInfo* _column, int* _seg_ptr, int _priority)
@@ -240,13 +246,18 @@ ColumnInfo::getSegment(int index) {
 	return seg;
 }
 
-CacheManager::CacheManager(size_t cache_size) {
+CacheManager::CacheManager(size_t cache_size, size_t _processing_size) {
 	cache_total_seg = cache_size/SEGMENT_SIZE;
+	processing_size = _processing_size;
 	TOT_COLUMN = 25;
 	TOT_TABLE = 5;
 
 	CubDebugExit(cudaMalloc((void**) &gpuCache, cache_size * sizeof(int)));
 	CubDebugExit(cudaMemset(gpuCache, 0, cache_size * sizeof(int)));
+	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(int)));
+	cpuProcessing = (int*) malloc(_processing_size * sizeof(int));
+	gpuPointer = 0;
+	cpuPointer = 0;
 
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
@@ -271,6 +282,22 @@ CacheManager::CacheManager(size_t cache_size) {
 		memset(segment_list[i], -1, n * sizeof(int));
 	}
 }
+
+int* 
+CacheManager::customMalloc(int size) {
+  // printf("%d\n", size);
+  int start = __atomic_fetch_add(&cpuPointer, size, __ATOMIC_RELAXED);
+  // printf("%d\n", start + size);
+  assert(start + size < processing_size);
+  return cpuProcessing + start;
+};
+
+int*
+CacheManager::customCudaMalloc(int size) {
+  int start = __atomic_fetch_add(&gpuPointer, size, __ATOMIC_RELAXED);
+  assert(start + size < processing_size);
+  return gpuProcessing + start;
+};
 
 void
 CacheManager::cacheColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
@@ -695,6 +722,8 @@ CacheManager::loadColumnToCPU() {
 
 CacheManager::~CacheManager() {
 	CubDebugExit(cudaFree((void**) &gpuCache));
+	CubDebugExit(cudaFree((void**) &gpuProcessing));
+	delete[] cpuProcessing;
 
 	delete[] h_lo_orderkey;
 	delete[] h_lo_orderdate;

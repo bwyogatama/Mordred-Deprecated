@@ -35,6 +35,8 @@ using namespace std;
 #endif
 
 
+#define BATCH_SIZE 128
+#define NUM_THREADS 128
 
 int index_of(string* arr, int len, string val) {
   for (int i=0; i<len; i++)
