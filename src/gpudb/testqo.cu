@@ -10,26 +10,26 @@ int main() {
 	QueryProcessing* qp = new QueryProcessing(1000000000, 1000000000);
 
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_orderdate, 6);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_partkey, 6);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_custkey, 4);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_suppkey, 3);
+	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_partkey, qp->cm->lo_partkey->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_custkey, qp->cm->lo_custkey->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_suppkey, qp->cm->lo_suppkey->total_segment);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_revenue, 1);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_supplycost, 6);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_discount, 2);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_quantity, 2);
 	// qp->cm->cacheColumnSegmentInGPU(qp->cm->lo_extendedprice, 4);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->d_datekey, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->d_year, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->p_partkey, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->p_category, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->p_brand1, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->p_mfgr, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->c_custkey, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->c_region, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->c_nation, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->s_suppkey, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->s_region, 1);
-	// qp->cm->cacheColumnSegmentInGPU(qp->cm->s_nation, 1);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->d_datekey, qp->cm->d_datekey->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->d_year, qp->cm->d_year->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_partkey, qp->cm->p_partkey->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_category, qp->cm->p_category->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_brand1, qp->cm->p_brand1->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->p_mfgr, qp->cm->p_mfgr->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->c_custkey, qp->cm->c_custkey->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->c_region, qp->cm->c_region->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->c_nation, qp->cm->c_nation->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->s_suppkey, qp->cm->s_suppkey->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->s_region, qp->cm->s_region->total_segment);
+	qp->cm->cacheColumnSegmentInGPU(qp->cm->s_nation, qp->cm->s_nation->total_segment);
 
 	// qp->processQuery(0);
 	// qp->processQuery(1);
@@ -54,14 +54,22 @@ int main() {
 		if (input.compare("1") == 0) {
 			cout << "Executing Query 1.1" << endl;
 			qp->processQuery(0);
+			qp->processQuery(0);
+			qp->processQuery(0);
 		} else if (input.compare("2") == 0) {
 			cout << "Executing Query 2.1" << endl;
+			qp->processQuery(1);
+			qp->processQuery(1);
 			qp->processQuery(1);
 		} else if (input.compare("3") == 0) {
 			cout << "Executing Query 3.1" << endl;
 			qp->processQuery(2);
+			qp->processQuery(2);
+			qp->processQuery(2);
 		} else if (input.compare("4") == 0) {
 			cout << "Executing Query 4.1" << endl;
+			qp->processQuery(3);
+			qp->processQuery(3);
 			qp->processQuery(3);
 		} else if (input.compare("5") == 0) {
 			cout << "LFU Replacement" << endl;
@@ -70,6 +78,8 @@ int main() {
 			cout << "LRU Replacement" << endl;
 			qp->cm->runReplacement(1);
 		} else if (input.compare("7") == 0) {
+			exit = true;
+		} else {
 			exit = true;
 		}
 

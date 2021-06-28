@@ -14,6 +14,7 @@ using namespace std;
 #if SF == 1
 #define DATA_DIR BASE_PATH "s1_columnar/"
 #define LO_LEN 6001171
+//#define LO_LEN 1000
 #define P_LEN 200000
 #define S_LEN 2000
 #define C_LEN 30000

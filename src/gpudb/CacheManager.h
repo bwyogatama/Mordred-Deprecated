@@ -675,15 +675,15 @@ CacheManager::loadColumnToCPU() {
 	c_region = new ColumnInfo("c_region", "c", C_LEN, 12, 2, h_c_region);
 	c_city = new ColumnInfo("c_city", "c", C_LEN, 13, 2, h_c_city);
 
-	s_suppkey = new ColumnInfo("s_suppkey", "s", S_LEN, 14, 3, h_s_suppkey);	
-	s_nation = new ColumnInfo("s_nation", "s", S_LEN, 15, 3, h_s_nation);
-	s_region = new ColumnInfo("s_region", "s", S_LEN, 16, 3, h_s_region);
-	s_city = new ColumnInfo("s_city", "s", S_LEN, 17, 3, h_s_city);
+	s_suppkey = new ColumnInfo("s_suppkey", "s", S_LEN, 14, 1, h_s_suppkey);	
+	s_nation = new ColumnInfo("s_nation", "s", S_LEN, 15, 1, h_s_nation);
+	s_region = new ColumnInfo("s_region", "s", S_LEN, 16, 1, h_s_region);
+	s_city = new ColumnInfo("s_city", "s", S_LEN, 17, 1, h_s_city);
 
-	p_partkey = new ColumnInfo("p_partkey", "p", P_LEN, 18, 1, h_p_partkey);
-	p_brand1 = new ColumnInfo("p_brand1", "p", P_LEN, 19, 1, h_p_brand1);
-	p_category = new ColumnInfo("p_category", "p", P_LEN, 20, 1, h_p_category);
-	p_mfgr = new ColumnInfo("p_mfgr", "p", P_LEN, 21, 1, h_p_mfgr);
+	p_partkey = new ColumnInfo("p_partkey", "p", P_LEN, 18, 3, h_p_partkey);
+	p_brand1 = new ColumnInfo("p_brand1", "p", P_LEN, 19, 3, h_p_brand1);
+	p_category = new ColumnInfo("p_category", "p", P_LEN, 20, 3, h_p_category);
+	p_mfgr = new ColumnInfo("p_mfgr", "p", P_LEN, 21, 3, h_p_mfgr);
 
 	d_datekey = new ColumnInfo("d_datekey", "d", D_LEN, 22, 4, h_d_datekey);
 	d_year = new ColumnInfo("d_year", "d", D_LEN, 23, 4, h_d_year);

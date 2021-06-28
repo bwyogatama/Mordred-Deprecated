@@ -178,8 +178,6 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
   chrono::high_resolution_clock::time_point st, finish;
   st = chrono::high_resolution_clock::now();
 
-  cudaEventRecord(start, 0);
-
   int *ht_d, *ht_c, *ht_s, *ht_p;
   int d_val_len = 19981230 - 19920101 + 1;
   CubDebugExit(g_allocator.DeviceAllocate((void**)&ht_d, 2 * d_val_len * sizeof(int)));
@@ -192,24 +190,36 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
   CubDebugExit(cudaMemset(ht_c, 0, 2 * c_len * sizeof(int)));
   CubDebugExit(cudaMemset(ht_p, 0, 2 * p_len * sizeof(int)));
 
+  int *res;
+  int res_size = ((1998-1992+1) * 25);
+  int ht_entries = 4; // int,int,long long
+  int res_array_size = res_size * ht_entries;
+  CubDebugExit(g_allocator.DeviceAllocate((void**)&res, res_array_size * sizeof(int)));
+
+  CubDebugExit(cudaMemset(res, 0, res_array_size * sizeof(int)));
+
+  int* h_res = new int[res_array_size];
+
+  cudaEventRecord(start, 0);
+
   int tile_items = 128*4;
   build_hashtable_s<128,4><<<(s_len + tile_items - 1)/tile_items, 128>>>(s_region, s_suppkey, s_len, ht_s, s_len);
   /*CHECK_ERROR();*/
 
-  int* s_res = new int[s_len * 2];
-  CubDebugExit(cudaMemcpy(s_res, ht_s, s_len * 2 * sizeof(int), cudaMemcpyDeviceToHost));
+  // int* s_res = new int[s_len * 2];
+  // CubDebugExit(cudaMemcpy(s_res, ht_s, s_len * 2 * sizeof(int), cudaMemcpyDeviceToHost));
 
   build_hashtable_c<128,4><<<(c_len + tile_items - 1)/tile_items, 128>>>(c_region, c_custkey, c_nation, c_len, ht_c, c_len);
   /*CHECK_ERROR();*/
 
-  int* c_res = new int[c_len * 2];
-  CubDebugExit(cudaMemcpy(c_res, ht_c, c_len * 2 * sizeof(int), cudaMemcpyDeviceToHost));
+  // int* c_res = new int[c_len * 2];
+  // CubDebugExit(cudaMemcpy(c_res, ht_c, c_len * 2 * sizeof(int), cudaMemcpyDeviceToHost));
 
   build_hashtable_p<128,4><<<(p_len + tile_items - 1)/tile_items, 128>>>(p_mfgr, p_partkey, p_len, ht_p, p_len);
   /*CHECK_ERROR();*/
 
-  int* p_res = new int[p_len * 2];
-  CubDebugExit(cudaMemcpy(p_res, ht_p, p_len * 2 * sizeof(int), cudaMemcpyDeviceToHost));
+  // int* p_res = new int[p_len * 2];
+  // CubDebugExit(cudaMemcpy(p_res, ht_p, p_len * 2 * sizeof(int), cudaMemcpyDeviceToHost));
 
   int d_val_min = 19920101;
   build_hashtable_d<128,4><<<(d_len + tile_items - 1)/tile_items, 128>>>(d_datekey, d_year, d_len, ht_d, d_val_len, d_val_min);
@@ -244,24 +254,15 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
   cout << "Num Matched" << " " << num_p << " " << p_len << endl;
 #endif
 
-  int *res;
-  int res_size = ((1998-1992+1) * 25);
-  int ht_entries = 4; // int,int,long long
-  int res_array_size = res_size * ht_entries;
-  CubDebugExit(g_allocator.DeviceAllocate((void**)&res, res_array_size * sizeof(int)));
-
-  CubDebugExit(cudaMemset(res, 0, res_array_size * sizeof(int)));
-
   // Run
   probe<128,4><<<(lo_len + tile_items - 1)/tile_items, 128>>>(lo_orderdate, lo_partkey,
           lo_custkey, lo_suppkey, lo_revenue, lo_supplycost, lo_len, ht_p, p_len, ht_s, s_len, ht_c, c_len, ht_d, d_val_len, res);
 
+  CubDebugExit(cudaMemcpy(h_res, res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost));
+
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time_query, start,stop);
-
-  int* h_res = new int[res_array_size];
-  CubDebugExit(cudaMemcpy(h_res, res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost));
   finish = chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = finish - st;
 
@@ -287,7 +288,7 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
  */
 int main(int argc, char** argv)
 {
-  int num_trials          = 3;
+  int num_trials          = 5;
 
   // Initialize command line
   CommandLineArgs args(argc, argv);

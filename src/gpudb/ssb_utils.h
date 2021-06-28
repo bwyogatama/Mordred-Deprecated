@@ -14,7 +14,7 @@ using namespace std;
 #if SF == 1
 #define DATA_DIR BASE_PATH "s1_columnar/"
 #define LO_LEN 6001171
-//#define LO_LEN 2000000
+//#define LO_LEN 1000
 #define P_LEN 200000
 #define S_LEN 2000
 #define C_LEN 30000
@@ -35,8 +35,6 @@ using namespace std;
 #define D_LEN 2556
 #endif
 
-#define BATCH_SIZE 128
-#define NUM_THREADS 48
 #define SEGMENT_SIZE 1048576
 
 int index_of(string* arr, int len, string val) {

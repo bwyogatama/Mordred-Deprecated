@@ -32,18 +32,20 @@ CINCLUDES = -I$(INC)
 CXX = clang++
 
 $(OBJ)/%.o: $(SRC)/%.cu
-	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -dc $< -o $@
+	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
 $(BIN)/%: $(OBJ)/%.o
 	$(NVCC) -ltbb $(SM_TARGETS) -lcurand $^ -o $@
 
 $(OBJ)/cpu/%.o: $(SRC)/cpu/%.cpp
-	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -dc $< -o $@
-	#$(CXX) $(CFLAGS) $(CINCLUDES) -c $< -o $@
+	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+
+#$(CXX) $(CFLAGS) $(CINCLUDES) -c $< -o $@
 
 $(BIN)/cpu/%: $(OBJ)/cpu/%.o
 	$(NVCC) -ltbb $(SM_TARGETS) -lcurand $^ -o $@
-	#$(CXX) -ltbb $^ -o $@
+	
+#$(CXX) -ltbb $^ -o $@
 
 setup:
 	if [ ! -d "cub"  ]; then \

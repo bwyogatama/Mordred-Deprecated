@@ -35,7 +35,6 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_suppkey, int* lo_reve
     int *s_suppkey, int* s_region, int* s_nation, int s_len,
     int *c_custkey, int* c_region, int* c_nation, int c_len) {
   chrono::high_resolution_clock::time_point start, finish;
-  start = chrono::high_resolution_clock::now();
 
   int d_val_len = 19981230 - 19920101 + 1;
   int d_val_min = 19920101;
@@ -46,6 +45,15 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_suppkey, int* lo_reve
   memset(ht_d, 0, 2 * d_val_len * sizeof(int));
   memset(ht_s, 0, 2 * s_len * sizeof(int));
   memset(ht_c, 0, 2 * c_len * sizeof(int));
+
+  int num_slots = ((1998-1992+1) * 25 * 25);
+  slot* res = new slot[num_slots];
+
+  for (int i=0; i<num_slots; i++) {
+    res[i].year = 0;
+  }
+
+  start = chrono::high_resolution_clock::now();
 
   // Build hashtable d
   parallel_for(blocked_range<size_t>(0, d_len, d_len/NUM_THREADS + 4), [&](auto range) {
@@ -82,13 +90,6 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_suppkey, int* lo_reve
       }
     }
   });
-
-  int num_slots = ((1998-1992+1) * 25 * 25);
-  slot* res = new slot[num_slots];
-
-  for (int i=0; i<num_slots; i++) {
-    res[i].year = 0;
-  }
 
   // Probe
   parallel_for(blocked_range<size_t>(0, lo_len, lo_len/NUM_THREADS + 4), [&](auto range) {

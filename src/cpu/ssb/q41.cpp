@@ -34,8 +34,7 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
     int *p_partkey, int *p_mfgr, int p_len,
     int *s_suppkey, int* s_region, int s_len,
     int *c_custkey, int* c_region, int* c_nation, int c_len) {
-  chrono::high_resolution_clock::time_point start, finish;
-  start = chrono::high_resolution_clock::now();
+
 
   int d_val_len = 19981230 - 19920101 + 1;
   int d_val_min = 19920101;
@@ -48,6 +47,16 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
   memset(ht_s, 0, 2 * s_len * sizeof(int));
   memset(ht_c, 0, 2 * c_len * sizeof(int));
   memset(ht_p, 0, 2 * p_len * sizeof(int));
+
+  int num_slots = ((1998-1992+1) * 25);
+  slot* res = new slot[num_slots];
+
+  for (int i=0; i<num_slots; i++) {
+    res[i].year = 0;
+  }
+
+  chrono::high_resolution_clock::time_point start, finish;
+  start = chrono::high_resolution_clock::now();
 
   // Build hashtable d
   parallel_for(blocked_range<size_t>(0, d_len, d_len/NUM_THREADS + 4), [&](auto range) {
@@ -95,13 +104,6 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
       }
     }
   });
-
-  int num_slots = ((1998-1992+1) * 25);
-  slot* res = new slot[num_slots];
-
-  for (int i=0; i<num_slots; i++) {
-    res[i].year = 0;
-  }
 
   // Probe
   parallel_for(blocked_range<size_t>(0, lo_len, lo_len/NUM_THREADS + 4), [&](auto range) {
@@ -180,7 +182,7 @@ float runQuery(int* lo_orderdate, int* lo_custkey, int* lo_partkey, int* lo_supp
  * Main
  */
 int main(int argc, char** argv) {
-  int num_trials = 1;
+  int num_trials = 3;
 
   // Initialize command line
   CommandLineArgs args(argc, argv);

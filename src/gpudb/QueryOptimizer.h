@@ -226,8 +226,8 @@ QueryOptimizer::parseQuery31() {
 	queryAggrColumn.push_back(cm->lo_revenue);
 
 	join.resize(3);
-	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
-	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
 	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
 
 	select_build[cm->c_custkey].push_back(cm->c_region);
@@ -262,9 +262,9 @@ QueryOptimizer::parseQuery41() {
 	queryAggrColumn.push_back(cm->lo_revenue);
 
 	join.resize(4);
-	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_partkey, cm->p_partkey);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
 	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
-	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_partkey, cm->p_partkey);
 	join[3] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
 
 	select_build[cm->p_partkey].push_back(cm->p_mfgr);

@@ -34,7 +34,6 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
     int *d_datekey, int* d_year, int d_len,
     int *s_suppkey, int* s_region, int s_len) {
   chrono::high_resolution_clock::time_point start, finish;
-  start = chrono::high_resolution_clock::now();
 
   int d_val_len = 19981230 - 19920101 + 1;
   int d_val_min = 19920101;
@@ -42,9 +41,22 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
   int *ht_p = (int*)malloc(2 * p_len * sizeof(int));
   int *ht_s = (int*)malloc(2 * s_len * sizeof(int));
 
+
+
   memset(ht_d, 0, 2 * d_val_len * sizeof(int));
   memset(ht_p, 0, 2 * p_len * sizeof(int));
   memset(ht_s, 0, 2 * s_len * sizeof(int));
+
+  int num_slots = ((1998-1992+1) * 1000);
+  // slot* res = new slot[num_slots];
+
+  // for (int i=0; i<num_slots; i++) {
+  //   res[i].year = 0;
+  // }
+
+  int* res = new int[num_slots * 6];
+
+  start = chrono::high_resolution_clock::now();
 
   // Build hashtable d
   parallel_for(blocked_range<size_t>(0, d_len, d_len/NUM_THREADS + 4), [&](auto range) {
@@ -82,13 +94,6 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
     }
   });
 
-  int num_slots = ((1998-1992+1) * 1000);
-  slot* res = new slot[num_slots];
-
-  for (int i=0; i<num_slots; i++) {
-    res[i].year = 0;
-  }
-
   // Probe
   parallel_for(blocked_range<size_t>(0, lo_len, lo_len/NUM_THREADS + 4), [&](auto range) {
     int start = range.begin();
@@ -111,9 +116,12 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
             hash = HASH_WM(lo_orderdate[i], d_val_len, d_val_min);
             int year = ht_d[(hash << 1) + 1];
             hash = (brand * 7 +  (year - 1992)) % num_slots;
-            res[hash].year = year;
-            res[hash].brand1 = brand;
-            res[hash].revenue += lo_revenue[i];
+            // res[hash].year = year;
+            // res[hash].brand1 = brand;
+            // res[hash].revenue += lo_revenue[i];
+            res[hash * 6] = year;
+            res[hash * 6 + 1] = brand;
+            __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 2]), (long long)(lo_revenue[i]), __ATOMIC_RELAXED);
           }
         }
       }
@@ -129,9 +137,12 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
           hash = HASH_WM(lo_orderdate[i], d_val_len, d_val_min);
           int year = ht_d[(hash << 1) + 1];
           hash = (brand * 7 +  (year - 1992)) % ((1998-1992+1) * 1000);
-          res[hash].year = year;
-          res[hash].brand1 = brand;
-          res[hash].revenue += lo_revenue[i];
+          // res[hash].year = year;
+          // res[hash].brand1 = brand;
+          // res[hash].revenue += lo_revenue[i];
+          res[hash * 6] = year;
+          res[hash * 6 + 1] = brand;
+          __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 2]), (long long)(lo_revenue[i]), __ATOMIC_RELAXED);
         }
       }
     }
@@ -143,8 +154,8 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
 
   int res_count = 0;
   for (int i=0; i<num_slots; i++) {
-    if (res[i].year != 0) {
-      cout << res[i].year << " " << res[i].brand1 << " " << res[i].revenue << endl;
+    if (res[i * 6] != 0) {
+      cout << res[i * 6] << " " << res[i * 6 + 1] << " " << reinterpret_cast<unsigned long long*>(&res[6*i+2])[0] << endl;
       res_count += 1;
     }
   }
@@ -159,7 +170,7 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
  * Main
  */
 int main(int argc, char** argv) {
-  int num_trials = 3;
+  int num_trials = 5;
 
   // Initialize command line
   CommandLineArgs args(argc, argv);

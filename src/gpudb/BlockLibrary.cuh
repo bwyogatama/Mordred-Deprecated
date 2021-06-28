@@ -56,7 +56,7 @@ __device__ __forceinline__ void BlockProbeGroupByGPU(
       if (selection_flags[ITEM]) {
         uint64_t slot = *reinterpret_cast<uint64_t*>(&ht[hash << 1]);
         if (slot != 0) {
-          res[ITEM] = (slot >> 32);
+          res[ITEM] = (slot << 32) >> 32;
         } else {
           selection_flags[ITEM] = 0;
         }
@@ -129,7 +129,7 @@ __device__ __forceinline__ void BlockProbeGroupByGPU2(
       if (selection_flags[ITEM]) {
         uint64_t slot = *reinterpret_cast<uint64_t*>(&ht[hash << 1]);
         if (slot != 0) {
-          res[ITEM] = (slot >> 32);
+          res[ITEM] = (slot << 32) >> 32;
         } else {
           selection_flags[ITEM] = 0;
         }
@@ -203,15 +203,42 @@ __device__ __forceinline__ void BlockReadFilteredOffset(
     int num_items
     ) {
 
-  cudaAssert(col_idx != NULL);
-
   #pragma unroll
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
   {
     if (tid + (ITEM * BLOCK_THREADS) < num_items) {
       if (selection_flags[ITEM]) {
-        int seg = col_idx[items_off[ITEM] / SEGMENT_SIZE];
-        items[ITEM] = gpuCache[seg * SEGMENT_SIZE + (items_off[ITEM] % SEGMENT_SIZE)];
+        //int seg = col_idx[items_off[ITEM] / SEGMENT_SIZE];
+        items[ITEM] = gpuCache[col_idx[items_off[ITEM] / SEGMENT_SIZE] * SEGMENT_SIZE + (items_off[ITEM] % SEGMENT_SIZE)];
+      }
+    }
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockBuildValueGPU(
+    int tid,
+    int blockid,
+    int start_offset,
+    int  (&keys)[ITEMS_PER_THREAD], //equal to items
+    int  (&vals)[ITEMS_PER_THREAD],
+    int  (&selection_flags)[ITEMS_PER_THREAD],
+    int* ht,
+    int ht_len,
+    int keys_min, // equal to val_min
+    int num_items
+    ) {
+
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  cudaAssert(ht != NULL);
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ITEM++) {
+    if (tid + (ITEM * BLOCK_THREADS) < num_items) {  // use stripe arrangement since we are using Crystal Blockload instead of CUB
+      if (selection_flags[ITEM]) {
+        int hash = HASH(keys[ITEM], ht_len, keys_min);
+        atomicCAS(&ht[hash << 1], 0, vals[ITEM]);
+        ht[(hash << 1) + 1] = start_offset + (blockid * tile_size) + (tid + ITEM * BLOCK_THREADS) + 1;
       }
     }
   }
@@ -238,7 +265,6 @@ __device__ __forceinline__ void BlockBuildOffsetGPU(
     if (tid + (ITEM * BLOCK_THREADS) < num_items) {  // use stripe arrangement since we are using Crystal Blockload instead of CUB
       if (selection_flags[ITEM]) {
         int hash = HASH(keys[ITEM], ht_len, keys_min);
-        int old = atomicCAS(&ht[hash << 1], 0, keys[ITEM]);
         ht[(hash << 1) + 1] = start_offset + (blockid * tile_size) + (tid + ITEM * BLOCK_THREADS) + 1;
       }
     }
@@ -274,8 +300,8 @@ __device__ __forceinline__ void BlockBuildValueGPU2(
 
         // Out-of-bounds items are selection_flags
         int hash = HASH(key, ht_len, keys_min);
-        atomicCAS(&ht[hash << 1], 0, key);
-        ht[(hash << 1) + 1] = val;
+        atomicCAS(&ht[hash << 1], 0, val);
+        ht[(hash << 1) + 1] = items_off[ITEM] + 1;
       }
     }
   }
@@ -306,7 +332,6 @@ __device__ __forceinline__ void BlockBuildOffsetGPU2(
 
         // Out-of-bounds items are selection_flags
         int hash = HASH(key, ht_len, keys_min);
-        atomicCAS(&ht[hash << 1], 0, key);
         ht[(hash << 1) + 1] = items_off[ITEM] + 1;
       }
     }
