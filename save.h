@@ -1,3 +1,282 @@
+void
+CPUGPUProcessing::call_bfilter_build_GPU(int sg, int table) {
+
+  ColumnInfo* column, *filter_col;
+  int tile_items = 128*4;
+  int *filter_idx, *dimkey_idx, *group_idx;
+
+  for (int i = 0; i < qo->join.size(); i++) {
+    if (qo->join[i].second->table_id == table){
+      column = qo->join[i].second; break;
+    }
+  }
+
+  if (qo->groupby_build[column].size() > 0) {
+    if (qo->groupGPUcheck) {
+      ColumnInfo* group_col = qo->groupby_build[column][0];
+      if (col_idx.find(group_col) == col_idx.end()) {
+        col_idx[group_col] = cm->customCudaMalloc(cm->cache_total_seg);
+        CubDebugExit(cudaMemcpy(col_idx[group_col], cm->segment_list[group_col->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice));
+      }
+      group_idx = col_idx[group_col];
+    } else group_idx = NULL;
+  } else group_idx = NULL;
+
+  if (qo->select_build[column].size() > 0) {
+    filter_col = qo->select_build[column][0];
+    if (col_idx.find(filter_col) == col_idx.end()) {
+      col_idx[filter_col] = cm->customCudaMalloc(cm->cache_total_seg);
+      CubDebugExit(cudaMemcpy(col_idx[filter_col], cm->segment_list[filter_col->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice));
+    }
+    filter_idx = col_idx[filter_col];
+  } else {
+    filter_idx = NULL;
+  }
+
+  int LEN;
+  if (sg == qo->last_segment[table]) {
+    LEN = (qo->segment_group_count[table][sg] - 1) * SEGMENT_SIZE + column->LEN % SEGMENT_SIZE;
+  } else { 
+    LEN = qo->segment_group_count[table][sg] * SEGMENT_SIZE;
+  }
+
+  if (col_idx.find(column) == col_idx.end()) {
+    col_idx[column] = cm->customCudaMalloc(cm->cache_total_seg);
+    CubDebugExit(cudaMemcpy(col_idx[column], cm->segment_list[column->column_id], cm->cache_total_seg * sizeof(int), cudaMemcpyHostToDevice));
+  }
+
+  dimkey_idx = col_idx[column];
+
+  short* d_segment_group;
+  d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(column->total_segment));
+  short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
+  CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[table][sg] * sizeof(short), cudaMemcpyHostToDevice));
+
+  cout << column->column_name << endl;
+
+  build_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128>>>(
+    NULL, cm->gpuCache, filter_idx, compare1[filter_col], compare2[filter_col], mode[filter_col],
+    dimkey_idx, group_idx, LEN, 
+    ht_GPU[column], dim_len[column], min_key[column],
+    0, d_segment_group); 
+  CHECK_ERROR();
+
+}
+
+void
+CPUGPUProcessing::call_bfilter_build_CPU(int sg, int table) {
+
+  ColumnInfo* column, *filter_col;
+  int* filter_ptr, *group_ptr;
+
+  for (int i = 0; i < qo->join.size(); i++) {
+    if (qo->join[i].second->table_id == table) {
+      column = qo->join[i].second; break;
+    }
+  }
+
+  if (qo->groupby_build[column].size() > 0) {
+    group_ptr = qo->groupby_build[column][0]->col_ptr;
+  } else {
+    group_ptr = NULL;
+  }
+
+  if (qo->select_build[column].size() > 0) {
+    filter_col = qo->select_build[column][0];
+    filter_ptr = filter_col->col_ptr;
+  } else {
+    filter_ptr = NULL;
+  }
+
+  int LEN;
+  if (sg == qo->last_segment[table]) {
+    LEN = (qo->segment_group_count[table][sg] - 1) * SEGMENT_SIZE + column->LEN % SEGMENT_SIZE;
+  } else {
+    LEN = qo->segment_group_count[table][sg] * SEGMENT_SIZE;
+  }
+
+  short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
+
+  build_CPU(NULL, filter_ptr, compare1[filter_col], compare2[filter_col], mode[filter_col], column->col_ptr, group_ptr, LEN, 
+    ht_CPU[column], dim_len[column], min_key[column], 0, segment_group_ptr);
+
+}
+
+
+int start_offset = 0, idx_fkey, LEN;
+for (int i = 0; i < qo->segment_group_count[0][sg]; i++) {
+
+  int segment_number = qo->segment_group[0][sg * cm->lo_orderdate->total_segment + i];
+  start_offset = segment_number * SEGMENT_SIZE;
+
+  for (int j = 0; j < 4; j++) {
+    ColumnInfo* column = fkey[j];
+    if (column == NULL) fkey_col[j] = NULL;
+    else {
+      idx_fkey = cm->segment_list[column->column_id][segment_number];
+      assert(idx_fkey >= 0);
+      fkey_col[j] = cm->gpuCache + idx_fkey * SEGMENT_SIZE;
+    }
+  }
+
+  if (segment_number == cm->lo_orderdate->total_segment-1 && cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) 
+    LEN = cm->lo_orderdate->LEN % SEGMENT_SIZE;
+  else 
+    LEN = SEGMENT_SIZE;
+
+  probe_GPU<128,4><<<(LEN + tile_items - 1)/tile_items, 128>>>(
+    fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3], LEN, 
+    ht[0], _dim_len[0], ht[1], _dim_len[1], ht[2], _dim_len[2], ht[3], _dim_len[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    off_col_out[0], off_col_out[1], off_col_out[2], off_col_out[3], off_col_out[4],
+    d_total, start_offset);
+
+  CHECK_ERROR();
+
+}
+
+
+
+
+int start_offset = 0, LEN;
+
+for (int i = 0; i < qo->segment_group_count[0][sg]; i++) {
+
+  int segment_number = qo->segment_group[0][sg * cm->lo_orderdate->total_segment + i];
+  start_offset = segment_number * SEGMENT_SIZE;
+
+  if (segment_number == cm->lo_orderdate->total_segment-1 && cm->lo_orderdate->LEN % SEGMENT_SIZE != 0)
+    LEN = cm->lo_orderdate->LEN % SEGMENT_SIZE;
+  else
+    LEN = SEGMENT_SIZE;
+
+  probe_CPU(NULL, NULL, NULL, NULL, NULL,
+    fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3], LEN,
+    ht[0], _dim_len[0], ht[1], _dim_len[1], ht[2], _dim_len[2], ht[3], _dim_len[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    off_col_out[0], off_col_out[1], off_col_out[2], off_col_out[3], off_col_out[4],
+    &out_total, start_offset, NULL);
+
+}
+
+
+
+
+
+int start_offset, idx, LEN;
+for (int i = 0; i < column->total_segment; i++) {
+
+  start_offset = i * SEGMENT_SIZE;
+
+  if (i == column->total_segment-1 && column->LEN % SEGMENT_SIZE != 0)
+    LEN = column->LEN % SEGMENT_SIZE;
+  else
+    LEN = SEGMENT_SIZE;
+
+  idx = cm->segment_list[column->column_id][i];
+  assert(idx >= 0);
+  key_col = cm->gpuCache + idx * SEGMENT_SIZE;
+
+  build_GPU<128, 4><<<(LEN + tile_items - 1)/tile_items, 128>>>
+    (NULL, 0, 0, 0, 
+      key_col, NULL, LEN, 
+      ht_GPU[column], dim_len[column], min_key[column], start_offset);
+
+  CHECK_ERROR();  
+
+}
+
+
+
+int LEN;
+for (int i = 0; i < qo->segment_group_count[table][sg]; i++){
+
+  int segment_number = qo->segment_group[table][sg * column->total_segment + i];
+  int start_offset = SEGMENT_SIZE * segment_number;
+  int idx_key = cm->segment_list[column->column_id][segment_number];
+  int* filter_col = cm->gpuCache + idx_key * SEGMENT_SIZE;
+
+  if (segment_number == column->total_segment-1 && column->LEN % SEGMENT_SIZE != 0)
+    LEN = column->LEN % SEGMENT_SIZE;
+  else
+    LEN = SEGMENT_SIZE;
+
+  filter_GPU<128,4> <<<(LEN + tile_items - 1)/tile_items, 128>>> (
+    filter_col, NULL, 
+    compare1[column], compare2[column], 0, 0, mode[column], 0, 
+    d_off_col, d_total, LEN, start_offset);
+  CHECK_ERROR();
+}
+
+
+int start_offset, LEN;
+
+for (int i = 0; i < qo->segment_group_count[table][sg]; i++){
+  int segment_number = qo->segment_group[table][sg * column->total_segment + i];
+  start_offset = SEGMENT_SIZE * segment_number;
+
+  if (segment_number == column->total_segment-1 && column->LEN % SEGMENT_SIZE != 0)
+    LEN = column->LEN % SEGMENT_SIZE;
+  else
+    LEN = SEGMENT_SIZE;
+
+  filter_CPU(NULL, filter_col, NULL, 
+    compare1[column], compare2[column], 0, 0, mode[column], 0,
+    h_off_col, h_total, LEN, 
+    start_offset, NULL);
+}
+
+
+
+int start_offset, idx_fil, LEN;
+for (int i = 0; i < qo->segment_group_count[0][sg]; i++) {
+
+  int segment_number = qo->segment_group[0][sg * cm->lo_orderdate->total_segment + i];
+  start_offset = segment_number * SEGMENT_SIZE;
+
+  for (int j = 0; j < 2; j++) {
+    if (filter[j] == NULL) filter_col[j] = NULL;
+    else {
+      idx_fil = cm->segment_list[filter[j]->column_id][segment_number];
+      assert(idx_fil >= 0);
+      filter_col[j] = cm->gpuCache + idx_fil * SEGMENT_SIZE;
+    }
+  }
+
+  if (segment_number == cm->lo_orderdate->total_segment-1 && cm->lo_orderdate->LEN % SEGMENT_SIZE != 0)
+    LEN = cm->lo_orderdate->LEN % SEGMENT_SIZE;
+  else
+    LEN = SEGMENT_SIZE;
+
+  filter_GPU<128,4><<<(LEN + tile_items - 1)/tile_items, 128>>>
+    (filter_col[0], filter_col[1], 
+      _compare1[0], _compare2[0], _compare1[1], _compare2[1], _mode[0], _mode[1], 
+      off_col_out[0], d_total, LEN, start_offset);
+  CHECK_ERROR();
+}
+
+
+
+int start_offset, LEN;
+for (int i = 0; i < qo->segment_group_count[0][sg]; i++) {
+
+  int segment_number = qo->segment_group[0][sg * cm->lo_orderdate->total_segment + i];
+  start_offset = segment_number * SEGMENT_SIZE;
+
+  if (segment_number == cm->lo_orderdate->total_segment-1 && cm->lo_orderdate->LEN % SEGMENT_SIZE != 0)
+    LEN = cm->lo_orderdate->LEN % SEGMENT_SIZE;
+  else
+    LEN = SEGMENT_SIZE;
+
+  filter_CPU(NULL, filter_col[0], filter_col[1], 
+    _compare1[0], _compare2[0], _compare1[1], _compare2[1], _mode[0], _mode[1],
+    off_col_out[0], &out_total, LEN,
+    start_offset, NULL);
+}
+
+
+
+
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void probe_group_by_3_GPU(int* dim_key1, int* dim_key2, int* dim_key3, int* aggr, 
   int fact_len, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* res,

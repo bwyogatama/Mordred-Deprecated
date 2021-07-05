@@ -45,7 +45,7 @@ public:
 	vector<vector<ColumnInfo*>> groupbyGPUPipelineCol;
 	vector<vector<ColumnInfo*>> groupbyCPUPipelineCol;
 	bool groupGPUcheck;
-	bool* joinGPUcheck;
+	bool* joinGPUcheck, *joinCPUcheck, **joinGPU, **joinCPU;
 
 	short** segment_group;
 	short** segment_group_count;
@@ -91,13 +91,23 @@ QueryOptimizer::parseQuery(int query) {
 	groupbyGPUPipelineCol.resize(64);
 	groupbyCPUPipelineCol.resize(64);
 
+	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+
 	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
 	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		segment_group[i] = (short*) malloc (64 * cm->lo_orderdate->total_segment * sizeof(short));
 		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
+		joinGPU[i] = (bool*) malloc(64 * sizeof(bool));
+		joinCPU[i] = (bool*) malloc(64 * sizeof(bool));
+		memset(joinGPU[i], 0, 64 * sizeof(bool));
+		memset(joinCPU[i], 0, 64 * sizeof(bool));
 		memset(segment_group_count[i], 0, 64 * sizeof(short));
 	}
+
 	last_segment = new int[cm->TOT_TABLE];
 
 	if (query == 0) parseQuery11();
@@ -287,7 +297,6 @@ void
 QueryOptimizer::dataDrivenOperatorPlacement() {
 
 	groupGPUcheck = true;
-	joinGPUcheck = (bool*) malloc(join.size() * sizeof(bool));
 
 	for (int i = 0; i < join.size(); i++) {
 		for (int j = 0; j < groupby_build[join[i].second].size(); j++) {
@@ -373,12 +382,17 @@ QueryOptimizer::groupBitmap() {
 
 			sg = sg >> groupby_probe[cm->lo_orderdate].size();
 
-			//cout << sg << endl;
+			// cout << sg << endl;
 
 			for (int j = 0; j < join.size(); j++) {
 				bit = (sg & (1 << j)) >> j;
-				if (bit && joinGPUcheck[j]) joinGPUPipelineCol[i].push_back(join[j].first);
-				else joinCPUPipelineCol[i].push_back(join[j].first);
+				if (bit && joinGPUcheck[j]) {
+					joinGPU[join[j].second->table_id-1][i] = 1;
+					joinGPUPipelineCol[i].push_back(join[j].first);
+				} else {
+					joinCPU[join[j].second->table_id-1][i] = 1;
+					joinCPUPipelineCol[i].push_back(join[j].first);
+				}
 			}
 
 			// for (int k = 0; k < joinGPUPipelineCol[i].size(); k++) {
@@ -398,6 +412,16 @@ QueryOptimizer::groupBitmap() {
 
 			sg = sg >> select_probe[cm->lo_orderdate].size();
 		}
+	}
+
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		bool checkGPU = false, checkCPU = false;
+		for (int j = 0; j < 64; j++) {
+			if (joinGPU[i][j] && joinGPUcheck[i]) checkGPU = true;
+			if (joinCPU[i][j]) checkCPU = true;
+		}
+		joinGPUcheck[i] = checkGPU;
+		joinCPUcheck[i] = checkCPU;
 	}
 
 	for (int i = 0; i < join.size(); i++) {
@@ -428,6 +452,7 @@ QueryOptimizer::groupBitmap() {
 
 		}
 	}
+
 }
 
 // void 
