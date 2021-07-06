@@ -1,3 +1,80 @@
+
+
+
+      // if ((query == 0 && sg == 31) || (query == 1 && sg == 15) || (query == 2 && sg == 15) || (query == 3 && sg == 63)) {
+      //   cgp->call_pfilter_probe_groupby_GPU(params, off_col, &h_total, sg, 0);
+      // } else if (sg == 0) {
+      //   cgp->call_pfilter_probe_groupby_CPU(params, h_off_col, &h_total, sg, 0);
+      // } else {
+
+      //   cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
+
+      //   if (qo->selectCPUPipelineCol[sg].size() > 0 && (qo->joinGPUPipelineCol[sg].size() > 0 || qo->selectGPUPipelineCol[sg].size() > 0 || qo->groupbyGPUPipelineCol[sg].size() > 0)) 
+      //     cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
+
+      //   cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size());
+
+      //   cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size() + qo->selectCPUPipelineCol[sg].size());
+
+      //   if ((qo->selectGPUPipelineCol[sg].size() > 0 || qo->joinGPUPipelineCol[sg].size() > 0) && (qo->joinCPUPipelineCol[sg].size() > 0 || qo->groupbyCPUPipelineCol[sg].size() > 0))
+      //     cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+
+      //   //printf("h_total = %d\n", h_total);
+
+      //   cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, qo->selectCPUPipelineCol[sg].size() + qo->selectCPUPipelineCol[sg].size());
+
+      //   if (qo->groupGPUcheck) {
+      //     if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
+      //       if (qo->joinCPUPipelineCol[sg].size() > 0)
+      //         cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
+      //       cgp->call_group_by_GPU(params, off_col, &h_total);
+      //     } else {
+      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //     }
+      //   } else {
+      //     cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //   }
+
+      //   // cgp->call_probe_filter_GPU(params, off_col, d_total, &h_total, sg, 0);
+
+      //   // if (qo->selectGPUPipelineCol[sg].size() > 0 && (qo->joinCPUPipelineCol[sg].size() > 0 || qo->selectCPUPipelineCol[sg].size() > 0 || qo->groupbyCPUPipelineCol[sg].size() > 0))
+      //   // cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+
+      //   // cgp->call_probe_filter_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
+
+      //   // cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
+
+      //   // if ((qo->selectCPUPipelineCol[sg].size() > 0 || qo->joinCPUPipelineCol[sg].size() > 0) && (qo->joinGPUPipelineCol[sg].size() > 0 || qo->groupbyGPUPipelineCol[sg].size() > 0))
+      //   //   cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
+
+      //   // cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg);
+
+      //   // if (qo->groupGPUcheck) {
+      //   //   if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
+      //   //     cgp->call_group_by_GPU(params, off_col, &h_total);
+      //   //   } else {
+      //   //     if (qo->joinGPUPipelineCol[sg].size() > 0)
+      //   //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+      //   //     cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //   //   }
+      //   // } else {
+      //   //   if (qo->joinGPUPipelineCol[sg].size() > 0)
+      //   //     cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+      //   //   cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //   // }
+
+      //   // for (int i = 0; i < h_total2; i++) {
+      //   //   bool found = false;
+      //   //   for (int j = 0; j < h_total; j++) {
+      //   //     if (h_off_col2[0][i] == h_off_col[0][j]) {
+      //   //       found = true;
+      //   //       break;
+      //   //     }
+      //   //   }
+      //   //   if (!found)
+      //   //     printf("error %d\n", h_off_col2[0][i]);
+      //   // }
+
 void
 CPUGPUProcessing::call_bfilter_build_GPU(int sg, int table) {
 

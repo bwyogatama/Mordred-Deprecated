@@ -122,11 +122,16 @@ QueryOptimizer::clearVector() {
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		free(segment_group[i]);
 		free(segment_group_count[i]);
+		free(joinGPU[i]);
+		free(joinCPU[i]);
 	}
 
 	free(segment_group);
 	free(segment_group_count);
 	free(joinGPUcheck);
+	free(joinCPUcheck);
+	free(joinGPU);
+	free(joinCPU);
 
 	join.clear();
 	groupby_probe.clear();
@@ -186,7 +191,7 @@ QueryOptimizer::parseQuery11() {
 
 void 
 QueryOptimizer::parseQuery21() {
-	//clearVector();
+
 	querySelectColumn.push_back(cm->p_category);
 	querySelectColumn.push_back(cm->s_region);
 	queryBuildColumn.push_back(cm->s_suppkey);
@@ -210,11 +215,6 @@ QueryOptimizer::parseQuery21() {
 	groupby_probe[cm->lo_orderdate].push_back(cm->lo_revenue);
 	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
-
-	// joinGPUPipeline.resize(join.size());
-	// joinCPUPipeline.resize(join.size());
-	// selectGPUPipeline.resize(select_probe.size());
-	// selectCPUPipeline.resize(select_probe.size());
 
 	dataDrivenOperatorPlacement();
 }
@@ -311,9 +311,9 @@ QueryOptimizer::dataDrivenOperatorPlacement() {
 
 	for (int i = 0; i < join.size(); i++) {
 		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
-			joinGPUcheck[i] = false;
+			joinGPUcheck[join[i].second->table_id] = false;
 		} else {
-			joinGPUcheck[i] = true;
+			joinGPUcheck[join[i].second->table_id] = true;
 		}
 	}
 
@@ -386,11 +386,11 @@ QueryOptimizer::groupBitmap() {
 
 			for (int j = 0; j < join.size(); j++) {
 				bit = (sg & (1 << j)) >> j;
-				if (bit && joinGPUcheck[j]) {
-					joinGPU[join[j].second->table_id-1][i] = 1;
+				if (bit && joinGPUcheck[join[j].second->table_id]) {
+					joinGPU[join[j].second->table_id][i] = 1;
 					joinGPUPipelineCol[i].push_back(join[j].first);
 				} else {
-					joinCPU[join[j].second->table_id-1][i] = 1;
+					joinCPU[join[j].second->table_id][i] = 1;
 					joinCPUPipelineCol[i].push_back(join[j].first);
 				}
 			}

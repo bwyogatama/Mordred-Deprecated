@@ -463,7 +463,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
         //lo_offset = start_offset + i;
 
         if (key_col1 != NULL) {
-          //assert(ht1 != NULL);
+          assert(ht1 != NULL);
           hash = HASH(key_col1[lo_offset], dim_len1, min_key1);
           slot = reinterpret_cast<long long*>(ht1)[hash];
           if (slot == 0) continue;
@@ -474,7 +474,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
         }
 
         if (key_col2 != NULL) {
-          //assert(ht2 != NULL);
+          assert(ht2 != NULL);
           hash = HASH(key_col2[lo_offset], dim_len2, min_key2);
           slot = reinterpret_cast<long long*>(ht2)[hash];
           if (slot == 0) continue;
@@ -485,7 +485,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
         }
 
         if (key_col3 != NULL) {
-          //assert(ht3 != NULL);
+          assert(ht3 != NULL);
           hash = HASH(key_col3[lo_offset], dim_len3, min_key3);
           slot = reinterpret_cast<long long*>(ht3)[hash];
           if (slot == 0) continue;
@@ -496,7 +496,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
         }
 
         if (key_col4 != NULL) {
-          //assert(ht4 != NULL);
+          assert(ht4 != NULL);
           hash = HASH(key_col4[lo_offset], dim_len4, min_key4);
           slot = reinterpret_cast<long long*>(ht4)[hash];
           if (slot == 0) continue;
@@ -547,7 +547,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
       //lo_offset = start_offset + i;
 
       if (key_col1 != NULL) {
-        //assert(ht1 != NULL);
+        assert(ht1 != NULL);
         hash = HASH(key_col1[lo_offset], dim_len1, min_key1);
         slot = reinterpret_cast<long long*>(ht1)[hash];
         if (slot == 0) continue;
@@ -558,7 +558,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
       }
 
       if (key_col2 != NULL) {
-        //assert(ht2 != NULL);
+        assert(ht2 != NULL);
         hash = HASH(key_col2[lo_offset], dim_len2, min_key2);
         slot = reinterpret_cast<long long*>(ht2)[hash];
         if (slot == 0) continue;
@@ -569,7 +569,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
       }
 
       if (key_col3 != NULL) {
-        //assert(ht3 != NULL);
+        assert(ht3 != NULL);
         hash = HASH(key_col3[lo_offset], dim_len3, min_key3);
         slot = reinterpret_cast<long long*>(ht3)[hash];
         if (slot == 0) continue;
@@ -580,7 +580,7 @@ void probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3
       }
 
       if (key_col4 != NULL) {
-        //assert(ht4 != NULL);
+        assert(ht4 != NULL);
         hash = HASH(key_col4[lo_offset], dim_len4, min_key4);
         slot = reinterpret_cast<long long*>(ht4)[hash];
         if (slot == 0) continue;
@@ -660,7 +660,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
         }
 
         if (key_col1 != NULL) {
-          //assert(ht1 != NULL);
+          assert(ht1 != NULL);
           hash = HASH(key_col1[lo_offset], dim_len1, min_key1);
           slot = reinterpret_cast<long long*>(ht1)[hash];
           if (slot == 0) continue;
@@ -671,7 +671,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
         }
 
         if (key_col2 != NULL) {
-          //assert(ht2 != NULL);
+          assert(ht2 != NULL);
           hash = HASH(key_col2[lo_offset], dim_len2, min_key2);
           slot = reinterpret_cast<long long*>(ht2)[hash];
           if (slot == 0) continue;
@@ -682,7 +682,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
         }
 
         if (key_col3 != NULL) {
-          //assert(ht3 != NULL);
+          assert(ht3 != NULL);
           hash = HASH(key_col3[lo_offset], dim_len3, min_key3);
           slot = reinterpret_cast<long long*>(ht3)[hash];
           if (slot == 0) continue;
@@ -693,7 +693,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
         }
 
         if (key_col4 != NULL) {
-          //assert(ht4 != NULL);
+          assert(ht4 != NULL);
           hash = HASH(key_col4[lo_offset], dim_len4, min_key4);
           slot = reinterpret_cast<long long*>(ht4)[hash];
           if (slot == 0) continue;
@@ -752,7 +752,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
       }
 
       if (key_col1 != NULL) {
-        //assert(ht1 != NULL);
+        assert(ht1 != NULL);
         hash = HASH(key_col1[lo_offset], dim_len1, min_key1);
         slot = reinterpret_cast<long long*>(ht1)[hash];
         if (slot == 0) continue;
@@ -763,7 +763,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
       }
 
       if (key_col2 != NULL) {
-        //assert(ht2 != NULL);
+        assert(ht2 != NULL);
         hash = HASH(key_col2[lo_offset], dim_len2, min_key2);
         slot = reinterpret_cast<long long*>(ht2)[hash];
         if (slot == 0) continue;
@@ -774,7 +774,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
       }
 
       if (key_col3 != NULL) {
-        //assert(ht3 != NULL);
+        assert(ht3 != NULL);
         hash = HASH(key_col3[lo_offset], dim_len3, min_key3);
         slot = reinterpret_cast<long long*>(ht3)[hash];
         if (slot == 0) continue;
@@ -785,7 +785,7 @@ void filter_probe_group_by_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* d
       }
 
       if (key_col4 != NULL) {
-        //assert(ht4 != NULL);
+        assert(ht4 != NULL);
         hash = HASH(key_col4[lo_offset], dim_len4, min_key4);
         slot = reinterpret_cast<long long*>(ht4)[hash];
         if (slot == 0) continue;
