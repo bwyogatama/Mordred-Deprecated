@@ -120,7 +120,7 @@ void
 CPUGPUProcessing::switch_device_fact(int** &off_col, int** &h_off_col, int* &d_total, int* h_total, int sg, int mode, int table) {
   cudaEvent_t start, stop; 
   float time;
-  cout << *h_total << endl;
+  cout << "Transfer size: " << *h_total << endl;
   cudaEventCreate(&start);
   cudaEventCreate(&stop); 
   cudaEventRecord(start, 0);
@@ -272,11 +272,11 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
     }
   }
 
-  cudaEvent_t start, stop;
-  float time;
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
-  cudaEventRecord(start, 0);
+  cudaEvent_t start, stop;   // variables that holds 2 events 
+  float time;                // Variable that will hold the time
+  cudaEventCreate(&start);   // creating the event 1
+  cudaEventCreate(&stop);    // creating the event 2
+  cudaEventRecord(start, 0); // start measuring  the time
 
   if (off_col == NULL) {
 
@@ -324,7 +324,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time, start, stop);
 
-  cout << time << endl;
+  cout << "Kernel time: " << time << endl;
 
 };
 
@@ -481,12 +481,12 @@ CPUGPUProcessing::call_pfilter_probe_group_by_CPU(QueryParams* params, int** &h_
   //   }
   // });
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
 
-  cout << time << endl;
+  cout << "Kernel time: " << time << endl;
+
 };
 
 void 
@@ -599,6 +599,7 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
   CubDebugExit(cudaMemcpy(h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost));
 
   assert(*h_total <= output_estimate);
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
 
 };
 
@@ -689,6 +690,8 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
   *h_total = out_total;
 
   assert(*h_total <= output_estimate);
+
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
 };
 
 void
@@ -743,6 +746,12 @@ CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, i
     }
   }
 
+  cudaEvent_t start, stop;
+  float time;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+
   if (off_col == NULL) {
 
     int LEN;
@@ -780,6 +789,13 @@ CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, i
       params->total_val, params->d_res, 0, NULL);
 
   }
+
+  cudaEventRecord(stop, 0);                  // Stop time measuring
+  cudaEventSynchronize(stop);               // Wait until the completion of all device 
+                                            // work preceding the most recent call to cudaEventRecord()
+  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+
+  cout << "Kernel time: " << time << endl;
 
 };
 
@@ -820,6 +836,12 @@ CPUGPUProcessing::call_probe_group_by_CPU(QueryParams* params, int** &h_off_col,
     }
   }
 
+  cudaEvent_t start, stop;
+  float time;
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+
   if (h_off_col == NULL) {
 
     int LEN;
@@ -852,6 +874,14 @@ CPUGPUProcessing::call_probe_group_by_CPU(QueryParams* params, int** &h_off_col,
       _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
       params->total_val, params->res, 0, NULL);
   }
+
+  cudaEventRecord(stop, 0);                  // Stop time measuring
+  cudaEventSynchronize(stop);               // Wait until the completion of all device 
+                                            // work preceding the most recent call to cudaEventRecord()
+  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+
+  cout << "Kernel time: " << time << endl;
+
 };
 
 void 
@@ -946,6 +976,8 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
 
   assert(*h_total <= output_estimate);
 
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
+
 };
 
 void 
@@ -1020,6 +1052,8 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
   *h_total = out_total;
 
   assert(*h_total <= output_estimate);
+
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
 };
 
 void
@@ -1102,6 +1136,8 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
   CubDebugExit(cudaMemcpy(h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost));
 
   assert(*h_total <= output_estimate);
+
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
 }
 
 void
@@ -1168,6 +1204,8 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
   *h_total = out_total;
 
   assert(*h_total <= output_estimate);
+
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
 }
 
 void 
@@ -1468,6 +1506,8 @@ CPUGPUProcessing::call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d
   CubDebugExit(cudaMemcpy(h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost));
 
   assert(*h_total <= output_estimate);
+
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
 }
 
 void
@@ -1505,6 +1545,8 @@ CPUGPUProcessing::call_bfilter_CPU(QueryParams* params, int* &h_off_col, int* h_
     0, segment_group_ptr);
 
   assert(*h_total <= output_estimate);
+
+  cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << endl;
 
 }
 

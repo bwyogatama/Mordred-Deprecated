@@ -977,6 +977,7 @@ __global__ void filter_GPU2(int* off_col,
     if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
       if(selection_flags[ITEM]) {
         int offset = block_off + c_t_count++;
+        cudaAssert(out_off != NULL);
         if (off_col == NULL) out_off[offset] = start_offset + tile_idx * tile_size + threadIdx.x + ITEM * BLOCK_THREADS;
         else out_off[offset] = items_off[ITEM];
       }
@@ -1714,6 +1715,7 @@ __global__ void filter_GPU(int* filter_col1, int* filter_col2,
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
     if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
       if(selection_flags[ITEM]) {
+        cudaAssert(out_off != NULL);
         int offset = block_off + c_t_count++;
         out_off[offset] = start_offset + blockIdx.x * tile_size + (threadIdx.x + ITEM * BLOCK_THREADS);
       }

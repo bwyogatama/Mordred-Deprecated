@@ -217,11 +217,11 @@ void filter_probe_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, 
 
     for (int i = 0; i < count; i++) {
       assert(h_lo_off != NULL);
-      h_lo_off[thread_off+i] = temp[0][i];
-      h_dim_off1[thread_off+i] = temp[1][i];
-      h_dim_off2[thread_off+i] = temp[2][i];
-      h_dim_off3[thread_off+i] = temp[3][i];
-      h_dim_off4[thread_off+i] = temp[4][i];
+      if (h_lo_off != NULL) h_lo_off[thread_off+i] = temp[0][i];
+      if (h_dim_off1 != NULL) h_dim_off1[thread_off+i] = temp[1][i];
+      if (h_dim_off2 != NULL) h_dim_off2[thread_off+i] = temp[2][i];
+      if (h_dim_off3 != NULL) h_dim_off3[thread_off+i] = temp[3][i];
+      if (h_dim_off4 != NULL) h_dim_off4[thread_off+i] = temp[4][i];
     }
 
   }, simple_partitioner());
@@ -415,11 +415,11 @@ void probe_CPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* di
 
     for (int i = 0; i < count; i++) {
       assert(h_lo_off != NULL);
-      h_lo_off[thread_off+i] = temp[0][i];
-      h_dim_off1[thread_off+i] = temp[1][i];
-      h_dim_off2[thread_off+i] = temp[2][i];
-      h_dim_off3[thread_off+i] = temp[3][i];
-      h_dim_off4[thread_off+i] = temp[4][i];
+      if (h_lo_off != NULL) h_lo_off[thread_off+i] = temp[0][i];
+      if (h_dim_off1 != NULL) h_dim_off1[thread_off+i] = temp[1][i];
+      if (h_dim_off2 != NULL) h_dim_off2[thread_off+i] = temp[2][i];
+      if (h_dim_off3 != NULL) h_dim_off3[thread_off+i] = temp[3][i];
+      if (h_dim_off4 != NULL) h_dim_off4[thread_off+i] = temp[4][i];
     }
 
   }, simple_partitioner());
@@ -1015,6 +1015,7 @@ void filter_CPU(int* off_col, int *filter_col1, int* filter_col2,
     int thread_off = __atomic_fetch_add(total, count, __ATOMIC_RELAXED);
 
     for (int i = 0; i < count; i++) {
+      assert(out_off != NULL);
       out_off[thread_off+i] = temp[i];
     }
 
