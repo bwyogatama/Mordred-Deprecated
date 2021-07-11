@@ -5,7 +5,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-#define LEN 10
+#define LEN 256
 
 __global__ void kernel(int *a, int *b, unsigned int N);
 

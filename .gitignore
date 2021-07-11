@@ -1,3 +1,7 @@
+*.qdrep
+*.sqlite
+profile.*
+*.exe
 cub/
 bin/
 obj/
