@@ -49,6 +49,8 @@ public:
 
 	short** segment_group;
 	short** segment_group_count;
+	short** par_segment;
+	short* par_segment_count;
 	int* last_segment;
 
 	QueryOptimizer(size_t cache_size, size_t _processing_size);
@@ -98,17 +100,22 @@ QueryOptimizer::parseQuery(int query) {
 
 	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
 	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		segment_group[i] = (short*) malloc (64 * cm->lo_orderdate->total_segment * sizeof(short));
 		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
+		par_segment[i] = (short*) malloc (64 * sizeof(short));
 		joinGPU[i] = (bool*) malloc(64 * sizeof(bool));
 		joinCPU[i] = (bool*) malloc(64 * sizeof(bool));
 		memset(joinGPU[i], 0, 64 * sizeof(bool));
 		memset(joinCPU[i], 0, 64 * sizeof(bool));
 		memset(segment_group_count[i], 0, 64 * sizeof(short));
+		memset(par_segment[i], 0, 64 * sizeof(short));
 	}
 
 	last_segment = new int[cm->TOT_TABLE];
+	par_segment_count = new short[cm->TOT_TABLE];
+	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
 
 	if (query == 0) parseQuery11();
 	else if (query == 1) parseQuery21();
@@ -438,7 +445,6 @@ QueryOptimizer::groupBitmap() {
 
 				// cout << select_build[join[i].second][k]->column_name << endl;
 				// cout << temp << endl;
-
 			}
 
 			segment_group[join[i].second->table_id][temp * join[i].second->total_segment + segment_group_count[join[i].second->table_id][temp]] = j;
@@ -453,6 +459,17 @@ QueryOptimizer::groupBitmap() {
 		}
 	}
 
+
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		short count = 0;
+		for (int sg = 0; sg < 64; sg++) {
+			if (segment_group_count[i][sg] > 0) {
+				par_segment[i][count] = sg;
+				count++;
+			}
+		}
+		par_segment_count[i] = count;
+	}
 }
 
 // void 

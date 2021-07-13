@@ -72,23 +72,23 @@ public:
 
   void switch_device_fact(int** &off_col, int** &h_off_col, int* &d_total, int* h_total, int sg, int mode, int table);
 
-  void call_pfilter_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, int select_so_far);
+  void call_pfilter_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, int select_so_far, cudaStream_t stream);
 
   void call_pfilter_probe_group_by_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
 
-  void call_pfilter_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far);
+  void call_pfilter_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far, cudaStream_t stream);
 
   void call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
 
-  void call_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg);
+  void call_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, cudaStream_t stream);
 
   void call_probe_group_by_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg);
 
-  void call_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg);
+  void call_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, cudaStream_t stream);
 
   void call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg);
 
-  void call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far);
+  void call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far, cudaStream_t stream);
 
   void call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
 
@@ -96,21 +96,21 @@ public:
 
   void switch_device_dim(int* &off_col, int* &h_off_col, int* &d_total, int* h_total, int sg, int mode, int table);
 
-  void call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table);
+  void call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table, cudaStream_t stream);
 
   void call_bfilter_build_CPU(QueryParams* params, int* &h_off_col, int* h_total, int sg, int table);
 
-  void call_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table);
+  void call_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table, cudaStream_t stream);
 
   void call_build_CPU(QueryParams* params, int* &h_off_col, int* h_total, int sg, int table);
 
-  void call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d_total, int* h_total, int sg, int table);
+  void call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d_total, int* h_total, int sg, int table, cudaStream_t stream);
 
   void call_bfilter_CPU(QueryParams* params, int* &h_off_col, int* h_total, int sg, int table);
 
 
 
-  void call_group_by_GPU(QueryParams* params, int** &off_col, int* h_total);
+  void call_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, cudaStream_t stream);
 
   void call_group_by_CPU(QueryParams* params, int** &h_off_col, int* h_total);
 
@@ -207,7 +207,7 @@ CPUGPUProcessing::switch_device_dim(int* &d_off_col, int* &h_off_col, int* &d_to
 }
 
 void
-CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, int select_so_far) {
+CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, int select_so_far, cudaStream_t stream) {
 
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_idx[4] = {}; //initialize it to null
@@ -292,7 +292,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-    filter_probe_group_by_GPU2<128, 4><<<(LEN + tile_items - 1)/tile_items, 128>>>(
+    filter_probe_group_by_GPU2<128, 4><<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
       NULL, NULL, NULL, NULL, NULL,
       cm->gpuCache, filter_idx[0], filter_idx[1], 
       _compare1[0], _compare2[0], _compare1[1], _compare2[1],
@@ -306,7 +306,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
 
   } else {
 
-    filter_probe_group_by_GPU2<128, 4><<<(*h_total + tile_items - 1)/tile_items, 128>>>(
+    filter_probe_group_by_GPU2<128, 4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
       off_col[0], off_col[1], off_col[2], off_col[3], off_col[4],
       cm->gpuCache, filter_idx[0], filter_idx[1], 
       _compare1[0], _compare2[0], _compare1[1], _compare2[1],
@@ -490,7 +490,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_CPU(QueryParams* params, int** &h_
 };
 
 void 
-CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far) {
+CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far, cudaStream_t stream) {
   int **off_col_out;
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_idx[4] = {}; //initialize it to null
@@ -563,7 +563,7 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-    filter_probe_GPU2<128,4><<<(LEN+ tile_items - 1)/tile_items, 128>>>(
+    filter_probe_GPU2<128,4><<<(LEN+ tile_items - 1)/tile_items, 128, 0, stream>>>(
       NULL, NULL, NULL, NULL, NULL, cm->gpuCache, filter_idx[0], filter_idx[1], 
       _compare1[0], _compare2[0], _compare1[1], _compare2[1],
       fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
@@ -578,7 +578,7 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
 
     assert(*h_total > 0);
 
-    filter_probe_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128>>>(
+    filter_probe_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
       off_col[0], off_col[1], off_col[2], off_col[3], off_col[4], 
       cm->gpuCache, filter_idx[0], filter_idx[1], 
       _compare1[0], _compare2[0], _compare1[1], _compare2[1],
@@ -695,7 +695,7 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
 };
 
 void
-CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg) {
+CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, cudaStream_t stream) {
 
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_idx[4] = {}; //initialize it to null
@@ -766,7 +766,7 @@ CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, i
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-    probe_group_by_GPU2<128, 4><<<(LEN + tile_items - 1)/tile_items, 128>>>(
+    probe_group_by_GPU2<128, 4><<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
       NULL, NULL, NULL, NULL, NULL,
       cm->gpuCache, fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
       aggr_idx[0], aggr_idx[1], group_idx[0], group_idx[1], group_idx[2], group_idx[3], params->mode_group,
@@ -778,7 +778,7 @@ CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, i
 
   } else {
 
-    probe_group_by_GPU2<128, 4><<<(*h_total + tile_items - 1)/tile_items, 128>>>(
+    probe_group_by_GPU2<128, 4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
       off_col[0], off_col[1], off_col[2], off_col[3], off_col[4],
       cm->gpuCache, fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
       aggr_idx[0], aggr_idx[1], group_idx[0], group_idx[1], group_idx[2], group_idx[3], params->mode_group,
@@ -885,7 +885,7 @@ CPUGPUProcessing::call_probe_group_by_CPU(QueryParams* params, int** &h_off_col,
 };
 
 void 
-CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg) {
+CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, cudaStream_t stream) {
   int **off_col_out;
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_idx[4] = {}; //initialize it to null
@@ -942,7 +942,7 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-    probe_GPU2<128,4><<<(LEN+ tile_items - 1)/tile_items, 128>>>(
+    probe_GPU2<128,4><<<(LEN+ tile_items - 1)/tile_items, 128, 0, stream>>>(
       NULL, NULL, NULL, NULL, NULL, cm->gpuCache,
       fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
       LEN, ht[0], _dim_len[0], ht[1], _dim_len[1], ht[2], _dim_len[2], ht[3], _dim_len[3],
@@ -956,7 +956,7 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
 
     assert(*h_total > 0);
 
-    probe_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128>>>(
+    probe_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
       off_col[0], off_col[1], off_col[2], off_col[3], off_col[4], cm->gpuCache, 
       fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3], 
       *h_total, ht[0], _dim_len[0], ht[1], _dim_len[1], ht[2], _dim_len[2], ht[3], _dim_len[3],
@@ -1057,7 +1057,7 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
 };
 
 void
-CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far) {
+CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far, cudaStream_t stream) {
   int tile_items = 128*4;
   int **off_col_out;
   int *filter_idx[2] = {};
@@ -1106,7 +1106,7 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-    filter_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128>>>(
+    filter_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
       NULL, 
       cm->gpuCache, filter_idx[0], filter_idx[1], 
       _compare1[0], _compare2[0], _compare1[1], _compare2[1], _mode[0], _mode[1],
@@ -1119,7 +1119,7 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
 
     assert(off_col[0] != NULL);
 
-    filter_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128>>>
+    filter_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>
       (off_col[0], 
       cm->gpuCache, filter_idx[0], filter_idx[1], 
       _compare1[0], _compare2[0], _compare1[1], _compare2[1], _mode[0], _mode[1],
@@ -1209,7 +1209,7 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
 }
 
 void 
-CPUGPUProcessing::call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table) {
+CPUGPUProcessing::call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table, cudaStream_t stream) {
   int tile_items = 128*4;
   int* dimkey_idx, *group_idx, *filter_idx;
   ColumnInfo* column, *filter_col;
@@ -1263,7 +1263,7 @@ CPUGPUProcessing::call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, i
       short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
       CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[table][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-      build_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128>>>(
+      build_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
         NULL, cm->gpuCache, filter_idx, params->compare1[filter_col], params->compare2[filter_col], params->mode[filter_col],
         dimkey_idx, group_idx, LEN, 
         params->ht_GPU[column], params->dim_len[column], params->min_key[column],
@@ -1279,7 +1279,7 @@ CPUGPUProcessing::call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, i
 
       dimkey_idx = col_idx[column];
 
-      build_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128>>>(
+      build_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
         d_off_col, cm->gpuCache, filter_idx, params->compare1[filter_col], params->compare2[filter_col], params->mode[filter_col],
         dimkey_idx, group_idx, *h_total,
         params->ht_GPU[column], params->dim_len[column], params->min_key[column], 
@@ -1341,7 +1341,7 @@ CPUGPUProcessing::call_bfilter_build_CPU(QueryParams* params, int* &h_off_col, i
 };
 
 void 
-CPUGPUProcessing::call_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table) {
+CPUGPUProcessing::call_build_GPU(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table, cudaStream_t stream) {
   int tile_items = 128*4;
   int* dimkey_idx, *group_idx;
   ColumnInfo* column;
@@ -1386,7 +1386,7 @@ CPUGPUProcessing::call_build_GPU(QueryParams* params, int* &d_off_col, int* h_to
       short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
       CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[table][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-      build_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128>>>(
+      build_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
         NULL, cm->gpuCache, NULL, 0, 0, 0,
         dimkey_idx, group_idx, LEN, 
         params->ht_GPU[column], params->dim_len[column], params->min_key[column],
@@ -1402,7 +1402,7 @@ CPUGPUProcessing::call_build_GPU(QueryParams* params, int* &d_off_col, int* h_to
 
       dimkey_idx = col_idx[column];
 
-      build_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128>>>(
+      build_GPU2<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
         d_off_col, cm->gpuCache, NULL, 0, 0, 0,
         dimkey_idx, group_idx, *h_total,
         params->ht_GPU[column], params->dim_len[column], params->min_key[column], 
@@ -1457,7 +1457,7 @@ CPUGPUProcessing::call_build_CPU(QueryParams* params, int* &h_off_col, int* h_to
 
 
 void
-CPUGPUProcessing::call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d_total, int* h_total, int sg, int table) {
+CPUGPUProcessing::call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d_total, int* h_total, int sg, int table, cudaStream_t stream) {
 
   ColumnInfo* temp;
   int tile_items = 128*4;
@@ -1495,7 +1495,7 @@ CPUGPUProcessing::call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d
   short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
   CubDebugExit(cudaMemcpy(d_segment_group, segment_group_ptr, qo->segment_group_count[table][sg] * sizeof(short), cudaMemcpyHostToDevice));
 
-  filter_GPU2<128,4> <<<(LEN + tile_items - 1)/tile_items, 128>>>(
+  filter_GPU2<128,4> <<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
     NULL, 
     cm->gpuCache, filter_idx, NULL, 
     params->compare1[column], params->compare2[column], 0, 0, params->mode[column], 0,
@@ -1551,7 +1551,7 @@ CPUGPUProcessing::call_bfilter_CPU(QueryParams* params, int* &h_off_col, int* h_
 }
 
 void
-CPUGPUProcessing::call_group_by_GPU(QueryParams* params, int** &off_col, int* h_total) {
+CPUGPUProcessing::call_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, cudaStream_t stream) {
   int _min_val[4] = {0}, _unique_val[4] = {0};
   int *aggr_idx[2] = {}, *group_idx[4] = {};
   int tile_items = 128 * 4;
@@ -1582,7 +1582,7 @@ CPUGPUProcessing::call_group_by_GPU(QueryParams* params, int** &off_col, int* h_
     }
   }
 
-  groupByGPU<128,4><<<(*h_total + tile_items - 1)/tile_items, 128>>>(
+  groupByGPU<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
     off_col[0], off_col[1], off_col[2], off_col[3], off_col[4], 
     cm->gpuCache, aggr_idx[0], aggr_idx[1], group_idx[0], group_idx[1], group_idx[2], group_idx[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3], _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
