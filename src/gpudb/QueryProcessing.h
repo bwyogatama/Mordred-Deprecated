@@ -60,37 +60,40 @@ QueryProcessing::runQuery() {
 
       if (qo->segment_group_count[table_id][sg] > 0) {
 
-        int h_total = 0, *d_total = NULL;
+        int* d_total = NULL;
+        int* h_total = NULL;
+
+        h_total = cm->customCudaHostAlloc(1);
+        memset(h_total, 0, sizeof(int));
+        d_total = cm->customCudaMalloc(1);
 
         cout << qo->join[i].second->column_name << endl;
-
-        d_total = cm->customCudaMalloc(1);
 
         printf("sg = %d\n", sg);
 
         if (sg == 0) {
 
           if (qo->joinCPUcheck[table_id] && qo->joinGPUcheck[table_id]) {
-            cgp->call_bfilter_CPU(params, h_off_col, &h_total, sg, table_id);
-            cgp->switch_device_dim(d_off_col, h_off_col, d_total, &h_total, sg, 0, table_id);
-            cgp->call_build_GPU(params, d_off_col, &h_total, sg, table_id, streams[sg]);
-            cgp->call_build_CPU(params, h_off_col, &h_total, sg, table_id);
+            cgp->call_bfilter_CPU(params, h_off_col, h_total, sg, table_id);
+            cgp->switch_device_dim(d_off_col, h_off_col, d_total, h_total, sg, 0, table_id, streams[sg]);
+            cgp->call_build_GPU(params, d_off_col, h_total, sg, table_id, streams[sg]);
+            cgp->call_build_CPU(params, h_off_col, h_total, sg, table_id);
           } else if (qo->joinCPUcheck[table_id] && !(qo->joinGPUcheck[table_id])) {
-            cgp->call_bfilter_build_CPU(params, h_off_col, &h_total, sg, table_id);
+            cgp->call_bfilter_build_CPU(params, h_off_col, h_total, sg, table_id);
           } else if (!(qo->joinCPUcheck[table_id]) && qo->joinGPUcheck[table_id]) {
-            cgp->call_bfilter_CPU(params, h_off_col, &h_total, sg, table_id);
-            cgp->switch_device_dim(d_off_col, h_off_col, d_total, &h_total, sg, 0, table_id);
-            cgp->call_build_GPU(params, d_off_col, &h_total, sg, table_id, streams[sg]);            
+            cgp->call_bfilter_CPU(params, h_off_col, h_total, sg, table_id);
+            cgp->switch_device_dim(d_off_col, h_off_col, d_total, h_total, sg, 0, table_id, streams[sg]);
+            cgp->call_build_GPU(params, d_off_col, h_total, sg, table_id, streams[sg]);            
           }
 
         } else {
 
           if (qo->joinCPUcheck[table_id]) {
-            cgp->call_bfilter_build_CPU(params, h_off_col, &h_total, sg, table_id);
+            cgp->call_bfilter_build_CPU(params, h_off_col, h_total, sg, table_id);
           }
 
           if (qo->joinGPUcheck[table_id]) {
-            cgp->call_bfilter_build_GPU(params, d_off_col, &h_total, sg, table_id, streams[sg]);
+            cgp->call_bfilter_build_GPU(params, d_off_col, h_total, sg, table_id, streams[sg]);
           }
           
         }
@@ -101,6 +104,8 @@ QueryProcessing::runQuery() {
       cudaStreamDestroy(streams[sg]);
 
     });
+
+    cudaDeviceSynchronize();
   }
 
   parallel_for(short(0), qo->par_segment_count[0], [=](short i){
@@ -114,9 +119,11 @@ QueryProcessing::runQuery() {
 
     if (qo->segment_group_count[0][sg] > 0) {
 
-      int*d_total = NULL;
-      int h_total = 0;
-      
+      int* d_total = NULL;
+      int* h_total = NULL;
+
+      h_total = cm->customCudaHostAlloc(1);
+      memset(h_total, 0, sizeof(int));
       d_total = cm->customCudaMalloc(1);
 
       printf("sg = %d\n", sg);
@@ -127,69 +134,69 @@ QueryProcessing::runQuery() {
         if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
           if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_pfilter_probe_group_by_GPU(params, off_col, &h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_pfilter_probe_group_by_GPU(params, off_col, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_group_by_CPU(params, h_off_col, &h_total);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_group_by_CPU(params, h_off_col, h_total);
 
           }
         } else if (qo->selectGPUPipelineCol[sg].size() == 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
           if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_group_by_CPU(params, h_off_col, &h_total);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_group_by_CPU(params, h_off_col, h_total);
 
           }
         } else if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() == 0) {
@@ -197,21 +204,21 @@ QueryProcessing::runQuery() {
             assert(0);
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+            cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
             assert(0);
@@ -221,12 +228,12 @@ QueryProcessing::runQuery() {
             assert(0);
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, 0);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, 0);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
-            cgp->call_pfilter_probe_group_by_CPU(params, h_off_col, &h_total, sg, 0);
+            cgp->call_pfilter_probe_group_by_CPU(params, h_off_col, h_total, sg, 0);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
             assert(0);
@@ -235,52 +242,52 @@ QueryProcessing::runQuery() {
       } else {
         if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
           if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
-            cgp->call_pfilter_probe_group_by_GPU(params, off_col, &h_total, sg, 0, streams[sg]);
+            cgp->call_pfilter_probe_group_by_GPU(params, off_col, h_total, sg, 0, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+            cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_group_by_CPU(params, h_off_col, &h_total);
+            cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_group_by_CPU(params, h_off_col, h_total);
 
           }
         } else if (qo->selectGPUPipelineCol[sg].size() == 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
           if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
-            cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+            cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+            cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_group_by_CPU(params, h_off_col, &h_total);
+            cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_group_by_CPU(params, h_off_col, h_total);
 
           }
         } else if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() == 0) {
@@ -288,17 +295,17 @@ QueryProcessing::runQuery() {
             assert(0);
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-            cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-            cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+            cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+            cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
             assert(0);
@@ -308,12 +315,12 @@ QueryProcessing::runQuery() {
             assert(0);
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-            cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-            cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-            cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+            cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+            cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+            cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
           } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
-            cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+            cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
           } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
             assert(0);
@@ -330,69 +337,69 @@ QueryProcessing::runQuery() {
       //   if (qo->selectCPUPipelineCol[sg].size() > 0 && qo->joinCPUPipelineCol[sg].size() > 0) {
       //     if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_pfilter_probe_group_by_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_pfilter_probe_group_by_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
       //     }
       //   } else if (qo->selectCPUPipelineCol[sg].size() == 0 && qo->joinCPUPipelineCol[sg].size() > 0) {
       //     if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
       //     }
       //   } else if (qo->selectCPUPipelineCol[sg].size() > 0 && qo->joinCPUPipelineCol[sg].size() == 0) {
@@ -400,21 +407,21 @@ QueryProcessing::runQuery() {
       //       assert(0);
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+      //       cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
       //       assert(0);
@@ -424,13 +431,13 @@ QueryProcessing::runQuery() {
       //       assert(0);
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_probe_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_probe_group_by_GPU(params, off_col, &h_total, sg, 0, streams[sg]);
+      //       cgp->call_pfilter_probe_group_by_GPU(params, off_col, h_total, sg, 0, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
       //       assert(0);
@@ -440,53 +447,53 @@ QueryProcessing::runQuery() {
       //   if (qo->selectCPUPipelineCol[sg].size() > 0 && qo->joinCPUPipelineCol[sg].size() > 0) {
       //     if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_probe_group_by_CPU(params, h_off_col, &h_total, sg, 0);
+      //       cgp->call_pfilter_probe_group_by_CPU(params, h_off_col, h_total, sg, 0);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, 0);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, 0);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, 0);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+      //       cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, 0);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_probe_CPU(params, h_off_col, &h_total, sg, 0);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+      //       cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, 0);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
       //     }
       //   } else if (qo->selectCPUPipelineCol[sg].size() == 0 && qo->joinCPUPipelineCol[sg].size() > 0) {
       //     if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_probe_group_by_CPU(params, h_off_col, &h_total, sg);
+      //       cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+      //       cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+      //       cgp->call_probe_CPU(params, h_off_col, h_total, sg);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
 
       //     }
       //   } else if (qo->selectCPUPipelineCol[sg].size() > 0 && qo->joinCPUPipelineCol[sg].size() == 0) {
@@ -494,17 +501,17 @@ QueryProcessing::runQuery() {
       //       assert(0);
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //       cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+      //       cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //       cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
       //       assert(0);
@@ -514,13 +521,13 @@ QueryProcessing::runQuery() {
       //       assert(0);
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
-      //       cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //       cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //       cgp->call_group_by_CPU(params, h_off_col, h_total);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
-      //       cgp->call_probe_group_by_GPU(params, off_col, &h_total, sg, streams[sg]);
+      //       cgp->call_probe_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
       //     } else if (qo->joinGPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
       //       assert(0);
@@ -532,63 +539,63 @@ QueryProcessing::runQuery() {
 
 
 
-      // cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, 0);
+      // cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, 0);
 
       // if (qo->selectCPUPipelineCol[sg].size() > 0 && (qo->joinGPUPipelineCol[sg].size() > 0 || qo->selectGPUPipelineCol[sg].size() > 0 || qo->groupbyGPUPipelineCol[sg].size() > 0)) 
-      //   cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
+      //   cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
 
-      // cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
+      // cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
 
-      // cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
+      // cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
 
       // if ((qo->selectGPUPipelineCol[sg].size() > 0 || qo->joinGPUPipelineCol[sg].size() > 0) && (qo->joinCPUPipelineCol[sg].size() > 0 || qo->groupbyCPUPipelineCol[sg].size() > 0))
-      //   cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+      //   cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
 
       // //printf("h_total = %d\n", h_total);
 
-      // cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
+      // cgp->call_probe_CPU(params, h_off_col, h_total, sg);
 
       // if (qo->groupGPUcheck) {
       //   if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
       //     if (qo->joinCPUPipelineCol[sg].size() > 0)
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
-      //     cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+      //     cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
       //   } else {
-      //     cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //     cgp->call_group_by_CPU(params, h_off_col, h_total);
       //   }
       // } else {
-      //   cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //   cgp->call_group_by_CPU(params, h_off_col, h_total);
       // }
 
 
 
 
-      // cgp->call_pfilter_GPU(params, off_col, d_total, &h_total, sg, 0, streams[sg]);
+      // cgp->call_pfilter_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
 
       // if (qo->selectGPUPipelineCol[sg].size() > 0 && (qo->joinCPUPipelineCol[sg].size() > 0 || qo->selectCPUPipelineCol[sg].size() > 0 || qo->groupbyCPUPipelineCol[sg].size() > 0))
-      // cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
+      // cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
 
-      // cgp->call_pfilter_CPU(params, h_off_col, &h_total, sg, qo->selectGPUPipelineCol[sg].size());
+      // cgp->call_pfilter_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
 
-      // cgp->call_probe_CPU(params, h_off_col, &h_total, sg);
+      // cgp->call_probe_CPU(params, h_off_col, h_total, sg);
 
       // if ((qo->selectCPUPipelineCol[sg].size() > 0 || qo->joinCPUPipelineCol[sg].size() > 0) && (qo->joinGPUPipelineCol[sg].size() > 0 || qo->groupbyGPUPipelineCol[sg].size() > 0))
-      //   cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 0, 0);
+      //   cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
 
-      // cgp->call_probe_GPU(params, off_col, d_total, &h_total, sg, streams[sg]);
+      // cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
 
       // if (qo->groupGPUcheck) {
       //   if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
-      //     cgp->call_group_by_GPU(params, off_col, &h_total, streams[sg]);
+      //     cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
       //   } else {
       //     if (qo->joinGPUPipelineCol[sg].size() > 0)
-      //       cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //     cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //       cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //     cgp->call_group_by_CPU(params, h_off_col, h_total);
       //   }
       // } else {
       //   if (qo->joinGPUPipelineCol[sg].size() > 0)
-      //     cgp->switch_device_fact(off_col, h_off_col, d_total, &h_total, sg, 1, 0);
-      //   cgp->call_group_by_CPU(params, h_off_col, &h_total);
+      //     cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+      //   cgp->call_group_by_CPU(params, h_off_col, h_total);
       // }
 
     }
@@ -598,6 +605,8 @@ QueryProcessing::runQuery() {
 
   });
 
+  cudaDeviceSynchronize();
+  
   int* resGPU = cm->customMalloc(params->total_val * 6);
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
@@ -648,6 +657,7 @@ QueryProcessing::processQuery() {
 
 void
 QueryProcessing::endQuery() {
+
   params->min_key.clear();
   params->min_val.clear();
   params->unique_val.clear();
@@ -660,7 +670,7 @@ QueryProcessing::endQuery() {
 
   params->ht_CPU.clear();
   params->ht_GPU.clear();
-  cgp->col_idx.clear();
+  //cgp->col_idx.clear();
 
   params->compare1.clear();
   params->compare2.clear();
@@ -668,8 +678,10 @@ QueryProcessing::endQuery() {
 
   qo->clearVector();
 
-  cm->gpuPointer = 0;
-  cm->cpuPointer = 0;
+  cm->resetPointer();
+
+  cgp->resetCGP();
+
 }
 
 void

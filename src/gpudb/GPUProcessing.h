@@ -24,6 +24,16 @@ using namespace cub;
   } \
 }
 
+#define CHECK_ERROR_STREAM(stream) { \
+  cudaStreamSynchronize(stream); \
+  cudaError_t error = cudaGetLastError(); \
+  if(error != cudaSuccess) \
+  { \
+    gpuErrchk(error); \
+    exit(-1); \
+  } \
+}
+
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
 {

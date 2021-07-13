@@ -7,17 +7,17 @@
 
 int main() {
 
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(1000000000, 1000000000);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(1000000000, 1000000000, 500000000);
 	CacheManager* cm = cgp->cm;
 
-	cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 1);
-	cm->cacheColumnSegmentInGPU(cm->lo_partkey, 2);
-	cm->cacheColumnSegmentInGPU(cm->lo_custkey, 3);
-	cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 4);
+	cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 10);
+	cm->cacheColumnSegmentInGPU(cm->lo_partkey, 20);
+	cm->cacheColumnSegmentInGPU(cm->lo_custkey, 30);
+	cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 40);
 	cm->cacheColumnSegmentInGPU(cm->lo_revenue, cm->lo_revenue->total_segment);
 	cm->cacheColumnSegmentInGPU(cm->lo_supplycost, cm->lo_supplycost->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->lo_discount, 2);
-	cm->cacheColumnSegmentInGPU(cm->lo_quantity, 4);
+	cm->cacheColumnSegmentInGPU(cm->lo_discount, 20);
+	cm->cacheColumnSegmentInGPU(cm->lo_quantity, 40);
 	cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, cm->lo_extendedprice->total_segment);
 	cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
 	cm->cacheColumnSegmentInGPU(cm->d_year, cm->d_year->total_segment);
@@ -33,8 +33,24 @@ int main() {
 	cm->cacheColumnSegmentInGPU(cm->s_nation, cm->s_nation->total_segment);
 
 	QueryProcessing* qp;
+	qp = new QueryProcessing(cgp, 0);
+	for (int i = 0; i < 10; i++) {
+		cout << i << endl;
+		qp->processQuery();
+	}
 	qp = new QueryProcessing(cgp, 1);
 	for (int i = 0; i < 10; i++) {
+		cout << i << endl;
+		qp->processQuery();
+	}
+	qp = new QueryProcessing(cgp, 2);
+	for (int i = 0; i < 10; i++) {
+		cout << i << endl;
+		qp->processQuery();
+	}
+	qp = new QueryProcessing(cgp, 3);
+	for (int i = 0; i < 10; i++) {
+		cout << i << endl;
 		qp->processQuery();
 	}
 

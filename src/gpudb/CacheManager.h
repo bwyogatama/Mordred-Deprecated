@@ -148,9 +148,9 @@ public:
 class CacheManager {
 public:
 	int* gpuCache;
-	int* gpuProcessing, *cpuProcessing;
-	int gpuPointer, cpuPointer;
-	int cache_total_seg, processing_size;
+	int* gpuProcessing, *cpuProcessing, *pinnedMemory;
+	int gpuPointer, cpuPointer, pinnedPointer;
+	int cache_total_seg, processing_size, pinned_memsize;
 	int TOT_COLUMN;
 	int TOT_TABLE;
 	vector<ColumnInfo*> allColumn;
@@ -176,7 +176,7 @@ public:
 	ColumnInfo *p_partkey, *p_brand1, *p_category, *p_mfgr;
 	ColumnInfo *d_datekey, *d_year, *d_yearmonthnum;
 
-	CacheManager(size_t cache_size, size_t _processing_size);
+	CacheManager(size_t cache_size, size_t _processing_size, size_t _pinned_memsize);
 
 	~CacheManager();
 
@@ -217,6 +217,10 @@ public:
 	int* customMalloc(int size);
 
 	int* customCudaMalloc(int size);
+
+	int* customCudaHostAlloc(int size);
+
+	void resetPointer();
 };
 
 Segment::Segment(ColumnInfo* _column, int* _seg_ptr, int _priority)
@@ -246,18 +250,22 @@ ColumnInfo::getSegment(int index) {
 	return seg;
 }
 
-CacheManager::CacheManager(size_t cache_size, size_t _processing_size) {
+CacheManager::CacheManager(size_t cache_size, size_t _processing_size, size_t _pinned_memsize) {
 	cache_total_seg = cache_size/SEGMENT_SIZE;
 	processing_size = _processing_size;
+	pinned_memsize = _pinned_memsize;
 	TOT_COLUMN = 25;
 	TOT_TABLE = 5;
 
 	CubDebugExit(cudaMalloc((void**) &gpuCache, cache_size * sizeof(int)));
 	CubDebugExit(cudaMemset(gpuCache, 0, cache_size * sizeof(int)));
 	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(int)));
+
 	cpuProcessing = (int*) malloc(_processing_size * sizeof(int));
+	CubDebugExit(cudaHostAlloc((void**) &pinnedMemory, _pinned_memsize * sizeof(int), cudaHostAllocDefault));
 	gpuPointer = 0;
 	cpuPointer = 0;
+	pinnedPointer = 0;
 
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
@@ -277,10 +285,15 @@ CacheManager::CacheManager(size_t cache_size, size_t _processing_size) {
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		int n = allColumn[i]->total_segment;
 		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
-		segment_list[i] = (int*) malloc(n * sizeof(int));
+		//segment_list[i] = (int*) malloc(n * sizeof(int));
+		CubDebugExit(cudaHostAlloc((void**) &(segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
 		memset(segment_bitmap[i], 0, n * sizeof(char));
 		memset(segment_list[i], -1, n * sizeof(int));
+
+		//for (int x = 0; x < n; x++) cout << segment_list[i][x] << endl;
 	}
+
+	
 }
 
 int* 
@@ -297,6 +310,20 @@ CacheManager::customCudaMalloc(int size) {
   int start = __atomic_fetch_add(&gpuPointer, size, __ATOMIC_RELAXED);
   assert(start + size < processing_size);
   return gpuProcessing + start;
+};
+
+int*
+CacheManager::customCudaHostAlloc(int size) {
+  int start = __atomic_fetch_add(&pinnedPointer, size, __ATOMIC_RELAXED);
+  assert(start + size < processing_size);
+  return pinnedMemory + start;
+};
+
+void
+CacheManager::resetPointer() {
+	gpuPointer = 0;
+	cpuPointer = 0;
+	pinnedPointer = 0;
 };
 
 void
@@ -723,9 +750,10 @@ CacheManager::loadColumnToCPU() {
 }
 
 CacheManager::~CacheManager() {
-	CubDebugExit(cudaFree((void**) &gpuCache));
-	CubDebugExit(cudaFree((void**) &gpuProcessing));
+	CubDebugExit(cudaFree(gpuCache));
+	CubDebugExit(cudaFree(gpuProcessing));
 	delete[] cpuProcessing;
+	CubDebugExit(cudaFreeHost(pinnedMemory));
 
 	delete[] h_lo_orderkey;
 	delete[] h_lo_orderdate;
@@ -788,7 +816,8 @@ CacheManager::~CacheManager() {
 	delete d_yearmonthnum;
 
 	for (int i = 0; i < TOT_COLUMN; i++) {
-		free(segment_list[i]);
+		CubDebugExit(cudaFreeHost(segment_list[i]));
+		//free(segment_list[i]);
 	}
 	free(segment_list);
 }

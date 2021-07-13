@@ -53,7 +53,7 @@ public:
 	short* par_segment_count;
 	int* last_segment;
 
-	QueryOptimizer(size_t cache_size, size_t _processing_size);
+	QueryOptimizer(size_t cache_size, size_t _processing_size, size_t _pinned_memsize);
 	void parseQuery(int query);
 	void parseQuery11();
 	void parseQuery21();
@@ -75,8 +75,8 @@ public:
 
 };
 
-QueryOptimizer::QueryOptimizer(size_t cache_size, size_t _processing_size) {
-	cm = new CacheManager(cache_size, _processing_size);
+QueryOptimizer::QueryOptimizer(size_t cache_size, size_t _processing_size, size_t _pinned_memsize) {
+	cm = new CacheManager(cache_size, _processing_size, _pinned_memsize);
 	fkey_pkey[cm->lo_orderdate] = cm->d_datekey;
 	fkey_pkey[cm->lo_partkey] = cm->p_partkey;
 	fkey_pkey[cm->lo_custkey] = cm->c_custkey;
@@ -102,7 +102,7 @@ QueryOptimizer::parseQuery(int query) {
 	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
 	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		segment_group[i] = (short*) malloc (64 * cm->lo_orderdate->total_segment * sizeof(short));
+		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), 64 * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
 		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
 		par_segment[i] = (short*) malloc (64 * sizeof(short));
 		joinGPU[i] = (bool*) malloc(64 * sizeof(bool));
@@ -127,7 +127,7 @@ void
 QueryOptimizer::clearVector() {
 
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		free(segment_group[i]);
+		CubDebugExit(cudaFreeHost(segment_group[i]));
 		free(segment_group_count[i]);
 		free(joinGPU[i]);
 		free(joinCPU[i]);
@@ -145,17 +145,6 @@ QueryOptimizer::clearVector() {
 	groupby_build.clear();
 	select_probe.clear();
 	select_build.clear();
-
-	// joinCPU.clear(); //vector
-	// joinGPU.clear();
-	// selectbuildGPU.clear(); //map
-	// selectbuildCPU.clear();
-	// selectprobeGPU.clear(); //vector
-	// selectprobeCPU.clear();
-	// joinCPUPipeline.clear(); //vector
-	// joinGPUPipeline.clear();
-	// selectCPUPipeline.clear(); //vector
-	// selectGPUPipeline.clear();
 
 	joinCPUPipelineCol.clear(); //vector
 	joinGPUPipelineCol.clear();
