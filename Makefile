@@ -4,10 +4,10 @@ CUDA_BIN_PATH   ?= $(CUDA_PATH)/bin
 
 NVCC = nvcc
 
-SM_TARGETS   = -gencode=arch=compute_52,code=\"sm_52,compute_52\" 
+#SM_TARGETS   = -gencode=arch=compute_52,code=\"sm_52,compute_52\" 
 SM_DEF     = -DSM520
 
-#SM_TARGETS   = -gencode=arch=compute_70,code=\"sm_70,compute_70\" 
+SM_TARGETS   = -gencode=arch=compute_70,code=\"sm_70,compute_70\" 
 #SM_DEF     = -DSM700
 
 GENCODE_SM50    := -gencode arch=compute_52,code=sm_52
@@ -47,17 +47,28 @@ $(BIN)/cpu/%: $(OBJ)/cpu/%.o
 	
 #$(CXX) -ltbb $^ -o $@
 
+NVCC_VER=11.2
+CUB_VER=1.8.0
+
+ifeq ($(NVCC_VER),11.2)
+setup:
+	mkdir -p bin/ssb obj/ssb
+	mkdir -p bin/ops obj/ops
+	mkdir -p bin/cpu/ssb obj/cpu/ssb
+	mkdir -p bin/gpudb obj/gpudb
+else
 setup:
 	if [ ! -d "cub"  ]; then \
-    wget https://github.com/NVlabs/cub/archive/1.6.4.zip; \
-    unzip 1.6.4.zip; \
-    mv cub-1.6.4 cub; \
-    rm 1.6.4.zip; \
+     wget https://github.com/NVlabs/cub/archive/$(CUB_VER).zip; \
+     unzip $(CUB_VER).zip; \
+     mv cub-$(CUB_VER) cub; \
+     rm $(CUB_VER).zip; \
 	fi
 	mkdir -p bin/ssb obj/ssb
 	mkdir -p bin/ops obj/ops
 	mkdir -p bin/cpu/ssb obj/cpu/ssb
 	mkdir -p bin/gpudb obj/gpudb
+endif
 
 clean:
 	rm -rf bin/* obj/*
