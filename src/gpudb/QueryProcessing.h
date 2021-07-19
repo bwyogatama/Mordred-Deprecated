@@ -698,22 +698,22 @@ QueryProcessing::updateStatsQuery() {
   for (int i = 0; i < qo->queryBuildColumn.size(); i++) {
     cm->updateColumnFrequency(qo->queryBuildColumn[i]);
     cm->updateColumnTimestamp(qo->queryBuildColumn[i], timestamp.count());
-    cm->updateQueryFrequency(qo->queryBuildColumn[i], query_freq[query]);
+    cm->updateQueryFrequency(qo->queryBuildColumn[i], query_freq[query] * 10);
   }
   for (int i = 0; i < qo->queryProbeColumn.size(); i++) {
     cm->updateColumnFrequency(qo->queryProbeColumn[i]);
     cm->updateColumnTimestamp(qo->queryProbeColumn[i], timestamp.count());
-    cm->updateQueryFrequency(qo->queryProbeColumn[i], query_freq[query]);
+    cm->updateQueryFrequency(qo->queryProbeColumn[i], query_freq[query] * 10);
   }
   for (int i = 0; i < qo->queryGroupByColumn.size(); i++) {
     cm->updateColumnFrequency(qo->queryGroupByColumn[i]);
     cm->updateColumnTimestamp(qo->queryGroupByColumn[i], timestamp.count());
-    cm->updateQueryFrequency(qo->queryGroupByColumn[i], query_freq[query]);
+    cm->updateQueryFrequency(qo->queryGroupByColumn[i], query_freq[query] * 5);
   }
   for (int i = 0; i < qo->queryAggrColumn.size(); i++) {
     cm->updateColumnFrequency(qo->queryAggrColumn[i]);
     cm->updateColumnTimestamp(qo->queryAggrColumn[i], timestamp.count());
-    cm->updateQueryFrequency(qo->queryAggrColumn[i], query_freq[query]);
+    cm->updateQueryFrequency(qo->queryAggrColumn[i], query_freq[query] * 5);
   }
 }
 

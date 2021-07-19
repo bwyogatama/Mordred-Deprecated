@@ -73,7 +73,7 @@ public:
 	int* col_ptr; //ptr to the beginning of the column
 	int* seg_ptr; //ptr to the last segment in the column
 	int tot_seg_in_GPU; //total segments in GPU (based on current weight)
-	float weight;
+	double weight;
 	int total_segment;
 
 	Segment* getSegment(int index);
@@ -198,8 +198,6 @@ public:
 
 	void updateSegmentInColumn(ColumnInfo* column);
 
-	void updateColumnWeight();
-
 	void updateColumnInGPU();
 
 	void updateColumnFrequency(ColumnInfo* column);
@@ -211,6 +209,8 @@ public:
 	void weightAdjustment();
 
 	void runReplacement(int strategy);
+
+	void runReplacementNew();
 
 	void loadColumnToCPU();
 
@@ -515,13 +515,6 @@ CacheManager::updateSegmentInColumn(ColumnInfo* column) {
 }
 
 void
-CacheManager::updateColumnWeight() {
-	for (int i = 0; i < TOT_COLUMN; i++) {
-		allColumn[i]->weight = allColumn[i]->stats->col_freq;
-	}
-}
-
-void
 CacheManager::updateColumnFrequency(ColumnInfo* column) {
 	column->stats->col_freq++;
 }
@@ -530,6 +523,7 @@ void
 CacheManager::updateQueryFrequency(ColumnInfo* column, int freq) {
 	if (freq > column->stats->query_freq) {
 		column->stats->query_freq = freq;
+		column->weight = (freq * 1.0) / column->total_segment;
 	}
 }
 
@@ -560,10 +554,10 @@ CacheManager::updateColumnInGPU() {
 
 void
 CacheManager::weightAdjustment() {
-	float temp[TOT_COLUMN];
+	double temp[TOT_COLUMN];
 	bool check[TOT_COLUMN], stop;
-	float remainder, sum_temp;
-	float sum = 0;
+	double remainder, sum_temp;
+	double sum = 0;
 
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		sum += allColumn[i]->weight;
@@ -575,7 +569,7 @@ CacheManager::weightAdjustment() {
 		remainder = 0;
 		for (int i = 0; i < TOT_COLUMN; i++) {
 			if (allColumn[i]->weight > 0) {
-				temp[i] = allColumn[i]->LEN * 1.0 /(cache_total_seg*SEGMENT_SIZE) * sum; //ngitung max weight kalo sesuai ukuran kolomnya
+				temp[i] = (allColumn[i]->total_segment * sum /cache_total_seg); //ngitung max weight kalo sesuai ukuran kolomnya
 				if (allColumn[i]->weight > temp[i]) {
 					remainder += (allColumn[i]->weight - temp[i]); //lebihnya kasih ke remainder
 					allColumn[i]->weight = temp[i];
@@ -598,7 +592,7 @@ CacheManager::weightAdjustment() {
 		for (int i = 0; i < TOT_COLUMN; i++) {
 			if (allColumn[i]->weight > 0) {
 				if (check[i] == 0) {
-					allColumn[i]->weight += (allColumn[i]->weight * 1.0/sum_temp * remainder); //tiap kolom dapet porsi dari remainder seuai sama weightnya, makin tinggi weight, makin banyak dapet remainder
+					allColumn[i]->weight += (allColumn[i]->weight /sum_temp * remainder); //tiap kolom dapet porsi dari remainder seuai sama weightnya, makin tinggi weight, makin banyak dapet remainder
 				}
 			}
 		}
@@ -618,6 +612,9 @@ CacheManager::runReplacement(int strategy) {
 		for (int i = 0; i < TOT_COLUMN; i++) {
 			access_frequency_map.insert({allColumn[i]->stats->timestamp, allColumn[i]});
 		}
+	} else if (strategy == 2) {
+		runReplacementNew();
+		return;
 	}
 
 	int temp_buffer_size = 0; // in segment
@@ -652,6 +649,63 @@ CacheManager::runReplacement(int strategy) {
     		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
     	}
     }
+
+};
+
+void
+CacheManager::runReplacementNew() {
+	std::map<ColumnInfo*, int> column_portion;
+	int moved_segment = 0;
+	int erased_segment = 0;
+	int filled_cache = 0;
+
+	double sum = 0;
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		cout << "Column: " << allColumn[i]->column_name << " weight: " << allColumn[i]->weight << endl;
+		sum += allColumn[i]->weight;
+	}
+
+	weightAdjustment();
+
+
+	cout << endl;
+
+	sum = 0;
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		cout << "Column: " << allColumn[i]->column_name << " weight: " << allColumn[i]->weight << endl;
+		sum += allColumn[i]->weight;
+	}
+
+	//cout << sum << endl;
+
+	cout << endl;
+
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		double temp = (allColumn[i]->weight / sum) * cache_total_seg;
+		//printf("%.5f\n", temp);
+		column_portion[allColumn[i]] = (int) (temp + 0.00001);
+		//printf("%d\n", column_portion[allColumn[i]]);
+		if (column_portion[allColumn[i]] > allColumn[i]->total_segment) {
+			column_portion[allColumn[i]] = allColumn[i]->total_segment;
+		}
+		if (column_portion[allColumn[i]] < allColumn[i]->tot_seg_in_GPU) {
+			assert(column_portion[allColumn[i]] <= allColumn[i]->total_segment);
+			erased_segment = (allColumn[i]->tot_seg_in_GPU - column_portion[allColumn[i]]);
+			cout << "Deleting " << erased_segment << " segments for column " << allColumn[i]->column_name << endl;
+			deleteColumnSegmentInGPU(allColumn[i], erased_segment);
+		} else if (column_portion[allColumn[i]] > allColumn[i]->tot_seg_in_GPU) {
+			assert(column_portion[allColumn[i]] <= allColumn[i]->total_segment);
+			moved_segment = (column_portion[allColumn[i]] - allColumn[i]->tot_seg_in_GPU);
+			cout << "Caching " << moved_segment << " segments for column " << allColumn[i]->column_name << endl;
+			cacheColumnSegmentInGPU(allColumn[i], moved_segment);
+		} else {
+			cout << "No change for column " << allColumn[i]->column_name << endl;
+		}
+		filled_cache += allColumn[i]->tot_seg_in_GPU;
+	}
+
+    cout << "Cached segment: " << filled_cache << " Cache total: " << cache_total_seg << endl;
+    assert(filled_cache <= cache_total_seg);
 
 };
 
