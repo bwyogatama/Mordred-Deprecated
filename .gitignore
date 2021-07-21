@@ -1,6 +1,6 @@
 *.qdrep
 *.sqlite
-profile.*
+*.ncu-rep
 *.exe
 cub/
 bin/

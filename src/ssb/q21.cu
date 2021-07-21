@@ -7,7 +7,7 @@
 
 #include <cuda.h>
 #include <cub/util_allocator.cuh>
-#include "cub/test/test_util.h"
+// #include "cub/test/test_util.h"
 
 #include "crystal/crystal.cuh"
 
@@ -167,8 +167,6 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
 
   int* h_res = new int[res_array_size];
 
-  cudaEventRecord(start, 0);
-
   int tile_items = 128*4;
 
   build_hashtable_s<128,4><<<(s_len + tile_items - 1)/tile_items, 128>>>(s_region, s_suppkey, s_len, ht_s, s_len);
@@ -182,14 +180,17 @@ float runQuery(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* lo_reve
       d_datekey, d_year, d_len, ht_d, d_val_len, d_val_min);
   /*CHECK_ERROR();*/
 
+  cudaEventRecord(start, 0);
+
   probe<128,4><<<(lo_len + tile_items - 1)/tile_items, 128>>>(lo_orderdate,
           lo_partkey, lo_suppkey, lo_revenue, lo_len, ht_s, s_len, ht_p, p_len, ht_d, d_val_len, res);
-
-  CubDebugExit(cudaMemcpy(h_res, res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost));
 
   cudaEventRecord(stop, 0);
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time_query, start,stop);
+
+  CubDebugExit(cudaMemcpy(h_res, res, res_array_size * sizeof(int), cudaMemcpyDeviceToHost));
+
   finish = chrono::high_resolution_clock::now();
   std::chrono::duration<double> diff = finish - st;
 
@@ -222,21 +223,21 @@ int main(int argc, char** argv)
   int num_trials = 3;
 
   // Initialize command line
-  CommandLineArgs args(argc, argv);
-  args.GetCmdLineArgument("t", num_trials);
+  // CommandLineArgs args(argc, argv);
+  // args.GetCmdLineArgument("t", num_trials);
 
-  // Print usage
-  if (args.CheckCmdLineFlag("help"))
-  {
-      printf("%s "
-          "[--t=<num trials>] "
-          "[--v] "
-          "\n", argv[0]);
-      exit(0);
-  }
+  // // Print usage
+  // if (args.CheckCmdLineFlag("help"))
+  // {
+  //     printf("%s "
+  //         "[--t=<num trials>] "
+  //         "[--v] "
+  //         "\n", argv[0]);
+  //     exit(0);
+  // }
 
   // Initialize device
-  CubDebugExit(args.DeviceInit());
+  // CubDebugExit(args.DeviceInit());
 
   int *h_lo_orderdate = loadColumn<int>("lo_orderdate", LO_LEN);
   int *h_lo_partkey = loadColumn<int>("lo_partkey", LO_LEN);
