@@ -1423,8 +1423,6 @@ CPUGPUProcessing::call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, i
       //   params->ht_GPU[column], params->dim_len[column], params->min_key[column],
       //   0, d_segment_group);
 
-      printf("here\n");
-
       build_GPU2<128,4><<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
         cm->gpuCache, filter_idx, params->compare1[filter_col], params->compare2[filter_col], params->mode[filter_col],
         dimkey_idx, group_idx, LEN, 
