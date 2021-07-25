@@ -724,7 +724,7 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
         off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
     }
 
-    filter_probe_CPU(NULL, NULL, NULL, NULL, NULL,
+    filter_probe_CPU(h_off_col[0], h_off_col[1], h_off_col[2], h_off_col[3], h_off_col[4],
       filter_col[0], filter_col[1], _compare1[0], _compare2[0], _compare1[1], _compare2[1],
       fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3], *h_total,
       ht[0], _dim_len[0], ht[1], _dim_len[1], ht[2], _dim_len[2], ht[3], _dim_len[3],
@@ -1300,6 +1300,13 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
     output_selectivity *= params->selectivity[column];
   }
 
+  cudaEvent_t start, stop;
+  float time;
+
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+
   if (h_off_col == NULL) {
 
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
@@ -1341,6 +1348,12 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
       0, NULL);
 
   }
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+
+  cout << "Filter kernel time: " << time << endl;
 
   h_off_col = off_col_out;
 
@@ -1797,10 +1810,23 @@ CPUGPUProcessing::call_group_by_CPU(QueryParams* params, int** &h_off_col, int* 
     }
   }
 
+  cudaEvent_t start, stop;
+  float time;
+
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
+
   groupByCPU(h_off_col[0], h_off_col[1], h_off_col[2], h_off_col[3], h_off_col[4], 
     aggr_col[0], aggr_col[1], group_col[0], group_col[1], group_col[2], group_col[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3], _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
     params->total_val, *h_total, params->res, params->mode_group);
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+
+  cout << "GroupBy kernel time: " << time << endl;
 
 }
 
