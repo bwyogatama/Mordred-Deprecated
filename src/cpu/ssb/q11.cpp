@@ -22,33 +22,44 @@ float runQuery(int* lo_orderdate, int* lo_discount, int* lo_quantity, int* lo_ex
   chrono::high_resolution_clock::time_point start, finish;
   start = chrono::high_resolution_clock::now();
 
-  tbb::atomic<unsigned long long> revenue = 0;
+  unsigned long long revenue = 0;
+  // tbb::atomic<unsigned long long> revenue = 0;
 
-  parallel_for(blocked_range<size_t>(0, num_items, num_items/NUM_THREADS + 4), [&](auto range) {
+  parallel_for(blocked_range<size_t>(0, num_items, num_items/128 + 4), [&](auto range) {
     int start = range.begin();
     int end = range.end();
     int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
     unsigned long long local_revenue = 0;
+
     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
       #pragma simd
       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
-        bool selection_flag = (lo_orderdate[i] > 19930000 && lo_orderdate[i] < 19940000);
-        selection_flag = selection_flag && (lo_quantity[i] < 25);
+        bool selection_flag = (lo_quantity[i] < 25);
         selection_flag = selection_flag && (lo_discount[i] >= 1 && lo_discount[i] <= 3);
+        selection_flag = selection_flag && (lo_orderdate[i] > 19930000 && lo_orderdate[i] < 19940000);
+
+        // bool selection_flag = (lo_orderdate[i] > 19930000 && lo_orderdate[i] < 19940000);
+        // selection_flag = selection_flag && (lo_discount[i] >= 1 && lo_discount[i] <= 3);
+        // selection_flag = selection_flag && (lo_quantity[i] >= 0 && lo_quantity[i] <= 24);
         if (selection_flag) {
           local_revenue += selection_flag * (lo_extendedprice[i] * lo_discount[i]);
         }
       }
     }
     for (int i = end_batch; i < end; i++) {
-      bool selection_flag = (lo_orderdate[i] > 19930000 && lo_orderdate[i] < 19940000);
-      selection_flag = selection_flag && (lo_quantity[i] < 25);
+      bool selection_flag = (lo_quantity[i] < 25);
       selection_flag = selection_flag && (lo_discount[i] >= 1 && lo_discount[i] <= 3);
+      selection_flag = selection_flag && (lo_orderdate[i] > 19930000 && lo_orderdate[i] < 19940000);
+
+      // bool selection_flag = (lo_orderdate[i] > 19930000 && lo_orderdate[i] < 19940000);
+      // selection_flag = selection_flag && (lo_discount[i] >= 1 && lo_discount[i] <= 3);
+      // selection_flag = selection_flag && (lo_quantity[i] >= 0 && lo_quantity[i] <= 24);
       if (selection_flag) {
         local_revenue += selection_flag * (lo_extendedprice[i] * lo_discount[i]);
       }
     }
-    revenue.fetch_and_add(local_revenue);
+    // revenue.fetch_and_add(local_revenue);
+    __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&revenue), (long long)(local_revenue), __ATOMIC_RELAXED);
   });
 
   finish = chrono::high_resolution_clock::now();

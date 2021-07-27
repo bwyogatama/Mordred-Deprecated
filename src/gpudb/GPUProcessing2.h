@@ -5,7 +5,6 @@
 #include <curand.h>
 
 #include <cuda.h>
-// #include <cub/util_allocator.cuh>
 
 #include "crystal/crystal.cuh"
 #include "BlockLibrary.cuh"
@@ -132,8 +131,6 @@ __global__ void filter_probe_group_by_GPU2(
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval1, 0, num_tile_items);
   }
 
-
-
   if (key_idx2 != NULL && ht2 != NULL) {
     ptr = gpuCache + key_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
@@ -142,8 +139,6 @@ __global__ void filter_probe_group_by_GPU2(
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval2, 0, num_tile_items);
   }
 
-
-
   if (key_idx3 != NULL && ht3 != NULL) {
     ptr = gpuCache + key_segment3 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
@@ -151,8 +146,6 @@ __global__ void filter_probe_group_by_GPU2(
   } else {
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval3, 0, num_tile_items);
   }
-
-
 
   if (key_idx4 != NULL && ht4 != NULL) {
     ptr = gpuCache + key_segment4 * SEGMENT_SIZE;
@@ -255,8 +248,6 @@ __global__ void filter_probe_group_by_GPU3(int* lo_off, int* dim_off1, int* dim_
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval1, 0, num_tile_items);
   }
 
-
-
   if (key_idx2 != NULL && ht2 != NULL) {
     BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, groupval2, selection_flags, gpuCache, key_idx2, ht2, dim_len2, min_key2, num_tile_items);
   } else if (group_idx2 != NULL) {
@@ -267,8 +258,6 @@ __global__ void filter_probe_group_by_GPU3(int* lo_off, int* dim_off1, int* dim_
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval2, 0, num_tile_items);
   }
 
-
-
   if (key_idx3 != NULL && ht3 != NULL) {
     BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, groupval3, selection_flags, gpuCache, key_idx3, ht3, dim_len3, min_key3, num_tile_items);
   } else if (group_idx3 != NULL) {
@@ -278,8 +267,6 @@ __global__ void filter_probe_group_by_GPU3(int* lo_off, int* dim_off1, int* dim_
   } else {
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval3, 0, num_tile_items);
   }
-
-
 
   if (key_idx4 != NULL && ht4 != NULL) {
     BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, groupval4, selection_flags, gpuCache, key_idx4, ht4, dim_len4, min_key4, num_tile_items);
@@ -383,8 +370,6 @@ __global__ void probe_group_by_GPU2(
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval1, 0, num_tile_items);
   }
 
-
-
   if (key_idx2 != NULL && ht2 != NULL) {
     ptr = gpuCache + key_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
@@ -393,8 +378,6 @@ __global__ void probe_group_by_GPU2(
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval2, 0, num_tile_items);
   }
 
-
-
   if (key_idx3 != NULL && ht3 != NULL) {
     ptr = gpuCache + key_segment3 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
@@ -402,8 +385,6 @@ __global__ void probe_group_by_GPU2(
   } else {
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval3, 0, num_tile_items);
   }
-
-
 
   if (key_idx4 != NULL && ht4 != NULL) {
     ptr = gpuCache + key_segment4 * SEGMENT_SIZE;
@@ -492,8 +473,6 @@ __global__ void probe_group_by_GPU3(int* lo_off, int* dim_off1, int* dim_off2, i
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval1, 0, num_tile_items);
   }
 
-
-
   if (key_idx2 != NULL && ht2 != NULL) {
     BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, groupval2, selection_flags, gpuCache, key_idx2, ht2, dim_len2, min_key2, num_tile_items);
   } else if (group_idx2 != NULL) {
@@ -504,8 +483,6 @@ __global__ void probe_group_by_GPU3(int* lo_off, int* dim_off1, int* dim_off2, i
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval2, 0, num_tile_items);
   }
 
-
-
   if (key_idx3 != NULL && ht3 != NULL) {
     BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, groupval3, selection_flags, gpuCache, key_idx3, ht3, dim_len3, min_key3, num_tile_items);
   } else if (group_idx3 != NULL) {
@@ -515,8 +492,6 @@ __global__ void probe_group_by_GPU3(int* lo_off, int* dim_off1, int* dim_off2, i
   } else {
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval3, 0, num_tile_items);
   }
-
-
 
   if (key_idx4 != NULL && ht4 != NULL) {
     BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, groupval4, selection_flags, gpuCache, key_idx4, ht4, dim_len4, min_key4, num_tile_items);
@@ -567,7 +542,6 @@ __global__ void filter_probe_GPU2(
   //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
 
   // Specialize BlockLoad for a 1D block of 128 threads owning 4 integer items each
-  //typedef cub::BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD, BLOCK_LOAD_TRANSPOSE> BlockLoadInt;
   typedef cub::BlockScan<int, BLOCK_THREADS> BlockScanInt;
   int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
   int tile_offset = blockIdx.x * tile_size;
@@ -580,16 +554,15 @@ __global__ void filter_probe_GPU2(
   // Allocate shared memory for BlockLoad
   __shared__ union TempStorage
   {
-    //typename BlockLoadInt::TempStorage load_items;
     typename BlockScanInt::TempStorage scan;
   } temp_storage;
 
   // Load a segment of consecutive items that are blocked across threads
   int items[ITEMS_PER_THREAD];
   int selection_flags[ITEMS_PER_THREAD];
-  int dim_offset1[ITEMS_PER_THREAD];
-  int dim_offset2[ITEMS_PER_THREAD];
-  int dim_offset3[ITEMS_PER_THREAD];
+  // int dim_offset1[ITEMS_PER_THREAD];
+  // int dim_offset2[ITEMS_PER_THREAD];
+  // int dim_offset3[ITEMS_PER_THREAD];
   int dim_offset4[ITEMS_PER_THREAD];
   int t_count = 0; // Number of items selected per thread
   int c_t_count = 0; //Prefix sum of t_count
@@ -601,9 +574,9 @@ __global__ void filter_probe_GPU2(
     num_tile_items = num_tuples - tile_offset;
   }
 
-  __shared__ int key_segment1; 
-  __shared__ int key_segment2;
-  __shared__ int key_segment3;
+  // __shared__ int key_segment1; 
+  // __shared__ int key_segment2;
+  // __shared__ int key_segment3;
   __shared__ int key_segment4;
   __shared__ int filter_segment1;
   __shared__ int filter_segment2;
@@ -612,9 +585,9 @@ __global__ void filter_probe_GPU2(
   if (threadIdx.x == 0) {
     if (segment_group != NULL) segment_index = segment_group[tile_offset / SEGMENT_SIZE];
     else segment_index = ( start_offset + tile_offset ) / SEGMENT_SIZE;
-    if (key_idx1 != NULL) key_segment1 = key_idx1[segment_index];
-    if (key_idx2 != NULL) key_segment2 = key_idx2[segment_index];
-    if (key_idx3 != NULL) key_segment3 = key_idx3[segment_index];
+    // if (key_idx1 != NULL) key_segment1 = key_idx1[segment_index];
+    // if (key_idx2 != NULL) key_segment2 = key_idx2[segment_index];
+    // if (key_idx3 != NULL) key_segment3 = key_idx3[segment_index];
     if (key_idx4 != NULL) key_segment4 = key_idx4[segment_index];
     if (filter_idx1 != NULL) filter_segment1 = filter_idx1[segment_index];
     if (filter_idx2 != NULL) filter_segment2 = filter_idx2[segment_index];
@@ -640,29 +613,29 @@ __global__ void filter_probe_GPU2(
     BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
   }
 
-  if (key_idx1 != NULL && ht1 != NULL) { //we are doing probing for this column (normal operation)
-    ptr = gpuCache + key_segment1 * SEGMENT_SIZE;
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
-  } else { //we are not doing join for this column, there is no result from prev join (first join)
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset1, 1, num_tile_items);
-  }
+  // if (key_idx1 != NULL && ht1 != NULL) { //we are doing probing for this column (normal operation)
+  //   ptr = gpuCache + key_segment1 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
+  // } else { //we are not doing join for this column, there is no result from prev join (first join)
+  //   BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset1, 1, num_tile_items);
+  // }
 
-  if (key_idx2 != NULL && ht2 != NULL) {
-    ptr = gpuCache + key_segment2 * SEGMENT_SIZE;
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
-  } else {
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset2, 1, num_tile_items);
-  }
+  // if (key_idx2 != NULL && ht2 != NULL) {
+  //   ptr = gpuCache + key_segment2 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
+  // } else {
+  //   BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset2, 1, num_tile_items);
+  // }
 
-  if (key_idx3 != NULL && ht3 != NULL) {
-    ptr = gpuCache + key_segment3 * SEGMENT_SIZE;
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
-  } else {
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset3, 1, num_tile_items);
-  }
+  // if (key_idx3 != NULL && ht3 != NULL) {
+  //   ptr = gpuCache + key_segment3 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
+  // } else {
+  //   BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset3, 1, num_tile_items);
+  // }
 
   if (key_idx4 != NULL && ht4 != NULL) {
     ptr = gpuCache + key_segment4 * SEGMENT_SIZE;
@@ -696,9 +669,9 @@ __global__ void filter_probe_GPU2(
       if(selection_flags[ITEM]) {
         int offset = block_off + c_t_count++;
         out_lo_off[offset] = start_offset + tile_idx * tile_size + threadIdx.x + ITEM * BLOCK_THREADS;
-        if (out_dim_off1 != NULL) out_dim_off1[offset] = dim_offset1[ITEM];
-        if (out_dim_off2 != NULL) out_dim_off2[offset] = dim_offset2[ITEM];
-        if (out_dim_off3 != NULL) out_dim_off3[offset] = dim_offset3[ITEM];
+        // if (out_dim_off1 != NULL) out_dim_off1[offset] = dim_offset1[ITEM];
+        // if (out_dim_off2 != NULL) out_dim_off2[offset] = dim_offset2[ITEM];
+        // if (out_dim_off3 != NULL) out_dim_off3[offset] = dim_offset3[ITEM];
         if (out_dim_off4 != NULL) out_dim_off4[offset] = dim_offset4[ITEM];
         //printf("%d %d %d %d\n", dim_offset1[ITEM], dim_offset2[ITEM], dim_offset3[ITEM], dim_offset4[ITEM]);
       }
@@ -720,7 +693,6 @@ __global__ void filter_probe_GPU3(
   //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
 
   // Specialize BlockLoad for a 1D block of 128 threads owning 4 integer items each
-  //typedef cub::BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD, BLOCK_LOAD_TRANSPOSE> BlockLoadInt;
   typedef cub::BlockScan<int, BLOCK_THREADS> BlockScanInt;
   int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
   int tile_offset = blockIdx.x * tile_size;
@@ -728,7 +700,6 @@ __global__ void filter_probe_GPU3(
   // Allocate shared memory for BlockLoad
   __shared__ union TempStorage
   {
-    //typename BlockLoadInt::TempStorage load_items;
     typename BlockScanInt::TempStorage scan;
   } temp_storage;
 
@@ -736,9 +707,9 @@ __global__ void filter_probe_GPU3(
   int items[ITEMS_PER_THREAD];
   int items_lo[ITEMS_PER_THREAD];
   int selection_flags[ITEMS_PER_THREAD];
-  int dim_offset1[ITEMS_PER_THREAD];
-  int dim_offset2[ITEMS_PER_THREAD];
-  int dim_offset3[ITEMS_PER_THREAD];
+  // int dim_offset1[ITEMS_PER_THREAD];
+  // int dim_offset2[ITEMS_PER_THREAD];
+  // int dim_offset3[ITEMS_PER_THREAD];
   int dim_offset4[ITEMS_PER_THREAD];
   int t_count = 0; // Number of items selected per thread
   int c_t_count = 0; //Prefix sum of t_count
@@ -767,32 +738,32 @@ __global__ void filter_probe_GPU3(
     BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
   }
 
-  if (key_idx1 != NULL && ht1 != NULL) { //we are doing probing for this column (normal operation)
-    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, key_idx1, num_tile_items);
-    BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
-  } else if (dim_off1 != NULL) { //load result from prev join, we are just passing it through (no probing)
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off1 + tile_offset, dim_offset1, num_tile_items);
-  } else { //we are not doing join for this column, there is no result from prev join (first join)
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset1, 1, num_tile_items);
-  }
+  // if (key_idx1 != NULL && ht1 != NULL) { //we are doing probing for this column (normal operation)
+  //   BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, key_idx1, num_tile_items);
+  //   BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset1, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
+  // } else if (dim_off1 != NULL) { //load result from prev join, we are just passing it through (no probing)
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off1 + tile_offset, dim_offset1, num_tile_items);
+  // } else { //we are not doing join for this column, there is no result from prev join (first join)
+  //   BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset1, 1, num_tile_items);
+  // }
 
-  if (key_idx2 != NULL && ht2 != NULL) {
-    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, key_idx2, num_tile_items);
-    BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
-  } else if (dim_off2 != NULL) {
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off2 + tile_offset, dim_offset2, num_tile_items);
-  } else {
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset2, 1, num_tile_items);
-  }
+  // if (key_idx2 != NULL && ht2 != NULL) {
+  //   BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, key_idx2, num_tile_items);
+  //   BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset2, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
+  // } else if (dim_off2 != NULL) {
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off2 + tile_offset, dim_offset2, num_tile_items);
+  // } else {
+  //   BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset2, 1, num_tile_items);
+  // }
 
-  if (key_idx3 != NULL && ht3 != NULL) {
-    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, key_idx3, num_tile_items);
-    BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
-  } else if (dim_off3 != NULL) {
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off3 + tile_offset, dim_offset3, num_tile_items);
-  } else {
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset3, 1, num_tile_items);
-  }
+  // if (key_idx3 != NULL && ht3 != NULL) {
+  //   BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, key_idx3, num_tile_items);
+  //   BlockProbeGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, dim_offset3, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
+  // } else if (dim_off3 != NULL) {
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off3 + tile_offset, dim_offset3, num_tile_items);
+  // } else {
+  //   BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, dim_offset3, 1, num_tile_items);
+  // }
 
   if (key_idx4 != NULL && ht4 != NULL) {
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, key_idx4, num_tile_items);
@@ -827,9 +798,9 @@ __global__ void filter_probe_GPU3(
       if(selection_flags[ITEM]) {
         int offset = block_off + c_t_count++;
         out_lo_off[offset] = items_lo[ITEM];
-        if (out_dim_off1 != NULL) out_dim_off1[offset] = dim_offset1[ITEM];
-        if (out_dim_off2 != NULL) out_dim_off2[offset] = dim_offset2[ITEM];
-        if (out_dim_off3 != NULL) out_dim_off3[offset] = dim_offset3[ITEM];
+        // if (out_dim_off1 != NULL) out_dim_off1[offset] = dim_offset1[ITEM];
+        // if (out_dim_off2 != NULL) out_dim_off2[offset] = dim_offset2[ITEM];
+        // if (out_dim_off3 != NULL) out_dim_off3[offset] = dim_offset3[ITEM];
         if (out_dim_off4 != NULL) out_dim_off4[offset] = dim_offset4[ITEM];
         //printf("%d %d %d %d\n", dim_offset1[ITEM], dim_offset2[ITEM], dim_offset3[ITEM], dim_offset4[ITEM]);
       }
@@ -849,7 +820,6 @@ __global__ void probe_GPU2(
   //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
 
   // Specialize BlockLoad for a 1D block of 128 threads owning 4 integer items each
-  //typedef cub::BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD, BLOCK_LOAD_TRANSPOSE> BlockLoadInt;
   typedef cub::BlockScan<int, BLOCK_THREADS> BlockScanInt;
   int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
   int tile_offset = blockIdx.x * tile_size;
@@ -862,7 +832,6 @@ __global__ void probe_GPU2(
   // Allocate shared memory for BlockLoad
   __shared__ union TempStorage
   {
-    //typename BlockLoadInt::TempStorage load_items;
     typename BlockScanInt::TempStorage scan;
   } temp_storage;
 
@@ -985,7 +954,6 @@ __global__ void probe_GPU3(
   //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
 
   // Specialize BlockLoad for a 1D block of 128 threads owning 4 integer items each
-  //typedef cub::BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD, BLOCK_LOAD_TRANSPOSE> BlockLoadInt;
   typedef cub::BlockScan<int, BLOCK_THREADS> BlockScanInt;
   int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
   int tile_offset = blockIdx.x * tile_size;
@@ -993,7 +961,6 @@ __global__ void probe_GPU3(
   // Allocate shared memory for BlockLoad
   __shared__ union TempStorage
   {
-    //typename BlockLoadInt::TempStorage load_items;
     typename BlockScanInt::TempStorage scan;
   } temp_storage;
 
@@ -1140,17 +1107,15 @@ __global__ void build_GPU2(
   if (filter_idx != NULL) {
     int* ptr = gpuCache + filter_segment * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    if (mode == 0) { //equal to
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    } else if (mode == 1) { //between
+    // if (mode == 0) { //equal to
+    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    // } else if (mode == 1) { //between
       BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    } else if (mode == 2) { //equal or equal
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    } else if (mode == 3) { //less than
-      BlockPredLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    }
+    // } else if (mode == 2) { //equal or equal
+    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+    // }
   }
 
   cudaAssert(key_idx != NULL);
@@ -1238,6 +1203,7 @@ __global__ void filter_GPU2(
 
   int num_tiles = (num_tuples + tile_size - 1) / tile_size;
   int num_tile_items = tile_size;
+
   if (blockIdx.x == num_tiles - 1) {
     num_tile_items = num_tuples - tile_offset;
   }
@@ -1264,34 +1230,30 @@ __global__ void filter_GPU2(
     int* ptr = gpuCache + filter_segment1 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
 
-    if (mode1 == 0) { //equal to
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    } else if (mode1 == 1) { //between
+    // if (mode1 == 0) { //equal to
+    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    // } else if (mode1 == 1) { //between
       BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    } else if (mode1 == 2) { //equal or equal
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    } else if (mode1 == 3) { //less than
-      BlockPredLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    }
+    // } else if (mode1 == 2) { //equal or equal
+    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+    // }
   }
 
   if (filter_idx2 != NULL) {
     int* ptr = gpuCache + filter_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
 
-    if (mode2 == 0) { //equal to
-      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    } else if (mode2 == 1) { //between
+    // if (mode2 == 0) { //equal to
+    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    // } else if (mode2 == 1) { //between
       BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    } else if (mode2 == 2) { //equal or equal
-      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    } else if (mode2 == 3) { //less than
-      BlockPredAndLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    }
+    // } else if (mode2 == 2) { //equal or equal
+    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
+    // }
   }
 
   #pragma unroll
@@ -1364,39 +1326,35 @@ __global__ void filter_GPU3(int* off_col,
 
   InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
 
-  if (filter_idx1 != NULL) {
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
-    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx1, num_tile_items);
+  // if (filter_idx1 != NULL) {
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
+  //   BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx1, num_tile_items);
 
-    if (mode1 == 0) { //equal to
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    } else if (mode1 == 1) { //between
-      BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-      BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    } else if (mode1 == 2) { //equal or equal
-      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    } else if (mode1 == 3) { //less than
-      BlockPredLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    }
-  }
+  //   if (mode1 == 0) { //equal to
+  //     BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+  //   } else if (mode1 == 1) { //between
+  //     BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+  //     BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+  //   } else if (mode1 == 2) { //equal or equal
+  //     BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+  //     BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+  //   }
+  // }
 
-  if (filter_idx2 != NULL) {
-    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
-    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx2, num_tile_items);
+  // if (filter_idx2 != NULL) {
+    // BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
+    // BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx2, num_tile_items);
 
-    if (mode2 == 0) { //equal to
-      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    } else if (mode2 == 1) { //between
+    // if (mode2 == 0) { //equal to
+    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    // } else if (mode2 == 1) { //between
       BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    } else if (mode2 == 2) { //equal or equal
-      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    } else if (mode2 == 3) { //less than
-      BlockPredAndLT<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    }
-  }
+    // } else if (mode2 == 2) { //equal or equal
+    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
+    // }
+  // }
 
   #pragma unroll
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
@@ -1457,14 +1415,8 @@ __global__ void groupByGPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_o
   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_off + tile_offset, items_off, num_tile_items);
 
   if (aggr_idx1 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, aggrval1, gpuCache, aggr_idx1, num_tile_items);
-  else {
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, aggrval1, 0, num_tile_items);
-  }
 
   if (aggr_idx2 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, aggrval2, gpuCache, aggr_idx2, num_tile_items);
-  else {
-    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, aggrval2, 0, num_tile_items);
-  }
 
   if (group_idx1 != NULL) {
     cudaAssert(dim_off1 != NULL);
@@ -1494,9 +1446,16 @@ __global__ void groupByGPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_o
     cudaAssert(dim_off4 != NULL);
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off4 + tile_offset, items_off, num_tile_items);
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, groupval4, gpuCache, group_idx4, num_tile_items);   
-
   } else {
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval4, 0, num_tile_items);
+  }
+
+  if (mode == 0) {
+    cudaAssert(aggr_idx1 != NULL);
+  } else if (mode == 1) {
+    cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  } else if (mode == 2) {
+    cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
   }
 
   #pragma unroll
@@ -1510,8 +1469,6 @@ __global__ void groupByGPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_o
       res[hash * 6 + 2] = groupval3[ITEM];
       res[hash * 6 + 3] = groupval4[ITEM];
 
-      //cudaAssert(groupval4[ITEM] <= 1998);
-
       int temp;
       if (mode == 0) temp = aggrval1[ITEM];
       else if (mode == 1) temp = aggrval1[ITEM] - aggrval2[ITEM];
@@ -1520,6 +1477,502 @@ __global__ void groupByGPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_o
     }
   }
 
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void aggregationGPU(int* lo_off,
+  int* gpuCache, int* aggr_idx1, int* aggr_idx2,
+  int num_tuples, int* res, int mode) {
+
+  int items_off[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+
+  int tile_offset = blockIdx.x * tile_size;
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  cudaAssert(lo_off != NULL);
+  BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_off + tile_offset, items_off, num_tile_items);
+
+  if (aggr_idx1 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, aggrval1, gpuCache, aggr_idx1, num_tile_items);
+
+  if (aggr_idx2 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, aggrval2, gpuCache, aggr_idx2, num_tile_items);
+
+
+  if (mode == 0) {
+    cudaAssert(aggr_idx1 != NULL);
+  } else if (mode == 1) {
+    cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  } else if (mode == 2) {
+    cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  }
+
+  long long sum = 0;
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      if (mode == 0) sum += aggrval1[ITEM];
+      else if (mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
+      else if (mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
+    }
+  }
+
+  __syncthreads();
+  static __shared__ long long buffer[32];
+  unsigned long long aggregate = BlockSum<long long, BLOCK_THREADS, ITEMS_PER_THREAD>(sum, (long long*)buffer);
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicAdd(reinterpret_cast<unsigned long long*>(&res[4]), aggregate);   
+  }
+
+}
+
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void probe_aggr_GPU2(
+  int* gpuCache, int* key_idx1, int* key_idx2, int* key_idx3, int* key_idx4, 
+  int* aggr_idx1, int* aggr_idx2, int mode,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* res, int start_offset = 0, short* segment_group = NULL) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+  
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+  int* ptr;
+
+  int tiles_per_segment = SEGMENT_SIZE/tile_size;
+  int segment_tile_offset = (blockIdx.x % tiles_per_segment) * tile_size; //tile offset inside a segment
+
+  // Load a segment of consecutive items that are blocked across threads
+  int items[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+  int temp[ITEMS_PER_THREAD];
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  // __shared__ int key_segment1; 
+  // __shared__ int key_segment2;
+  // __shared__ int key_segment3;
+  __shared__ int key_segment4;
+  __shared__ int aggr_segment1;
+  __shared__ int aggr_segment2;
+  __shared__ int segment_index;
+
+  if (threadIdx.x == 0) {
+    segment_index = segment_group[tile_offset / SEGMENT_SIZE];
+    // if (key_idx1 != NULL) key_segment1 = key_idx1[segment_index];
+    // if (key_idx2 != NULL) key_segment2 = key_idx2[segment_index];
+    // if (key_idx3 != NULL) key_segment3 = key_idx3[segment_index];
+    if (key_idx4 != NULL) key_segment4 = key_idx4[segment_index];
+    if (aggr_idx1 != NULL) aggr_segment1 = aggr_idx1[segment_index];
+    if (aggr_idx2 != NULL) aggr_segment2 = aggr_idx2[segment_index];
+  }
+
+  __syncthreads();
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+  // if (key_idx1 != NULL && ht1 != NULL) { //normal operation, here key_idx will be lo_partkey, lo_suppkey, etc (the join key column) -> no group by attributes
+  //   ptr = gpuCache + key_segment1 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
+  // }
+
+  // if (key_idx2 != NULL && ht2 != NULL) {
+  //   ptr = gpuCache + key_segment2 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
+  // }
+
+  // if (key_idx3 != NULL && ht3 != NULL) {
+  //   ptr = gpuCache + key_segment3 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
+  // }
+
+  if (key_idx4 != NULL && ht4 != NULL) {
+    ptr = gpuCache + key_segment4 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+    BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht4, dim_len4, min_key4, num_tile_items);
+  }
+
+  if (aggr_idx1 != NULL) {
+    ptr = gpuCache + aggr_segment1 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, aggrval1, num_tile_items);
+  }
+  if (aggr_idx2 != NULL) {
+    ptr = gpuCache + aggr_segment2 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, aggrval2, num_tile_items);
+  }
+
+  // if (mode == 0) {
+  //   cudaAssert(aggr_idx1 != NULL);
+  // } else if (mode == 1) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // } else if (mode == 2) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // }
+
+  long long sum = 0;
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      if (selection_flags[ITEM]) {
+        if (mode == 0) sum += aggrval1[ITEM];
+        else if (mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
+        else if (mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
+      }
+    }
+  }
+
+
+  __syncthreads();
+  static __shared__ long long buffer[32];
+  unsigned long long aggregate = BlockSum<long long, BLOCK_THREADS, ITEMS_PER_THREAD>(sum, (long long*)buffer);
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicAdd(reinterpret_cast<unsigned long long*>(&res[4]), aggregate);   
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void probe_aggr_GPU3(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
+  int* gpuCache, int* key_idx1, int* key_idx2, int* key_idx3, int* key_idx4, 
+  int* aggr_idx1, int* aggr_idx2, int mode,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* res) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+  
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+
+  // Load a segment of consecutive items that are blocked across threads
+  int items_lo[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+  int temp[ITEMS_PER_THREAD];
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+  cudaAssert(lo_off != NULL);
+  BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_off + tile_offset, items_lo, num_tile_items);
+
+  // if (key_idx1 != NULL && ht1 != NULL) { //normal operation, here key_idx will be lo_partkey, lo_suppkey, etc (the join key column) -> no group by attributes
+  //   BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx1, ht1, dim_len1, min_key1, num_tile_items);
+  // }
+
+  // if (key_idx2 != NULL && ht2 != NULL) {
+  //   BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx2, ht2, dim_len2, min_key2, num_tile_items);
+  // }
+
+  // if (key_idx3 != NULL && ht3 != NULL) {
+  //   BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx3, ht3, dim_len3, min_key3, num_tile_items);
+  // }
+
+  if (key_idx4 != NULL && ht4 != NULL) {
+    BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx4, ht4, dim_len4, min_key4, num_tile_items);
+  }
+
+  if (aggr_idx1 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, aggrval1, gpuCache, aggr_idx1, num_tile_items);
+  if (aggr_idx2 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, aggrval2, gpuCache, aggr_idx2, num_tile_items);
+
+
+  // if (mode == 0) {
+  //   cudaAssert(aggr_idx1 != NULL);
+  // } else if (mode == 1) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // } else if (mode == 2) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // }
+
+  long long sum = 0;
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      if (selection_flags[ITEM]) {
+        if (mode == 0) sum += aggrval1[ITEM];
+        else if (mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
+        else if (mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
+      }
+    }
+  }
+
+
+  __syncthreads();
+  static __shared__ long long buffer[32];
+  unsigned long long aggregate = BlockSum<long long, BLOCK_THREADS, ITEMS_PER_THREAD>(sum, (long long*)buffer);
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicAdd(reinterpret_cast<unsigned long long*>(&res[4]), aggregate);   
+  }
+}
+
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void filter_probe_aggr_GPU2(
+  int* gpuCache, int* filter_idx1, int* filter_idx2, int compare1, int compare2, int compare3, int compare4,
+  int* key_idx1, int* key_idx2, int* key_idx3, int* key_idx4, int* aggr_idx1, int* aggr_idx2, int mode,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* res, int start_offset = 0, short* segment_group = NULL) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+  
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+  int* ptr;
+
+  int tiles_per_segment = SEGMENT_SIZE/tile_size;
+  int segment_tile_offset = (blockIdx.x % tiles_per_segment) * tile_size; //tile offset inside a segment
+
+  // Load a segment of consecutive items that are blocked across threads
+  int items[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+  int temp[ITEMS_PER_THREAD];
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  // __shared__ int key_segment1; 
+  // __shared__ int key_segment2;
+  // __shared__ int key_segment3;
+  __shared__ int key_segment4;
+  __shared__ int aggr_segment1;
+  __shared__ int aggr_segment2;
+  __shared__ int filter_segment1;
+  __shared__ int filter_segment2;
+  __shared__ int segment_index;
+
+  if (threadIdx.x == 0) {
+    segment_index = segment_group[tile_offset / SEGMENT_SIZE];
+    // if (key_idx1 != NULL) key_segment1 = key_idx1[segment_index];
+    // if (key_idx2 != NULL) key_segment2 = key_idx2[segment_index];
+    // if (key_idx3 != NULL) key_segment3 = key_idx3[segment_index];
+    if (key_idx4 != NULL) key_segment4 = key_idx4[segment_index];
+    if (aggr_idx1 != NULL) aggr_segment1 = aggr_idx1[segment_index];
+    if (aggr_idx2 != NULL) aggr_segment2 = aggr_idx2[segment_index];
+    if (filter_idx1 != NULL) filter_segment1 = filter_idx1[segment_index];
+    if (filter_idx2 != NULL) filter_segment2 = filter_idx2[segment_index];
+  }
+
+  __syncthreads();
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+
+  if (filter_idx1 != NULL) {
+    ptr = gpuCache + filter_segment1 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+  }
+
+  if (filter_idx2 != NULL) {
+    ptr = gpuCache + filter_segment2 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
+  }
+
+  // if (key_idx1 != NULL && ht1 != NULL) { //normal operation, here key_idx will be lo_partkey, lo_suppkey, etc (the join key column) -> no group by attributes
+  //   ptr = gpuCache + key_segment1 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
+  // }
+
+  // if (key_idx2 != NULL && ht2 != NULL) {
+  //   ptr = gpuCache + key_segment2 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
+  // }
+
+  // if (key_idx3 != NULL && ht3 != NULL) {
+  //   ptr = gpuCache + key_segment3 * SEGMENT_SIZE;
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
+  // }
+
+  if (key_idx4 != NULL && ht4 != NULL) {
+    ptr = gpuCache + key_segment4 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+    BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht4, dim_len4, min_key4, num_tile_items);
+  }
+
+  if (aggr_idx1 != NULL) {
+    ptr = gpuCache + aggr_segment1 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, aggrval1, num_tile_items);
+  }
+  if (aggr_idx2 != NULL) {
+    ptr = gpuCache + aggr_segment2 * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, aggrval2, num_tile_items);
+  }
+
+  // if (mode == 0) {
+  //   cudaAssert(aggr_idx1 != NULL);
+  // } else if (mode == 1) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // } else if (mode == 2) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // }
+
+  long long sum = 0;
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      if (selection_flags[ITEM]) {
+        if (mode == 0) sum += aggrval1[ITEM];
+        else if (mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
+        else if (mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
+      }
+    }
+  }
+
+  __syncthreads();
+  static __shared__ long long buffer[32];
+  unsigned long long aggregate = BlockSum<long long, BLOCK_THREADS, ITEMS_PER_THREAD>(sum, (long long*)buffer);
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicAdd(reinterpret_cast<unsigned long long*>(&res[4]), aggregate);
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void filter_probe_aggr_GPU3(
+  int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* dim_off4,
+  int* gpuCache, int* filter_idx1, int* filter_idx2, int compare1, int compare2, int compare3, int compare4,
+  int* key_idx1, int* key_idx2, int* key_idx3, int* key_idx4, 
+  int* aggr_idx1, int* aggr_idx2, int mode,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* res) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+  
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+
+  // Load a segment of consecutive items that are blocked across threads
+  int items_lo[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+  int temp[ITEMS_PER_THREAD];
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+  BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_off + tile_offset, items_lo, num_tile_items);
+
+  // if (filter_idx1 != NULL) {
+  //   BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, gpuCache, filter_idx1, num_tile_items);
+  //   BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, compare1, selection_flags, num_tile_items);
+  //   BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, compare2, selection_flags, num_tile_items);
+  // }
+
+  if (filter_idx2 != NULL) {
+    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, gpuCache, filter_idx2, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, compare4, selection_flags, num_tile_items);
+  }
+
+
+  // if (key_idx1 != NULL && ht1 != NULL) { //normal operation, here key_idx will be lo_partkey, lo_suppkey, etc (the join key column) -> no group by attributes
+  //   BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx1, ht1, dim_len1, min_key1, num_tile_items);
+  // }
+
+
+  // if (key_idx2 != NULL && ht2 != NULL) {
+  //   BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx2, ht2, dim_len2, min_key2, num_tile_items);
+  // }
+
+
+  // if (key_idx3 != NULL && ht3 != NULL) {
+  //   BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx3, ht3, dim_len3, min_key3, num_tile_items);
+  // }
+
+
+  if (key_idx4 != NULL && ht4 != NULL) {
+    BlockProbeGroupByGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, selection_flags, gpuCache, key_idx4, ht4, dim_len4, min_key4, num_tile_items);
+  }
+
+  if (aggr_idx1 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, aggrval1, gpuCache, aggr_idx1, num_tile_items);
+  if (aggr_idx2 != NULL) BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, aggrval2, gpuCache, aggr_idx2, num_tile_items);
+
+  // if (mode == 0) {
+  //   cudaAssert(aggr_idx1 != NULL);
+  // } else if (mode == 1) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // } else if (mode == 2) {
+  //   cudaAssert(aggr_idx1 != NULL && aggr_idx2 != NULL);
+  // }
+
+  long long sum = 0;
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      if (selection_flags[ITEM]) {
+        if (mode == 0) sum += aggrval1[ITEM];
+        else if (mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
+        else if (mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
+      }
+    }
+  }
+
+  __syncthreads();
+  static __shared__ long long buffer[32];
+  unsigned long long aggregate = BlockSum<long long, BLOCK_THREADS, ITEMS_PER_THREAD>(sum, (long long*)buffer);
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicAdd(reinterpret_cast<unsigned long long*>(&res[4]), aggregate);   
+  }
 }
 
 #endif

@@ -8,6 +8,7 @@
 int main() {
 
 	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 536870912, 536870912);
+	// CPUGPUProcessing* cgp = new CPUGPUProcessing(536870912, 536870912, 536870912);
 	// CacheManager* cm = cgp->cm;
 
 	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 10);
