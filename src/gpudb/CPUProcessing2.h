@@ -1660,7 +1660,7 @@ void groupByCPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* d
   int unique_val1, int unique_val2, int unique_val3, int unique_val4,
   int total_val, int num_tuples, int* res, int mode) {
 
-  int grainsize = num_tuples/NUM_THREADS + 4;
+  int grainsize = num_tuples/4096 + 4;
   assert(grainsize < 20000);
   assert(grainsize < SEGMENT_SIZE);
 
@@ -1776,7 +1776,7 @@ void groupByCPU(int* lo_off, int* dim_off1, int* dim_off2, int* dim_off3, int* d
 void aggregationCPU(int* lo_off, 
   int* aggr_col1, int* aggr_col2, int num_tuples, int* res, int mode) {
 
-  int grainsize = num_tuples/NUM_THREADS + 4;
+  int grainsize = num_tuples/4096 + 4;
   assert(grainsize < 20000);
   assert(grainsize < SEGMENT_SIZE);
 

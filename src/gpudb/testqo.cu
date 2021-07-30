@@ -7,7 +7,7 @@
 
 int main() {
 
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 536870912, 536870912);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 536870912, 536870912);
 	// CPUGPUProcessing* cgp = new CPUGPUProcessing(536870912, 536870912, 536870912);
 	// CacheManager* cm = cgp->cm;
 
@@ -76,26 +76,38 @@ int main() {
 			cout << "Executing Query 1.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 0);
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 		} else if (input.compare("2") == 0) {
 			cout << "Executing Query 2.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 1);
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 		} else if (input.compare("3") == 0) {
 			cout << "Executing Query 3.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 2);
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 		} else if (input.compare("4") == 0) {
 			cout << "Executing Query 4.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 3);
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 			qp->processQuery();
+			qp->processQuery2();
 		} else if (input.compare("5") == 0) {
 			cout << "Executing Random Query" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 0);

@@ -529,7 +529,7 @@ CacheManager::updateQueryFrequency(ColumnInfo* column, int freq) {
 
 void
 CacheManager::updateColumnTimestamp(ColumnInfo* column, double timestamp) {
-	column->stats->timestamp = timestamp;
+	column->stats->timestamp = timestamp * 1000;
 }
 
 void
@@ -625,8 +625,8 @@ CacheManager::runReplacement(int strategy) {
         if(temp_buffer_size + cit->second->total_segment < cache_total_seg && cit->first>0){
             temp_buffer_size+=cit->second->total_segment;
             columns_to_place.insert(cit->second);
-            //cout << "Should place ";
-            //cout << cit->second->column_name << endl;
+            cout << "Should place ";
+            cout << cit->second->column_name << endl;
         }
     }
 

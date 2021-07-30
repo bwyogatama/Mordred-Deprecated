@@ -308,7 +308,7 @@ QueryOptimizer::dataDrivenOperatorPlacement() {
 		}
 	}
 
-	printf("%zu\n", groupby_build.size());
+	// printf("%zu\n", groupby_build.size());
 
 	for (int i = 0; i < join.size(); i++) {
 		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
