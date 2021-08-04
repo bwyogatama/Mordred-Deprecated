@@ -3,11 +3,11 @@
 #include <chrono>
 #include <atomic>
 
-//tbb::task_scheduler_init init(1);
+//tbb::task_scheduler_init init(24);
 
 int main() {
 
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 536870912, 536870912);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 209715200, 536870912, 536870912);
 	// CPUGPUProcessing* cgp = new CPUGPUProcessing(536870912, 536870912, 536870912);
 	// CacheManager* cm = cgp->cm;
 
@@ -57,6 +57,8 @@ int main() {
 
 	bool exit = 0;
 	string input;
+	float time = 0;
+	float time1 = 0, time2 = 0;
 
 	while (!exit) {
 		cout << "Select Options:" << endl;
@@ -76,60 +78,68 @@ int main() {
 			cout << "Executing Query 1.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 0);
 			qp->processQuery();
+			time1 = qp->processQuery();
 			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
+			time2 = qp->processQuery2();
+			if (time1 <= time2) time += time1;
+			else time += time2;
 		} else if (input.compare("2") == 0) {
 			cout << "Executing Query 2.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 1);
 			qp->processQuery();
+			time1 = qp->processQuery();
 			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
+			time2 = qp->processQuery2();
+			if (time1 <= time2) time += time1;
+			else time += time2;
 		} else if (input.compare("3") == 0) {
 			cout << "Executing Query 3.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 2);
 			qp->processQuery();
+			time1 = qp->processQuery();
 			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
+			time2 = qp->processQuery2();
+			if (time1 <= time2) time += time1;
+			else time += time2;
 		} else if (input.compare("4") == 0) {
 			cout << "Executing Query 4.1" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 3);
 			qp->processQuery();
+			time1 = qp->processQuery();
 			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
-			qp->processQuery();
-			qp->processQuery2();
+			time2 = qp->processQuery2();
+			if (time1 <= time2) time += time1;
+			else time += time2;
 		} else if (input.compare("5") == 0) {
 			cout << "Executing Random Query" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 0);
 			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
-				qp->processQuery();
+				time1 = qp->processQuery();
+				time2 = qp->processQuery2();
+				if (time1 <= time2) time += time1;
+				else time += time2;
 			}
 		} else if (input.compare("6") == 0) {
 			cout << "LFU Replacement" << endl;
 			cgp->cm->runReplacement(0);
+			time = 0;
 		} else if (input.compare("7") == 0) {
 			cout << "LRU Replacement" << endl;
-			cgp->cm->runReplacement(1);
+			cgp->cm->runReplacement2(1);
+			time = 0;
 		} else if (input.compare("8") == 0) {
 			cout << "New Replacement" << endl;
 			cgp->cm->runReplacement(2);
+			time = 0;
 		} else if (input.compare("9") == 0) {
 			exit = true;
 		} else {
 			exit = true;
 		}
 
+		cout << endl;
+		cout << "Cumulated Time: " << time << endl;
 		cout << endl;
 
 	}

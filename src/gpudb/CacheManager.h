@@ -149,8 +149,8 @@ class CacheManager {
 public:
 	int* gpuCache;
 	int* gpuProcessing, *cpuProcessing, *pinnedMemory;
-	int gpuPointer, cpuPointer, pinnedPointer;
-	int cache_total_seg, processing_size, pinned_memsize;
+	int gpuPointer, cpuPointer, pinnedPointer, onDemandPointer;
+	int cache_total_seg, cache_size, processing_size, pinned_memsize, ondemand_size, ondemand_segment;
 	int TOT_COLUMN;
 	int TOT_TABLE;
 	vector<ColumnInfo*> allColumn;
@@ -176,7 +176,7 @@ public:
 	ColumnInfo *p_partkey, *p_brand1, *p_category, *p_mfgr;
 	ColumnInfo *d_datekey, *d_year, *d_yearmonthnum;
 
-	CacheManager(size_t cache_size, size_t _processing_size, size_t _pinned_memsize);
+	CacheManager(size_t cache_size, size_t ondemand_size, size_t _processing_size, size_t _pinned_memsize);
 
 	~CacheManager();
 
@@ -202,13 +202,15 @@ public:
 
 	void updateColumnFrequency(ColumnInfo* column);
 
-	void updateQueryFrequency(ColumnInfo* column, int freq);
+	void updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity);
 
 	void updateColumnTimestamp(ColumnInfo* column, double timestamp);
 
 	void weightAdjustment();
 
 	void runReplacement(int strategy);
+
+	void runReplacement2(int strategy);
 
 	void runReplacementNew();
 
@@ -220,7 +222,13 @@ public:
 
 	int* customCudaHostAlloc(int size);
 
+	int* onDemandTransfer(int* data_ptr, int size, cudaStream_t stream);
+
+	void indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream);
+
 	void resetPointer();
+
+	void resetOnDemand();
 };
 
 Segment::Segment(ColumnInfo* _column, int* _seg_ptr, int _priority)
@@ -250,15 +258,18 @@ ColumnInfo::getSegment(int index) {
 	return seg;
 }
 
-CacheManager::CacheManager(size_t cache_size, size_t _processing_size, size_t _pinned_memsize) {
-	cache_total_seg = cache_size/SEGMENT_SIZE;
+CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize) {
+	cache_size = _cache_size;
+	ondemand_size = _ondemand_size;
+	cache_total_seg = _cache_size/SEGMENT_SIZE;
+	ondemand_segment = _ondemand_size/SEGMENT_SIZE;
 	processing_size = _processing_size;
 	pinned_memsize = _pinned_memsize;
 	TOT_COLUMN = 25;
 	TOT_TABLE = 5;
 
-	CubDebugExit(cudaMalloc((void**) &gpuCache, cache_size * sizeof(int)));
-	CubDebugExit(cudaMemset(gpuCache, 0, cache_size * sizeof(int)));
+	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size + ondemand_size) * sizeof(int)));
+	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size + ondemand_size) * sizeof(int)));
 	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(int)));
 
 	cpuProcessing = (int*) malloc(_processing_size * sizeof(int));
@@ -266,6 +277,7 @@ CacheManager::CacheManager(size_t cache_size, size_t _processing_size, size_t _p
 	gpuPointer = 0;
 	cpuPointer = 0;
 	pinnedPointer = 0;
+	onDemandPointer = cache_size;
 
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
@@ -319,11 +331,40 @@ CacheManager::customCudaHostAlloc(int size) {
   return pinnedMemory + start;
 };
 
+int*
+CacheManager::onDemandTransfer(int* data_ptr, int size, cudaStream_t stream) {
+	assert(data_ptr != NULL);
+	if (data_ptr != NULL) {
+		int start = __atomic_fetch_add(&onDemandPointer, size, __ATOMIC_RELAXED);
+		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
+		CubDebugExit(cudaStreamSynchronize(stream));
+		return gpuCache + start;
+	} else {
+		return NULL;
+	}
+};
+
+void
+CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream) {
+    if (col_idx[column->column_id] == NULL) {
+      int* desired = customCudaMalloc(column->total_segment); int* expected = NULL;
+      CubDebugExit(cudaMemcpyAsync(desired, segment_list[column->column_id], column->total_segment * sizeof(int), cudaMemcpyHostToDevice, stream));
+      CubDebugExit(cudaStreamSynchronize(stream));
+      __atomic_compare_exchange_n(&(col_idx[column->column_id]), &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+    }
+};
+
 void
 CacheManager::resetPointer() {
 	gpuPointer = 0;
 	cpuPointer = 0;
 	pinnedPointer = 0;
+	onDemandPointer = cache_size;
+};
+
+void
+CacheManager::resetOnDemand() {
+	onDemandPointer = cache_size;
 };
 
 void
@@ -516,20 +557,20 @@ CacheManager::updateSegmentInColumn(ColumnInfo* column) {
 
 void
 CacheManager::updateColumnFrequency(ColumnInfo* column) {
-	column->stats->col_freq++;
+	column->stats->col_freq+=(1000 / column->total_segment);
 }
 
 void
-CacheManager::updateQueryFrequency(ColumnInfo* column, int freq) {
+CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity) {
 	if (freq > column->stats->query_freq) {
 		column->stats->query_freq = freq;
-		column->weight = (freq * 1.0) / column->total_segment;
+		column->weight = (freq * speedup) / (selectivity * column->total_segment);
 	}
 }
 
 void
 CacheManager::updateColumnTimestamp(ColumnInfo* column, double timestamp) {
-	column->stats->timestamp = timestamp * 1000;
+	column->stats->timestamp = (timestamp / column->total_segment) * 1000;
 }
 
 void
@@ -605,11 +646,11 @@ CacheManager::runReplacement(int strategy) {
 	std::map<ColumnInfo*, uint64_t>::const_iterator it;
 
 	if (strategy == 0) { //LEAST FREQUENTLY USED
-		for (int i = 0; i < TOT_COLUMN; i++) {
+		for (int i = TOT_COLUMN-1; i >= 0; i--) {
 			access_frequency_map.insert({allColumn[i]->stats->col_freq, allColumn[i]});
 		}
 	} else if (strategy == 1) { //LEAST RECENTLY USED
-		for (int i = 0; i < TOT_COLUMN; i++) {
+		for (int i = TOT_COLUMN-1; i >= 0; i--) {
 			access_frequency_map.insert({allColumn[i]->stats->timestamp, allColumn[i]});
 		}
 	} else if (strategy == 2) {
@@ -647,6 +688,63 @@ CacheManager::runReplacement(int strategy) {
 			cout << "Caching column ";
 			cout << (*cit2)->column_name << endl;
     		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
+    	}
+    }
+
+};
+
+void
+CacheManager::runReplacement2(int strategy) {
+	std::map<uint64_t, vector<ColumnInfo*>> access_frequency_map;
+	std::map<ColumnInfo*, uint64_t>::const_iterator it;
+
+	if (strategy == 0) { //LEAST FREQUENTLY USED
+		for (int i = 0; i < TOT_COLUMN; i++) {
+			cout << allColumn[i]->column_name << endl;
+			access_frequency_map[allColumn[i]->stats->col_freq].push_back(allColumn[i]);
+		}
+	} else if (strategy == 1) { //LEAST RECENTLY USED
+		for (int i = 0; i < TOT_COLUMN; i++) {
+			access_frequency_map[allColumn[i]->stats->timestamp].push_back(allColumn[i]);
+		}
+	} else if (strategy == 2) {
+		runReplacementNew();
+		return;
+	}
+
+	int temp_buffer_size = 0; // in segment
+	// vector<ColumnInfo*> columns_to_place;
+	ColumnInfo* columns_to_place[TOT_COLUMN] = {};
+	std::map<uint64_t, vector<ColumnInfo*>>::reverse_iterator cit;
+
+    for(cit=access_frequency_map.rbegin(); cit!=access_frequency_map.rend(); ++cit){
+    	vector<ColumnInfo*> vec = cit->second;
+    	for (int i = 0; i < vec.size(); i++) {
+	        if(temp_buffer_size + vec[i]->total_segment < cache_total_seg && cit->first>0){
+	            temp_buffer_size += vec[i]->total_segment;
+	            columns_to_place[vec[i]->column_id] = vec[i];
+	            cout << "Should place ";
+	            cout << vec[i]->column_name << endl;
+	        }
+    	}
+    }
+
+    cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
+    assert(temp_buffer_size <= cache_total_seg);
+
+    for (int i = 0; i < TOT_COLUMN; i++) {
+		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place[i] == NULL) {
+			cout << "Deleting column ";
+			cout << allColumn[i]->column_name << endl;
+			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
+		}
+    }
+
+    for(int i = 0; i < TOT_COLUMN; i++){
+    	if (allColumn[i]->tot_seg_in_GPU == 0 && columns_to_place[i] != NULL) {
+			cout << "Caching column ";
+			cout << columns_to_place[i]->column_name << endl;
+    		cacheColumnSegmentInGPU(columns_to_place[i], columns_to_place[i]->total_segment);
     	}
     }
 
@@ -714,42 +812,72 @@ CacheManager::runReplacementNew() {
 
 void
 CacheManager::loadColumnToCPU() {
-	h_lo_orderkey = loadColumn<int>("lo_orderkey", LO_LEN);
-	h_lo_orderdate = loadColumn<int>("lo_orderdate", LO_LEN);
-	h_lo_custkey = loadColumn<int>("lo_custkey", LO_LEN);
-	h_lo_suppkey = loadColumn<int>("lo_suppkey", LO_LEN);
-	h_lo_partkey = loadColumn<int>("lo_partkey", LO_LEN);
-	h_lo_revenue = loadColumn<int>("lo_revenue", LO_LEN);
-	h_lo_discount = loadColumn<int>("lo_discount", LO_LEN);
-	h_lo_quantity = loadColumn<int>("lo_quantity", LO_LEN);
-	h_lo_extendedprice = loadColumn<int>("lo_extendedprice", LO_LEN);
-	h_lo_supplycost = loadColumn<int>("lo_supplycost", LO_LEN);
+	// h_lo_orderkey = loadColumn<int>("lo_orderkey", LO_LEN);
+	// h_lo_suppkey = loadColumn<int>("lo_suppkey", LO_LEN);
+	// h_lo_custkey = loadColumn<int>("lo_custkey", LO_LEN);
+	// h_lo_partkey = loadColumn<int>("lo_partkey", LO_LEN);
+	// h_lo_orderdate = loadColumn<int>("lo_orderdate", LO_LEN);
+	// h_lo_revenue = loadColumn<int>("lo_revenue", LO_LEN);
+	// h_lo_discount = loadColumn<int>("lo_discount", LO_LEN);
+	// h_lo_quantity = loadColumn<int>("lo_quantity", LO_LEN);
+	// h_lo_extendedprice = loadColumn<int>("lo_extendedprice", LO_LEN);
+	// h_lo_supplycost = loadColumn<int>("lo_supplycost", LO_LEN);
 
-	h_c_custkey = loadColumn<int>("c_custkey", C_LEN);
-	h_c_nation = loadColumn<int>("c_nation", C_LEN);
-	h_c_region = loadColumn<int>("c_region", C_LEN);
-	h_c_city = loadColumn<int>("c_city", C_LEN);
+	// h_c_custkey = loadColumn<int>("c_custkey", C_LEN);
+	// h_c_nation = loadColumn<int>("c_nation", C_LEN);
+	// h_c_region = loadColumn<int>("c_region", C_LEN);
+	// h_c_city = loadColumn<int>("c_city", C_LEN);
 
-	h_s_suppkey = loadColumn<int>("s_suppkey", S_LEN);
-	h_s_nation = loadColumn<int>("s_nation", S_LEN);
-	h_s_region = loadColumn<int>("s_region", S_LEN);
-	h_s_city = loadColumn<int>("s_city", S_LEN);
+	// h_s_suppkey = loadColumn<int>("s_suppkey", S_LEN);
+	// h_s_nation = loadColumn<int>("s_nation", S_LEN);
+	// h_s_region = loadColumn<int>("s_region", S_LEN);
+	// h_s_city = loadColumn<int>("s_city", S_LEN);
 
-	h_p_partkey = loadColumn<int>("p_partkey", P_LEN);
-	h_p_brand1 = loadColumn<int>("p_brand1", P_LEN);
-	h_p_category = loadColumn<int>("p_category", P_LEN);
-	h_p_mfgr = loadColumn<int>("p_mfgr", P_LEN);
+	// h_p_partkey = loadColumn<int>("p_partkey", P_LEN);
+	// h_p_brand1 = loadColumn<int>("p_brand1", P_LEN);
+	// h_p_category = loadColumn<int>("p_category", P_LEN);
+	// h_p_mfgr = loadColumn<int>("p_mfgr", P_LEN);
 
-	h_d_datekey = loadColumn<int>("d_datekey", D_LEN);
-	h_d_year = loadColumn<int>("d_year", D_LEN);
-	h_d_yearmonthnum = loadColumn<int>("d_yearmonthnum", D_LEN);
+	// h_d_datekey = loadColumn<int>("d_datekey", D_LEN);
+	// h_d_year = loadColumn<int>("d_year", D_LEN);
+	// h_d_yearmonthnum = loadColumn<int>("d_yearmonthnum", D_LEN);
+
+	h_lo_orderkey = loadColumnPinned<int>("lo_orderkey", LO_LEN);
+	h_lo_suppkey = loadColumnPinned<int>("lo_suppkey", LO_LEN);
+	h_lo_custkey = loadColumnPinned<int>("lo_custkey", LO_LEN);
+	h_lo_partkey = loadColumnPinned<int>("lo_partkey", LO_LEN);
+	h_lo_orderdate = loadColumnPinned<int>("lo_orderdate", LO_LEN);
+	h_lo_revenue = loadColumnPinned<int>("lo_revenue", LO_LEN);
+	h_lo_discount = loadColumnPinned<int>("lo_discount", LO_LEN);
+	h_lo_quantity = loadColumnPinned<int>("lo_quantity", LO_LEN);
+	h_lo_extendedprice = loadColumnPinned<int>("lo_extendedprice", LO_LEN);
+	h_lo_supplycost = loadColumnPinned<int>("lo_supplycost", LO_LEN);
+
+	h_c_custkey = loadColumnPinned<int>("c_custkey", C_LEN);
+	h_c_nation = loadColumnPinned<int>("c_nation", C_LEN);
+	h_c_region = loadColumnPinned<int>("c_region", C_LEN);
+	h_c_city = loadColumnPinned<int>("c_city", C_LEN);
+
+	h_s_suppkey = loadColumnPinned<int>("s_suppkey", S_LEN);
+	h_s_nation = loadColumnPinned<int>("s_nation", S_LEN);
+	h_s_region = loadColumnPinned<int>("s_region", S_LEN);
+	h_s_city = loadColumnPinned<int>("s_city", S_LEN);
+
+	h_p_partkey = loadColumnPinned<int>("p_partkey", P_LEN);
+	h_p_brand1 = loadColumnPinned<int>("p_brand1", P_LEN);
+	h_p_category = loadColumnPinned<int>("p_category", P_LEN);
+	h_p_mfgr = loadColumnPinned<int>("p_mfgr", P_LEN);
+
+	h_d_datekey = loadColumnPinned<int>("d_datekey", D_LEN);
+	h_d_year = loadColumnPinned<int>("d_year", D_LEN);
+	h_d_yearmonthnum = loadColumnPinned<int>("d_yearmonthnum", D_LEN);
 
 
 	lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, 0, h_lo_orderkey);
-	lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 1, 0, h_lo_orderdate);
+	lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 1, 0, h_lo_suppkey);
 	lo_custkey = new ColumnInfo("lo_custkey", "lo", LO_LEN, 2, 0, h_lo_custkey);
-	lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 3, 0, h_lo_suppkey);
-	lo_partkey = new ColumnInfo("lo_partkey", "lo", LO_LEN, 4, 0, h_lo_partkey);
+	lo_partkey = new ColumnInfo("lo_partkey", "lo", LO_LEN, 3, 0, h_lo_partkey);
+	lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 4, 0, h_lo_orderdate);
 	lo_revenue = new ColumnInfo("lo_revenue", "lo", LO_LEN, 5, 0, h_lo_revenue);
 	lo_discount = new ColumnInfo("lo_discount", "lo", LO_LEN, 6, 0, h_lo_discount);
 	lo_quantity = new ColumnInfo("lo_quantity", "lo", LO_LEN, 7, 0, h_lo_quantity);
@@ -776,10 +904,10 @@ CacheManager::loadColumnToCPU() {
 	d_yearmonthnum = new ColumnInfo("d_yearmonthnum", "d", D_LEN, 24, 4, h_d_yearmonthnum);
 
 	allColumn[0] = lo_orderkey;
-	allColumn[1] = lo_orderdate;
+	allColumn[1] = lo_suppkey;
 	allColumn[2] = lo_custkey;
-	allColumn[3] = lo_suppkey;
-	allColumn[4] = lo_partkey;
+	allColumn[3] = lo_partkey;
+	allColumn[4] = lo_orderdate;
 	allColumn[5] = lo_revenue;
 	allColumn[6] = lo_discount;
 	allColumn[7] = lo_quantity;
@@ -812,35 +940,65 @@ CacheManager::~CacheManager() {
 	delete[] cpuProcessing;
 	CubDebugExit(cudaFreeHost(pinnedMemory));
 
-	delete[] h_lo_orderkey;
-	delete[] h_lo_orderdate;
-	delete[] h_lo_custkey;
-	delete[] h_lo_suppkey;
-	delete[] h_lo_partkey;
-	delete[] h_lo_revenue;
-	delete[] h_lo_discount; 
-	delete[] h_lo_quantity;
-	delete[] h_lo_extendedprice;
-	delete[] h_lo_supplycost;
+	// delete[] h_lo_orderkey;
+	// delete[] h_lo_suppkey;
+	// delete[] h_lo_custkey;
+	// delete[] h_lo_partkey;
+	// delete[] h_lo_orderdate;
+	// delete[] h_lo_revenue;
+	// delete[] h_lo_discount; 
+	// delete[] h_lo_quantity;
+	// delete[] h_lo_extendedprice;
+	// delete[] h_lo_supplycost;
 
-	delete[] h_c_custkey;
-	delete[] h_c_nation;
-	delete[] h_c_region;
-	delete[] h_c_city;
+	// delete[] h_c_custkey;
+	// delete[] h_c_nation;
+	// delete[] h_c_region;
+	// delete[] h_c_city;
 
-	delete[] h_s_suppkey;
-	delete[] h_s_nation;
-	delete[] h_s_region;
-	delete[] h_s_city;
+	// delete[] h_s_suppkey;
+	// delete[] h_s_nation;
+	// delete[] h_s_region;
+	// delete[] h_s_city;
 
-	delete[] h_p_partkey;
-	delete[] h_p_brand1;
-	delete[] h_p_category;
-	delete[] h_p_mfgr;
+	// delete[] h_p_partkey;
+	// delete[] h_p_brand1;
+	// delete[] h_p_category;
+	// delete[] h_p_mfgr;
 
-	delete[] h_d_datekey;
-	delete[] h_d_year;
-	delete[] h_d_yearmonthnum;
+	// delete[] h_d_datekey;
+	// delete[] h_d_year;
+	// delete[] h_d_yearmonthnum;
+
+	CubDebugExit(cudaFreeHost(h_lo_orderkey));
+	CubDebugExit(cudaFreeHost(h_lo_suppkey));
+	CubDebugExit(cudaFreeHost(h_lo_custkey));
+	CubDebugExit(cudaFreeHost(h_lo_partkey));
+	CubDebugExit(cudaFreeHost(h_lo_orderdate));
+	CubDebugExit(cudaFreeHost(h_lo_revenue));
+	CubDebugExit(cudaFreeHost(h_lo_discount)); 
+	CubDebugExit(cudaFreeHost(h_lo_quantity));
+	CubDebugExit(cudaFreeHost(h_lo_extendedprice));
+	CubDebugExit(cudaFreeHost(h_lo_supplycost));
+
+	CubDebugExit(cudaFreeHost(h_c_custkey));
+	CubDebugExit(cudaFreeHost(h_c_nation));
+	CubDebugExit(cudaFreeHost(h_c_region));
+	CubDebugExit(cudaFreeHost(h_c_city));
+
+	CubDebugExit(cudaFreeHost(h_s_suppkey));
+	CubDebugExit(cudaFreeHost(h_s_nation));
+	CubDebugExit(cudaFreeHost(h_s_region));
+	CubDebugExit(cudaFreeHost(h_s_city));
+
+	CubDebugExit(cudaFreeHost(h_p_partkey));
+	CubDebugExit(cudaFreeHost(h_p_brand1));
+	CubDebugExit(cudaFreeHost(h_p_category));
+	CubDebugExit(cudaFreeHost(h_p_mfgr));
+
+	CubDebugExit(cudaFreeHost(h_d_datekey));
+	CubDebugExit(cudaFreeHost(h_d_year));
+	CubDebugExit(cudaFreeHost(h_d_yearmonthnum));
 
 	delete lo_orderkey;
 	delete lo_orderdate;
@@ -875,8 +1033,10 @@ CacheManager::~CacheManager() {
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		CubDebugExit(cudaFreeHost(segment_list[i]));
 		//free(segment_list[i]);
+		free(segment_bitmap[i]);
 	}
 	free(segment_list);
+	free(segment_bitmap);
 }
 
 #endif

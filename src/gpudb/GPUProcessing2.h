@@ -1975,4 +1975,228 @@ __global__ void filter_probe_aggr_GPU3(
   }
 }
 
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void build_GPU(
+  int* key, int* val, int* filter, int compare1, int compare2, int mode,
+  int num_tuples, int *hash_table, int num_slots, int val_min, int segment_index) {
+
+  int items[ITEMS_PER_THREAD];
+  int vals[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  int start_offset = segment_index * SEGMENT_SIZE;
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+  if (filter != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(filter + tile_offset, items, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+  }
+
+  cudaAssert(key != NULL);
+  BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key + tile_offset, items, num_tile_items);
+
+  if (val != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(val + tile_offset, vals, num_tile_items);
+    BlockBuildValueGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, blockIdx.x, start_offset,
+      items, vals, selection_flags, hash_table, num_slots, val_min, num_tile_items);
+  } else {
+    BlockBuildOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, blockIdx.x, start_offset,
+      items, selection_flags, hash_table, num_slots, val_min, num_tile_items);
+  }
+
+}
+
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void filter_probe_aggr_GPU(
+  int* filter1, int* filter2, int compare1, int compare2, int compare3, int compare4,
+  int* key1, int* key2, int* key3, int* key4, int* aggr1, int* aggr2, int mode,
+  int num_tuples, int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int* res) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+  
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+
+  // Load a segment of consecutive items that are blocked across threads
+  int items[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+  int temp[ITEMS_PER_THREAD];
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+
+  if (filter1 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(filter1 + tile_offset, items, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+  }
+
+  if (filter2 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(filter2 + tile_offset, items, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
+  }
+
+  // if (key1 != NULL && ht1 != NULL) {
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key1 + tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
+  // }
+
+  // if (key2 != NULL && ht2 != NULL) {
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key2 + tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
+  // }
+
+  // if (key3 != NULL && ht3 != NULL) {
+  //   BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key3 + tile_offset, items, num_tile_items);
+  //   BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
+  // }
+
+  if (key4 != NULL && ht4 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key4 + tile_offset, items, num_tile_items);
+    BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, temp, selection_flags, ht4, dim_len4, min_key4, num_tile_items);
+  }
+
+  if (aggr1 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(aggr1 + tile_offset, aggrval1, num_tile_items);
+  }
+
+  if (aggr2 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(aggr2 + tile_offset, aggrval2, num_tile_items);
+  }
+
+  long long sum = 0;
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      if (selection_flags[ITEM]) {
+        if (mode == 0) sum += aggrval1[ITEM];
+        else if (mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
+        else if (mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
+      }
+    }
+  }
+
+  __syncthreads();
+  static __shared__ long long buffer[32];
+  unsigned long long aggregate = BlockSum<long long, BLOCK_THREADS, ITEMS_PER_THREAD>(sum, (long long*)buffer);
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicAdd(reinterpret_cast<unsigned long long*>(&res[4]), aggregate);
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void probe_group_by_GPU(
+  int* key1, int* key2, int* key3, int* key4, 
+  int* aggr1, int* aggr2, int mode, int num_tuples, 
+  int* ht1, int dim_len1, int* ht2, int dim_len2, int* ht3, int dim_len3, int* ht4, int dim_len4,
+  int min_key1, int min_key2, int min_key3, int min_key4,
+  int min_val1, int min_val2, int min_val3, int min_val4,
+  int unique_val1, int unique_val2, int unique_val3, int unique_val4,
+  int total_val, int* res) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+  
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+
+  // Load a segment of consecutive items that are blocked across threads
+  int items[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+  int groupval1[ITEMS_PER_THREAD];
+  int groupval2[ITEMS_PER_THREAD];
+  int groupval3[ITEMS_PER_THREAD];
+  int groupval4[ITEMS_PER_THREAD];
+  int aggrval1[ITEMS_PER_THREAD];
+  int aggrval2[ITEMS_PER_THREAD];
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+  if (key1 != NULL && ht1 != NULL) { //normal operation, here key_idx will be lo_partkey, lo_suppkey, etc (the join key column) -> no group by attributes
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key1 + tile_offset, items, num_tile_items);
+    BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval1, selection_flags, ht1, dim_len1, min_key1, num_tile_items);
+  } else {
+    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval1, 0, num_tile_items);
+  }
+
+  if (key2 != NULL && ht2 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key2 + tile_offset, items, num_tile_items);
+    BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval2, selection_flags, ht2, dim_len2, min_key2, num_tile_items);
+  } else {
+    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval2, 0, num_tile_items);
+  }
+
+  if (key3 != NULL && ht3 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key3 + tile_offset, items, num_tile_items);
+    BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval3, selection_flags, ht3, dim_len3, min_key3, num_tile_items);
+  } else {
+    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval3, 0, num_tile_items);
+  }
+
+  if (key4 != NULL && ht4 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(key4 + tile_offset, items, num_tile_items);
+    BlockProbeGroupByGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, groupval4, selection_flags, ht4, dim_len4, min_key4, num_tile_items);
+  } else {
+    BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, groupval4, 0, num_tile_items);
+  }
+
+  if (aggr1 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(aggr1 + tile_offset, aggrval1, num_tile_items);
+  }
+  if (aggr2 != NULL) {
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(aggr2 + tile_offset, aggrval2, num_tile_items);
+  }
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
+    if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
+      if (selection_flags[ITEM]) {
+        int hash = ((groupval1[ITEM] - min_val1) * unique_val1 + (groupval2[ITEM] - min_val2) * unique_val2 +  (groupval3[ITEM] - min_val3) * unique_val3 + (groupval4[ITEM] - min_val4) * unique_val4) % total_val; //!
+        res[hash * 6] = groupval1[ITEM];
+        res[hash * 6 + 1] = groupval2[ITEM];
+        res[hash * 6 + 2] = groupval3[ITEM];
+        res[hash * 6 + 3] = groupval4[ITEM];
+
+        if (mode == 0) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM]));
+        else if (mode == 1) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM] - aggrval2[ITEM]));
+        else if (mode == 2) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM] * aggrval2[ITEM]));
+        
+      }
+    }
+  }
+}
+
 #endif

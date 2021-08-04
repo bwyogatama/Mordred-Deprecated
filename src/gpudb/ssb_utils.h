@@ -86,6 +86,20 @@ T* loadColumn(string col_name, int num_entries) {
 }
 
 template<typename T>
+T* loadColumnPinned(string col_name, int num_entries) {
+  T* h_col;
+  CubDebugExit(cudaHostAlloc((void**) &h_col, ((num_entries + SEGMENT_SIZE - 1)/SEGMENT_SIZE) * SEGMENT_SIZE * sizeof(T), cudaHostAllocDefault));
+  string filename = DATA_DIR + lookup(col_name);
+  ifstream colData (filename.c_str(), ios::in | ios::binary);
+  if (!colData) {
+    return NULL;
+  }
+
+  colData.read((char*)h_col, num_entries * sizeof(T));
+  return h_col;
+}
+
+template<typename T>
 int storeColumn(string col_name, int num_entries, int* h_col) {
   string filename = DATA_DIR + lookup(col_name);
   ofstream colData (filename.c_str(), ios::out | ios::binary);

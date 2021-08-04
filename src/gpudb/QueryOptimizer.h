@@ -53,7 +53,7 @@ public:
 	short* par_segment_count;
 	int* last_segment;
 
-	QueryOptimizer(size_t cache_size, size_t _processing_size, size_t _pinned_memsize);
+	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize);
 	void parseQuery(int query);
 	void parseQuery11();
 	void parseQuery21();
@@ -75,8 +75,8 @@ public:
 
 };
 
-QueryOptimizer::QueryOptimizer(size_t cache_size, size_t _processing_size, size_t _pinned_memsize) {
-	cm = new CacheManager(cache_size, _processing_size, _pinned_memsize);
+QueryOptimizer::QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize) {
+	cm = new CacheManager(_cache_size, _ondemand_size, _processing_size, _pinned_memsize);
 	fkey_pkey[cm->lo_orderdate] = cm->d_datekey;
 	fkey_pkey[cm->lo_partkey] = cm->p_partkey;
 	fkey_pkey[cm->lo_custkey] = cm->c_custkey;
