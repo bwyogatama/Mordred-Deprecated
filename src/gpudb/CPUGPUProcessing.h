@@ -127,37 +127,45 @@ CPUGPUProcessing::switch_device_fact(int** &off_col, int** &h_off_col, int* &d_t
     if (h_off_col == NULL) return;
     assert(h_off_col != NULL);
     assert(*h_total > 0);
+    assert(h_off_col[0] != NULL);
 
     off_col = new int*[cm->TOT_TABLE]();
-    for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i]) 
-        off_col[i] = cm->customCudaMalloc(*h_total);
-    }
+    // for (int i = 0; i < cm->TOT_TABLE; i++) {
+    //   // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+    //   if (h_off_col[i] != NULL)
+    //     off_col[i] = cm->customCudaMalloc(*h_total);
+    // }
     
     CubDebugExit(cudaMemcpyAsync(d_total, h_total, sizeof(int), cudaMemcpyHostToDevice, stream));
+    CubDebugExit(cudaStreamSynchronize(stream));
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (h_off_col[i] != NULL && (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])) {
+      // if (h_off_col[i] != NULL && (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i]))
+      if (h_off_col[i] != NULL) {
+        off_col[i] = cm->customCudaMalloc(*h_total);
         CubDebugExit(cudaMemcpyAsync(off_col[i], h_off_col[i], *h_total * sizeof(int), cudaMemcpyHostToDevice, stream));
-      } else
-        off_col[i] = NULL;
+      }
     }
     CubDebugExit(cudaStreamSynchronize(stream));
   } else { // GPU to CPU
     if (off_col == NULL) return;
     assert(off_col != NULL);
+    assert(off_col[0] != NULL);
 
     h_off_col = new int*[cm->TOT_TABLE]();
-    for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i]) 
-        h_off_col[i] = cm->customCudaHostAlloc(*h_total);
-    }
+    // for (int i = 0; i < cm->TOT_TABLE; i++) {
+    //   // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i]) 
+    //   if (off_col[i] != NULL)
+    //     h_off_col[i] = cm->customCudaHostAlloc(*h_total);
+    // }
 
     CubDebugExit(cudaMemcpyAsync(h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost, stream));
+    CubDebugExit(cudaStreamSynchronize(stream));
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (off_col[i] != NULL && (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])) {
+      // if (off_col[i] != NULL && (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i]))
+      if (off_col[i] != NULL) {
+        h_off_col[i] = cm->customCudaHostAlloc(*h_total);
         CubDebugExit(cudaMemcpyAsync(h_off_col[i], off_col[i], *h_total * sizeof(int), cudaMemcpyDeviceToHost, stream));
-      } else
-        h_off_col[i] = NULL;
+      }
     }
     CubDebugExit(cudaStreamSynchronize(stream));
   }
@@ -557,7 +565,8 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (i == 0 || qo->joinGPUcheck[i])
         off_col_out[i] = cm->customCudaMalloc(output_estimate);
     }
 
@@ -592,7 +601,8 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
     output_estimate = *h_total * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (off_col[i] != NULL || i == 0 || qo->joinGPUcheck[i])
         off_col_out[i] = cm->customCudaMalloc(output_estimate);
     }
 
@@ -666,7 +676,8 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (i == 0 || qo->joinCPUcheck[i])
         off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
     }
 
@@ -694,7 +705,8 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
     output_estimate = *h_total * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (h_off_col[i] != NULL || i == 0 || qo->joinCPUcheck[i])
         off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
     }
 
@@ -958,7 +970,8 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (i == 0 || qo->joinGPUcheck[i])
         off_col_out[i] = cm->customCudaMalloc(output_estimate);
     }
 
@@ -991,7 +1004,8 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
     output_estimate = *h_total * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (off_col[i] != NULL || i == 0 || qo->joinGPUcheck[i])
         off_col_out[i] = cm->customCudaMalloc(output_estimate);
     }
 
@@ -1051,7 +1065,8 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (i == 0 || qo->joinCPUcheck[i])
         off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
     }
 
@@ -1078,7 +1093,8 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
     output_estimate = *h_total * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (h_off_col[i] != NULL || i == 0 || qo->joinCPUcheck[i])
         off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
     }
 
@@ -1141,10 +1157,12 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
 
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
-    for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
-        off_col_out[i] = cm->customCudaMalloc(output_estimate);
-    }
+    // for (int i = 0; i < cm->TOT_TABLE; i++) {
+    //   if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+    //     off_col_out[i] = cm->customCudaMalloc(output_estimate);
+    // }
+
+    off_col_out[0] = cm->customCudaMalloc(output_estimate);
 
     int LEN;
     if (sg == qo->last_segment[0]) {
@@ -1172,7 +1190,8 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
     output_estimate = *h_total * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (off_col[i] != NULL || i == 0)
         off_col_out[i] = cm->customCudaMalloc(output_estimate);
     }
 
@@ -1235,10 +1254,12 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
 
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
-    for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
-        off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
-    }
+    // for (int i = 0; i < cm->TOT_TABLE; i++) {
+    //   if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+    //     off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
+    // }
+
+    off_col_out[0] = cm->customCudaHostAlloc(output_estimate);
 
     int LEN;
     if (sg == qo->last_segment[0]) {
@@ -1262,7 +1283,8 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
     output_estimate = *h_total * output_selectivity;
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      // if (i == 0 || qo->joinCPUcheck[i] || qo->joinGPUcheck[i])
+      if (h_off_col[i] != NULL || i == 0)
         off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
     }
 
@@ -2090,7 +2112,7 @@ CPUGPUProcessing::call_pfilter_probe_aggr_CPU(QueryParams* params, int** &h_off_
   cudaEventSynchronize(stop);
   cudaEventElapsedTime(&time, start, stop);
 
-  cout << "Hello Kernel time: " << time << endl;
+  cout << "Kernel time: " << time << endl;
 };
 
 

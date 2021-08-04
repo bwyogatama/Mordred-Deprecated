@@ -771,7 +771,7 @@ QueryProcessing::runQuery2() {
 void
 QueryProcessing::runOnDemand() {
   int tile_items = 128 * 4;
-  int Batch_Size = 16;
+  int Batch_Size = 4;
   int sg = 0;
 
   for (int i = 0; i < qo->join.size(); i++) {
