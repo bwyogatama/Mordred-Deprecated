@@ -3,7 +3,9 @@
 
 #include "CPUGPUProcessing.h"
 
-#define NUM_QUERIES 4
+#define NUM_QUERIES 13
+
+int queries[13] = {11, 12, 13, 21, 22, 23, 31, 32, 33, 34, 41, 42, 43};
 
 class QueryProcessing {
 public:
@@ -14,20 +16,24 @@ public:
   QueryParams* params;
   cudaStream_t streams[128];
 
-  vector<uint64_t> query_freq;
+  map<int, int> query_freq;
   int query;
+  bool verbose;
 
-  QueryProcessing(CPUGPUProcessing* _cgp, int _query) {
+  QueryProcessing(CPUGPUProcessing* _cgp, int _query, bool _verbose) {
     cgp = _cgp;
     qo = cgp->qo;
     cm = cgp->cm;
-    query_freq.resize(NUM_QUERIES);
     query = _query;
     params = new QueryParams(_query);
+    query_freq[_query] = 0;
+    verbose = _verbose;
   }
 
   void generate_rand_query() {
-    query = rand() % NUM_QUERIES;
+    query = queries[rand() % NUM_QUERIES];
+    cout << query << endl;
+    query_freq[query] = 0;
   }
 
   void runQuery();
@@ -75,9 +81,11 @@ QueryProcessing::runQuery() {
         memset(h_total, 0, sizeof(int));
         d_total = cm->customCudaMalloc(1);
 
-        cout << qo->join[i].second->column_name << endl;
+        if (verbose) {
+          cout << qo->join[i].second->column_name << endl;
 
-        printf("sg = %d\n", sg);
+          printf("sg = %d\n", sg);
+        }
 
         if (sg == 0) {
 
@@ -134,9 +142,7 @@ QueryProcessing::runQuery() {
       memset(h_total, 0, sizeof(int));
       d_total = cm->customCudaMalloc(1);
 
-      printf("sg = %d\n", sg);
-
-      //printf("%zu %zu %zu %zu\n", qo->selectCPUPipelineCol[sg].size(), qo->selectGPUPipelineCol[sg].size(), qo->joinCPUPipelineCol[sg].size(), qo->joinGPUPipelineCol[sg].size());
+      if (verbose) printf("sg = %d\n", sg);
 
       if (qo->selectCPUPipelineCol[sg].size() > 0) {
         if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
@@ -463,9 +469,11 @@ QueryProcessing::runQuery2() {
         memset(h_total, 0, sizeof(int));
         d_total = cm->customCudaMalloc(1);
 
-        cout << qo->join[i].second->column_name << endl;
+        if (verbose) {
+          cout << qo->join[i].second->column_name << endl;
 
-        printf("sg = %d\n", sg);
+          printf("sg = %d\n", sg);
+        }
 
         if (sg == 0) {
 
@@ -522,10 +530,7 @@ QueryProcessing::runQuery2() {
       memset(h_total, 0, sizeof(int));
       d_total = cm->customCudaMalloc(1);
 
-      printf("sg = %d\n", sg);
-
-      //printf("%zu %zu %zu %zu\n", qo->selectCPUPipelineCol[sg].size(), qo->selectGPUPipelineCol[sg].size(), qo->joinCPUPipelineCol[sg].size(), qo->joinGPUPipelineCol[sg].size());
-
+      if (verbose) printf("sg = %d\n", sg);
 
       if (qo->selectGPUPipelineCol[sg].size() > 0) {
         if (qo->selectCPUPipelineCol[sg].size() > 0 && qo->joinCPUPipelineCol[sg].size() > 0) {
@@ -785,7 +790,10 @@ QueryProcessing::runOnDemand() {
       if (total_segment % Batch_Size == 0) last_batch = Batch_Size;
       else last_batch = total_segment % Batch_Size;
 
-      cout << qo->join[i].second->column_name << endl;
+      if (verbose) {
+        cout << qo->join[i].second->column_name << endl;
+        printf("sg = %d\n", sg);
+      }
 
       ColumnInfo* key = qo->join[i].second;
       ColumnInfo *val = NULL, *filter = NULL;
@@ -1003,7 +1011,6 @@ QueryProcessing::runOnDemand() {
 float
 QueryProcessing::processOnDemand() {
   qo->parseQuery(query);
-  updateStatsQuery();
   prepareQuery();
 
   cudaEvent_t start, stop;   // variables that holds 2 events 
@@ -1020,18 +1027,22 @@ QueryProcessing::processOnDemand() {
                                             // work preceding the most recent call to cudaEventRecord()
   cudaEventElapsedTime(&time, start, stop); // Saving the time measured
 
-  cout << "Result:" << endl;
-  int res_count = 0;
-  for (int i=0; i< params->total_val; i++) {
-    if (params->res[6*i+4] != 0) {
-      cout << params->res[6*i] << " " << params->res[6*i+1] << " " << params->res[6*i+2] << " " << params->res[6*i+3] << " " << reinterpret_cast<unsigned long long*>(&params->res[6*i+4])[0]  << endl;
-      res_count++;
+  if (verbose) {
+    cout << "Result:" << endl;
+    int res_count = 0;
+    for (int i=0; i< params->total_val; i++) {
+      if (params->res[6*i+4] != 0) {
+        cout << params->res[6*i] << " " << params->res[6*i+1] << " " << params->res[6*i+2] << " " << params->res[6*i+3] << " " << reinterpret_cast<unsigned long long*>(&params->res[6*i+4])[0]  << endl;
+        res_count++;
+      }
     }
+    cout << "Res count = " << res_count << endl;
+    cout << "Query Execution Time: " << time << endl;
+    cout << endl;
   }
-  cout << "Res count = " << res_count << endl;
-  cout << "Query Execution Time: " << time << endl;
-  cout << endl;
 
+  updateStatsQuery();
+  
   endQuery();
 
   return time;
@@ -1052,15 +1063,15 @@ QueryProcessing::processQuery() {
 
   qo->parseQuery(query);
 
-  updateStatsQuery();
-
   cudaEventRecord(stop, 0);                  // Stop time measuring
   cudaEventSynchronize(stop);               // Wait until the completion of all device 
                                             // work preceding the most recent call to cudaEventRecord()
   cudaEventElapsedTime(&time, start, stop); // Saving the time measured
 
-  cout << "Query Optimization Time: " << time << endl;
-  cout << endl;
+  if (verbose) {
+    cout << "Query Optimization Time: " << time << endl;
+    cout << endl;
+  }
 
   cudaEventCreate(&start);   // creating the event 1
   cudaEventCreate(&stop);    // creating the event 2
@@ -1073,8 +1084,10 @@ QueryProcessing::processQuery() {
                                             // work preceding the most recent call to cudaEventRecord()
   cudaEventElapsedTime(&time, start, stop); // Saving the time measured
 
-  cout << "Query Prepare Time: " << time << endl;
-  cout << endl;
+  if (verbose) {
+    cout << "Query Prepare Time: " << time << endl;
+    cout << endl;    
+  }
 
   // st = chrono::high_resolution_clock::now();
   cudaEventCreate(&start);   // creating the event 1
@@ -1091,17 +1104,21 @@ QueryProcessing::processQuery() {
   // finish = chrono::high_resolution_clock::now();
   // diff = finish - st;
 
-  cout << "Result:" << endl;
-  int res_count = 0;
-  for (int i=0; i< params->total_val; i++) {
-    if (params->res[6*i+4] != 0) {
-      cout << params->res[6*i] << " " << params->res[6*i+1] << " " << params->res[6*i+2] << " " << params->res[6*i+3] << " " << reinterpret_cast<unsigned long long*>(&params->res[6*i+4])[0]  << endl;
-      res_count++;
+  if (verbose) {
+    cout << "Result:" << endl;
+    int res_count = 0;
+    for (int i=0; i< params->total_val; i++) {
+      if (params->res[6*i+4] != 0) {
+        cout << params->res[6*i] << " " << params->res[6*i+1] << " " << params->res[6*i+2] << " " << params->res[6*i+3] << " " << reinterpret_cast<unsigned long long*>(&params->res[6*i+4])[0]  << endl;
+        res_count++;
+      }
     }
+    cout << "Res count = " << res_count << endl;
+    cout << "Query Execution Time: " << time << endl;
+    cout << endl;
   }
-  cout << "Res count = " << res_count << endl;
-  cout << "Query Execution Time: " << time << endl;
-  cout << endl;
+
+  updateStatsQuery();
 
   endQuery();
 
@@ -1123,15 +1140,15 @@ QueryProcessing::processQuery2() {
 
   qo->parseQuery(query);
 
-  updateStatsQuery();
-
   cudaEventRecord(stop, 0);                  // Stop time measuring
   cudaEventSynchronize(stop);               // Wait until the completion of all device 
                                             // work preceding the most recent call to cudaEventRecord()
   cudaEventElapsedTime(&time, start, stop); // Saving the time measured
 
-  cout << "Query Optimization Time: " << time << endl;
-  cout << endl;
+  if (verbose) {
+    cout << "Query Optimization Time: " << time << endl;
+    cout << endl;
+  }
 
   cudaEventCreate(&start);   // creating the event 1
   cudaEventCreate(&stop);    // creating the event 2
@@ -1144,8 +1161,10 @@ QueryProcessing::processQuery2() {
                                             // work preceding the most recent call to cudaEventRecord()
   cudaEventElapsedTime(&time, start, stop); // Saving the time measured
 
-  cout << "Query Prepare Time: " << time << endl;
-  cout << endl;
+  if (verbose) {
+    cout << "Query Prepare Time: " << time << endl;
+    cout << endl;    
+  }
 
   // st = chrono::high_resolution_clock::now();
   cudaEventCreate(&start);   // creating the event 1
@@ -1162,17 +1181,21 @@ QueryProcessing::processQuery2() {
   // finish = chrono::high_resolution_clock::now();
   // diff = finish - st;
 
-  cout << "Result:" << endl;
-  int res_count = 0;
-  for (int i=0; i< params->total_val; i++) {
-    if (params->res[6*i+4] != 0) {
-      cout << params->res[6*i] << " " << params->res[6*i+1] << " " << params->res[6*i+2] << " " << params->res[6*i+3] << " " << reinterpret_cast<unsigned long long*>(&params->res[6*i+4])[0]  << endl;
-      res_count++;
+  if (verbose) {
+    cout << "Result:" << endl;
+    int res_count = 0;
+    for (int i=0; i< params->total_val; i++) {
+      if (params->res[6*i+4] != 0) {
+        cout << params->res[6*i] << " " << params->res[6*i+1] << " " << params->res[6*i+2] << " " << params->res[6*i+3] << " " << reinterpret_cast<unsigned long long*>(&params->res[6*i+4])[0]  << endl;
+        res_count++;
+      }
     }
+    cout << "Res count = " << res_count << endl;
+    cout << "Query Execution Time: " << time << endl;
+    cout << endl;
   }
-  cout << "Res count = " << res_count << endl;
-  cout << "Query Execution Time: " << time << endl;
-  cout << endl;
+
+  updateStatsQuery();
 
   endQuery();
 
@@ -1217,29 +1240,34 @@ QueryProcessing::updateStatsQuery() {
   query_freq[query]++;
 
   for (int i = 0; i < qo->querySelectColumn.size(); i++) {
-    cm->updateColumnFrequency(qo->querySelectColumn[i]);
-    cm->updateColumnTimestamp(qo->querySelectColumn[i], timestamp.count());
-    cm->updateColumnWeight(qo->querySelectColumn[i], query_freq[query], 1, params->selectivity[qo->querySelectColumn[i]]);
+    ColumnInfo* column = qo->querySelectColumn[i];
+    cm->updateColumnFrequency(column);
+    cm->updateColumnTimestamp(column, timestamp.count());
+    cm->updateColumnWeight(column, query_freq[query], 40, params->sel[column]);
   }
   for (int i = 0; i < qo->queryBuildColumn.size(); i++) {
-    cm->updateColumnFrequency(qo->queryBuildColumn[i]);
-    cm->updateColumnTimestamp(qo->queryBuildColumn[i], timestamp.count());
-    cm->updateColumnWeight(qo->queryBuildColumn[i], query_freq[query], 10, 1);
+    ColumnInfo* column = qo->queryBuildColumn[i];
+    cm->updateColumnFrequency(column);
+    cm->updateColumnTimestamp(column, timestamp.count());
+    cm->updateColumnWeight(column, query_freq[query], 100, 1);
   }
   for (int i = 0; i < qo->queryProbeColumn.size(); i++) {
-    cm->updateColumnFrequency(qo->queryProbeColumn[i]);
-    cm->updateColumnTimestamp(qo->queryProbeColumn[i], timestamp.count());
-    cm->updateColumnWeight(qo->queryProbeColumn[i], query_freq[query], 10, params->selectivity[qo->queryProbeColumn[i]]);
+    ColumnInfo* column = qo->queryProbeColumn[i];
+    cm->updateColumnFrequency(column);
+    cm->updateColumnTimestamp(column, timestamp.count());
+    cm->updateColumnWeight(column, query_freq[query], 100, params->sel[column]);
   }
   for (int i = 0; i < qo->queryGroupByColumn.size(); i++) {
-    cm->updateColumnFrequency(qo->queryGroupByColumn[i]);
-    cm->updateColumnTimestamp(qo->queryGroupByColumn[i], timestamp.count());
-    cm->updateColumnWeight(qo->queryGroupByColumn[i], query_freq[query], 5, 1);
+    ColumnInfo* column = qo->queryGroupByColumn[i];
+    cm->updateColumnFrequency(column);
+    cm->updateColumnTimestamp(column, timestamp.count());
+    cm->updateColumnWeight(column, query_freq[query], 10, 1);
   }
   for (int i = 0; i < qo->queryAggrColumn.size(); i++) {
-    cm->updateColumnFrequency(qo->queryAggrColumn[i]);
-    cm->updateColumnTimestamp(qo->queryAggrColumn[i], timestamp.count());
-    cm->updateColumnWeight(qo->queryAggrColumn[i], query_freq[query], 5, 1);
+    ColumnInfo* column = qo->queryAggrColumn[i];
+    cm->updateColumnFrequency(column);
+    cm->updateColumnTimestamp(column, timestamp.count());
+    cm->updateColumnWeight(column, query_freq[query], 10, 1);
   }
 }
 
@@ -1248,32 +1276,80 @@ QueryProcessing::updateStatsQuery() {
 void 
 QueryProcessing::prepareQuery() {
 
-  // chrono::high_resolution_clock::time_point st, finish;
-  // chrono::duration<double> diff;
 
-  // cudaEvent_t start, stop;   // variables that holds 2 events 
-  // float time;
+  if (query == 11 || query == 12 || query == 13) {
 
+    if (query == 11) {
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_orderdate] = 1;
+      params->selectivity[cm->lo_discount] = 3.0/11 * 2;
+      params->selectivity[cm->lo_quantity] = 0.5 * 2;
 
-  if (query == 0) {
+      params->sel[cm->d_year] = 1; //1.0/7;
+      params->sel[cm->lo_orderdate] = 1; //1.0/7;
+      params->sel[cm->lo_discount] = 3.0/11;
+      params->sel[cm->lo_quantity] = 0.5;
 
-    params->selectivity[cm->d_year] = 1;
-    params->selectivity[cm->lo_orderdate] = 1;
-    params->selectivity[cm->lo_discount] = 3.0/11 * 2;
-    params->selectivity[cm->lo_quantity] = 0.5 * 2;
+      // params->mode[cm->d_year] = 0;
+      // params->compare1[cm->d_year] = 1993;
+      params->mode[cm->d_year] = 1;
+      params->compare1[cm->d_year] = 1993;
+      params->compare2[cm->d_year] = 1993;
+      params->mode[cm->lo_discount] = 1;
+      params->compare1[cm->lo_discount] = 1;
+      params->compare2[cm->lo_discount] = 3;
+      params->mode[cm->lo_quantity] = 1;
+      params->compare1[cm->lo_quantity] = 0;
+      params->compare2[cm->lo_quantity] = 24;
+      params->mode_group = 2;
 
-    // params->mode[cm->d_year] = 0;
-    // params->compare1[cm->d_year] = 1993;
-    params->mode[cm->d_year] = 1;
-    params->compare1[cm->d_year] = 1993;
-    params->compare2[cm->d_year] = 1993;
-    params->mode[cm->lo_discount] = 1;
-    params->compare1[cm->lo_discount] = 1;
-    params->compare2[cm->lo_discount] = 3;
-    params->mode[cm->lo_quantity] = 1;
-    params->compare1[cm->lo_quantity] = 0;
-    params->compare2[cm->lo_quantity] = 24;
-    params->mode_group = 2;
+    } else if (query == 12) {
+
+      params->selectivity[cm->d_yearmonthnum] = 1;
+      params->selectivity[cm->lo_orderdate] = 1;
+      params->selectivity[cm->lo_discount] = 3.0/11 * 2;
+      params->selectivity[cm->lo_quantity] = 0.2 * 2;
+
+      params->sel[cm->d_yearmonthnum] = 1; //1.0/84;
+      params->sel[cm->lo_orderdate] = 1; //1.0/84;
+      params->sel[cm->lo_discount] = 3.0/11;
+      params->sel[cm->lo_quantity] = 0.2;
+
+      params->mode[cm->d_yearmonthnum] = 1;
+      params->compare1[cm->d_yearmonthnum] = 199401;
+      params->compare2[cm->d_yearmonthnum] = 199401;
+      params->mode[cm->lo_discount] = 1;
+      params->compare1[cm->lo_discount] = 4;
+      params->compare2[cm->lo_discount] = 6;
+      params->mode[cm->lo_quantity] = 1;
+      params->compare1[cm->lo_quantity] = 26;
+      params->compare2[cm->lo_quantity] = 35;
+      params->mode_group = 2;
+
+    } else if (query == 13) {
+
+      params->selectivity[cm->d_datekey] = 1;
+      params->selectivity[cm->lo_orderdate] = 1;
+      params->selectivity[cm->lo_discount] = 3.0/11 * 2;
+      params->selectivity[cm->lo_quantity] = 0.2 * 2;
+
+      params->sel[cm->d_datekey] = 1; //1.0/364;
+      params->sel[cm->lo_orderdate] = 1; //1.0/364;
+      params->sel[cm->lo_discount] = 3.0/11;
+      params->sel[cm->lo_quantity] = 0.2;
+
+      params->mode[cm->d_datekey] = 1;
+      params->compare1[cm->d_datekey] = 19940204;
+      params->compare2[cm->d_datekey] = 19940210;
+      params->mode[cm->lo_discount] = 1;
+      params->compare1[cm->lo_discount] = 5;
+      params->compare2[cm->lo_discount] = 7;
+      params->mode[cm->lo_quantity] = 1;
+      params->compare1[cm->lo_quantity] = 26;
+      params->compare2[cm->lo_quantity] = 35;
+      params->mode_group = 2;
+
+    }
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;
@@ -1311,26 +1387,75 @@ QueryProcessing::prepareQuery() {
 
     CubDebugExit(cudaMemset(params->d_ht_d, 0, 4 * params->dim_len[cm->d_datekey] * sizeof(int)));
 
-  } else if (query == 1) {
+  } else if (query == 21 || query == 22 || query == 23) {
 
-    params->selectivity[cm->p_category] = 1.0/25 * 2;
-    params->selectivity[cm->s_region] = 0.2 * 2;
-    params->selectivity[cm->d_year] = 1;
-    params->selectivity[cm->lo_partkey] = 1.0/25 * 2;
-    params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-    params->selectivity[cm->lo_orderdate] = 1;
+    if (query == 21) {
+      params->selectivity[cm->p_category] = 1.0/25 * 2;
+      params->selectivity[cm->s_region] = 0.2 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_partkey] = 1.0/25 * 2;
+      params->selectivity[cm->lo_suppkey] = 0.2 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
 
-    // params->mode[cm->s_region] = 0;
-    // params->compare1[cm->s_region] = 1;
-    params->mode[cm->s_region] = 1;
-    params->compare1[cm->s_region] = 1;
-    params->compare2[cm->s_region] = 1;
-    // params->mode[cm->p_category] = 0;
-    // params->compare1[cm->p_category] = 1;
-    params->mode[cm->p_category] = 1;
-    params->compare1[cm->p_category] = 1;
-    params->compare2[cm->p_category] = 1;
-    params->mode_group = 0;
+      params->sel[cm->p_category] = 1.0/25;
+      params->sel[cm->s_region] = 0.2;
+      params->sel[cm->d_year] = 1;
+      params->sel[cm->lo_partkey] = 1.0/25;
+      params->sel[cm->lo_suppkey] = 0.2;
+      params->sel[cm->lo_orderdate] = 1;
+
+      params->mode[cm->s_region] = 1;
+      params->compare1[cm->s_region] = 1;
+      params->compare2[cm->s_region] = 1;
+      params->mode[cm->p_category] = 1;
+      params->compare1[cm->p_category] = 1;
+      params->compare2[cm->p_category] = 1;
+      params->mode_group = 0;
+    } else if (query == 22) {
+      params->selectivity[cm->p_brand1] = 1.0/125 * 2;
+      params->selectivity[cm->s_region] = 0.2 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_partkey] = 1.0/125 * 2;
+      params->selectivity[cm->lo_suppkey] = 0.2 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
+
+      params->sel[cm->p_brand1] = 1.0/125;
+      params->sel[cm->s_region] = 0.2;
+      params->sel[cm->d_year] = 1;
+      params->sel[cm->lo_partkey] = 1.0/125;
+      params->sel[cm->lo_suppkey] = 0.2;
+      params->sel[cm->lo_orderdate] = 1;
+
+      params->mode[cm->s_region] = 1;
+      params->compare1[cm->s_region] = 2;
+      params->compare2[cm->s_region] = 2;
+      params->mode[cm->p_brand1] = 1;
+      params->compare1[cm->p_brand1] = 260;
+      params->compare2[cm->p_brand1] = 267;
+      params->mode_group = 0;
+    } else if (query == 23) {
+      params->selectivity[cm->p_brand1] = 1.0/1000 * 2;
+      params->selectivity[cm->s_region] = 0.2 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_partkey] = 1.0/1000 * 2;
+      params->selectivity[cm->lo_suppkey] = 0.2 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
+
+      params->sel[cm->p_brand1] = 1.0/1000;
+      params->sel[cm->s_region] = 0.2;
+      params->sel[cm->d_year] = 1;
+      params->sel[cm->lo_partkey] = 1.0/1000;
+      params->sel[cm->lo_suppkey] = 0.2;
+      params->sel[cm->lo_orderdate] = 1;
+
+      params->mode[cm->s_region] = 1;
+      params->compare1[cm->s_region] = 3;
+      params->compare2[cm->s_region] = 3;
+      params->mode[cm->p_brand1] = 1;
+      params->compare1[cm->p_brand1] = 260;
+      params->compare2[cm->p_brand1] = 260;
+      params->mode_group = 0;
+    }
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;
@@ -1381,29 +1506,137 @@ QueryProcessing::prepareQuery() {
     CubDebugExit(cudaMemset(params->d_ht_s, 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int)));
     CubDebugExit(cudaMemset(params->d_ht_d, 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int)));
 
-  } else if (query == 2) {
+  } else if (query == 31 || query == 32 || query == 33 || query == 34) {
 
-    params->selectivity[cm->c_region] = 0.2 * 2;
-    params->selectivity[cm->s_region] = 0.2 * 2;
-    params->selectivity[cm->d_year] =  1;
-    params->selectivity[cm->lo_custkey] = 0.2 * 2;
-    params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-    params->selectivity[cm->lo_orderdate] =  1;
+    if (query == 31) {
+      params->selectivity[cm->c_region] = 0.2 * 2;
+      params->selectivity[cm->s_region] = 0.2 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_custkey] = 0.2 * 2;
+      params->selectivity[cm->lo_suppkey] = 0.2 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
 
-    // params->mode[cm->c_region] = 0;
-    // params->compare1[cm->c_region] = 2;
-    params->mode[cm->c_region] = 1;
-    params->compare1[cm->c_region] = 2;
-    params->compare2[cm->c_region] = 2;
-    // params->mode[cm->s_region] = 0;
-    // params->compare1[cm->s_region] = 2;
-    params->mode[cm->s_region] = 1;
-    params->compare1[cm->s_region] = 2;
-    params->compare2[cm->s_region] = 2;
-    params->mode[cm->d_year] = 1;
-    params->compare1[cm->d_year] = 1992;
-    params->compare2[cm->d_year] = 1997;
-    params->mode_group = 0;
+      params->sel[cm->c_region] = 0.2;
+      params->sel[cm->s_region] = 0.2;
+      params->sel[cm->d_year] = 6.0/7;
+      params->sel[cm->lo_custkey] = 0.2;
+      params->sel[cm->lo_suppkey] = 0.2;
+      params->sel[cm->lo_orderdate] = 6.0/7;
+
+      params->mode[cm->c_region] = 1;
+      params->compare1[cm->c_region] = 2;
+      params->compare2[cm->c_region] = 2;
+      params->mode[cm->s_region] = 1;
+      params->compare1[cm->s_region] = 2;
+      params->compare2[cm->s_region] = 2;
+      params->mode[cm->d_year] = 1;
+      params->compare1[cm->d_year] = 1992;
+      params->compare2[cm->d_year] = 1997;
+      params->mode_group = 0;
+
+      params->unique_val[cm->p_partkey] = 0;
+      params->unique_val[cm->c_custkey] = 7;
+      params->unique_val[cm->s_suppkey] = 25 * 7;
+      params->unique_val[cm->d_datekey] = 1;
+
+      params->total_val = ((1998-1992+1) * 25 * 25);
+    } else if (query == 32) {
+      params->selectivity[cm->c_nation] = 1.0/25 * 2;
+      params->selectivity[cm->s_nation] = 1.0/25 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_custkey] = 1.0/25 * 2;
+      params->selectivity[cm->lo_suppkey] = 1.0/25 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
+
+      params->sel[cm->c_nation] = 1.0/25;
+      params->sel[cm->s_nation] = 1.0/25;
+      params->sel[cm->d_year] = 6.0/7;
+      params->sel[cm->lo_custkey] = 1.0/25;
+      params->sel[cm->lo_suppkey] = 1.0/25;
+      params->sel[cm->lo_orderdate] = 6.0/7;
+
+      params->mode[cm->c_nation] = 1;
+      params->compare1[cm->c_nation] = 24;
+      params->compare2[cm->c_nation] = 24;
+      params->mode[cm->s_nation] = 1;
+      params->compare1[cm->s_nation] = 24;
+      params->compare2[cm->s_nation] = 24;
+      params->mode[cm->d_year] = 1;
+      params->compare1[cm->d_year] = 1992;
+      params->compare2[cm->d_year] = 1997;
+      params->mode_group = 0;
+
+      params->unique_val[cm->p_partkey] = 0;
+      params->unique_val[cm->c_custkey] = 7;
+      params->unique_val[cm->s_suppkey] = 250 * 7;
+      params->unique_val[cm->d_datekey] = 1;
+
+      params->total_val = ((1998-1992+1) * 250 * 250);
+    } else if (query == 33) {
+      params->selectivity[cm->c_city] = 1.0/125 * 2;
+      params->selectivity[cm->s_city] = 1.0/125 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_custkey] = 1.0/125 * 2;
+      params->selectivity[cm->lo_suppkey] = 1.0/125 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
+
+      params->sel[cm->c_city] = 1.0/125;
+      params->sel[cm->s_city] = 1.0/125;
+      params->sel[cm->d_year] = 6.0/7;
+      params->sel[cm->lo_custkey] = 1.0/125;
+      params->sel[cm->lo_suppkey] = 1.0/125;
+      params->sel[cm->lo_orderdate] = 6.0/7;
+
+      params->mode[cm->c_city] = 2;
+      params->compare1[cm->c_city] = 231;
+      params->compare2[cm->c_city] = 235;
+      params->mode[cm->s_city] = 2;
+      params->compare1[cm->s_city] = 231;
+      params->compare2[cm->s_city] = 235;
+      params->mode[cm->d_year] = 1;
+      params->compare1[cm->d_year] = 1992;
+      params->compare2[cm->d_year] = 1997;
+      params->mode_group = 0;
+
+      params->unique_val[cm->p_partkey] = 0;
+      params->unique_val[cm->c_custkey] = 7;
+      params->unique_val[cm->s_suppkey] = 250 * 7;
+      params->unique_val[cm->d_datekey] = 1;
+
+      params->total_val = ((1998-1992+1) * 250 * 250);
+    } else if (query == 34) {
+      params->selectivity[cm->c_city] = 1.0/125 * 2;
+      params->selectivity[cm->s_city] = 1.0/125 * 2;
+      params->selectivity[cm->d_yearmonthnum] = 1;
+      params->selectivity[cm->lo_custkey] = 1.0/125 * 2;
+      params->selectivity[cm->lo_suppkey] = 1.0/125 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
+
+      params->sel[cm->c_city] = 1.0/125;
+      params->sel[cm->s_city] = 1.0/125;
+      params->sel[cm->d_yearmonthnum] = 1.0/84;
+      params->sel[cm->lo_custkey] = 1.0/125;
+      params->sel[cm->lo_suppkey] = 1.0/125;
+      params->sel[cm->lo_orderdate] = 1.0/84;
+
+      params->mode[cm->c_city] = 2;
+      params->compare1[cm->c_city] = 231;
+      params->compare2[cm->c_city] = 235;
+      params->mode[cm->s_city] = 2;
+      params->compare1[cm->s_city] = 231;
+      params->compare2[cm->s_city] = 235;
+      params->mode[cm->d_yearmonthnum] = 1;
+      params->compare1[cm->d_yearmonthnum] = 199712;
+      params->compare2[cm->d_yearmonthnum] = 199712;
+      params->mode_group = 0;
+
+      params->unique_val[cm->p_partkey] = 0;
+      params->unique_val[cm->c_custkey] = 7;
+      params->unique_val[cm->s_suppkey] = 250 * 7;
+      params->unique_val[cm->d_datekey] = 1;
+
+      params->total_val = ((1998-1992+1) * 250 * 250);
+    }
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;
@@ -1415,17 +1648,10 @@ QueryProcessing::prepareQuery() {
     params->min_val[cm->s_suppkey] = 0;
     params->min_val[cm->d_datekey] = 1992;
 
-    params->unique_val[cm->p_partkey] = 0;
-    params->unique_val[cm->c_custkey] = 7;
-    params->unique_val[cm->s_suppkey] = 25 * 7;
-    params->unique_val[cm->d_datekey] = 1;
-
     params->dim_len[cm->p_partkey] = 0;
     params->dim_len[cm->c_custkey] = C_LEN;
     params->dim_len[cm->s_suppkey] = S_LEN;
     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
-
-    params->total_val = ((1998-1992+1) * 25 * 25);
 
     params->ht_p = NULL;
     params->ht_c = cm->customMalloc(2 * params->dim_len[cm->c_custkey]);
@@ -1445,31 +1671,123 @@ QueryProcessing::prepareQuery() {
     CubDebugExit(cudaMemset(params->d_ht_s, 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int)));
     CubDebugExit(cudaMemset(params->d_ht_d, 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int)));
 
-  } else if (query == 3) {
+  } else if (query == 41 || query == 42 || query == 43) {
 
-    params->selectivity[cm->p_mfgr] = 0.4 * 2;
-    params->selectivity[cm->c_region] = 0.2 * 2;
-    params->selectivity[cm->s_region] = 0.2 * 2;
-    params->selectivity[cm->d_year] =  1;
-    params->selectivity[cm->lo_partkey] = 0.4 * 2;
-    params->selectivity[cm->lo_custkey] = 0.2 * 2;
-    params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-    params->selectivity[cm->lo_orderdate] =  1;
+    if (query == 41) {
+      params->selectivity[cm->p_mfgr] = 0.4 * 2;
+      params->selectivity[cm->c_region] = 0.2 * 2;
+      params->selectivity[cm->s_region] = 0.2 * 2;
+      params->selectivity[cm->d_year] =  1;
+      params->selectivity[cm->lo_partkey] = 0.4 * 2;
+      params->selectivity[cm->lo_custkey] = 0.2 * 2;
+      params->selectivity[cm->lo_suppkey] = 0.2 * 2;
+      params->selectivity[cm->lo_orderdate] =  1;
 
-    // params->mode[cm->c_region] = 0;
-    // params->compare1[cm->c_region] = 1;
-    params->mode[cm->c_region] = 1;
-    params->compare1[cm->c_region] = 1;
-    params->compare2[cm->c_region] = 1;
-    // params->mode[cm->s_region] = 0;
-    // params->compare1[cm->s_region] = 1;
-    params->mode[cm->s_region] = 1;
-    params->compare1[cm->s_region] = 1;
-    params->compare2[cm->s_region] = 1;
-    params->mode[cm->p_mfgr] = 1;
-    params->compare1[cm->p_mfgr] = 0;
-    params->compare2[cm->p_mfgr] = 1;
-    params->mode_group = 1;
+      params->sel[cm->p_mfgr] = 0.4;
+      params->sel[cm->c_region] = 0.2;
+      params->sel[cm->s_region] = 0.2;
+      params->sel[cm->d_year] =  1;
+      params->sel[cm->lo_partkey] = 0.4;
+      params->sel[cm->lo_custkey] = 0.2;
+      params->sel[cm->lo_suppkey] = 0.2;
+      params->sel[cm->lo_orderdate] =  1;
+
+      params->mode[cm->c_region] = 1;
+      params->compare1[cm->c_region] = 1;
+      params->compare2[cm->c_region] = 1;
+      params->mode[cm->s_region] = 1;
+      params->compare1[cm->s_region] = 1;
+      params->compare2[cm->s_region] = 1;
+      params->mode[cm->p_mfgr] = 1;
+      params->compare1[cm->p_mfgr] = 0;
+      params->compare2[cm->p_mfgr] = 1;
+      params->mode_group = 1;
+
+      params->unique_val[cm->p_partkey] = 0;
+      params->unique_val[cm->c_custkey] = 7;
+      params->unique_val[cm->s_suppkey] = 0;
+      params->unique_val[cm->d_datekey] = 1;
+
+      params->total_val = ((1998-1992+1) * 25);
+    } else if (query == 42) {
+      params->selectivity[cm->p_mfgr] = 0.4 * 2;
+      params->selectivity[cm->c_region] = 0.2 * 2;
+      params->selectivity[cm->s_region] = 0.2 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_partkey] = 0.4 * 2;
+      params->selectivity[cm->lo_custkey] = 0.2 * 2;
+      params->selectivity[cm->lo_suppkey] = 0.2 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
+
+      params->sel[cm->p_mfgr] = 0.4;
+      params->sel[cm->c_region] = 0.2;
+      params->sel[cm->s_region] = 0.2;
+      params->sel[cm->d_year] =  2.0/7;
+      params->sel[cm->lo_partkey] = 0.4;
+      params->sel[cm->lo_custkey] = 0.2;
+      params->sel[cm->lo_suppkey] = 0.2;
+      params->sel[cm->lo_orderdate] =  2.0/7;
+
+      params->mode[cm->c_region] = 1;
+      params->compare1[cm->c_region] = 1;
+      params->compare2[cm->c_region] = 1;
+      params->mode[cm->s_region] = 1;
+      params->compare1[cm->s_region] = 1;
+      params->compare2[cm->s_region] = 1;
+      params->mode[cm->p_mfgr] = 1;
+      params->compare1[cm->p_mfgr] = 0;
+      params->compare2[cm->p_mfgr] = 1;
+      params->mode[cm->d_year] = 1;
+      params->compare1[cm->d_year] = 1997;
+      params->compare2[cm->d_year] = 1998;
+      params->mode_group = 1;
+
+      params->unique_val[cm->p_partkey] = 1;
+      params->unique_val[cm->c_custkey] = 0;
+      params->unique_val[cm->s_suppkey] = 25;
+      params->unique_val[cm->d_datekey] = 25 * 25;
+
+      params->total_val = (1998-1992+1) * 25 * 25;
+    } else if (query == 43) {
+      params->selectivity[cm->p_category] = 1.0/25 * 2;
+      params->selectivity[cm->c_region] = 0.2 * 2;
+      params->selectivity[cm->s_nation] = 1.0/25 * 2;
+      params->selectivity[cm->d_year] = 1;
+      params->selectivity[cm->lo_partkey] = 1.0/25 * 2;
+      params->selectivity[cm->lo_custkey] = 0.2 * 2;
+      params->selectivity[cm->lo_suppkey] = 1.0/25 * 2;
+      params->selectivity[cm->lo_orderdate] = 1;
+
+      params->sel[cm->p_category] = 1.0/25;
+      params->sel[cm->c_region] = 0.2;
+      params->sel[cm->s_nation] = 1.0/25;
+      params->sel[cm->d_year] =  2.0/7;
+      params->sel[cm->lo_partkey] = 1.0/25;
+      params->sel[cm->lo_custkey] = 0.2;
+      params->sel[cm->lo_suppkey] = 1.0/25;
+      params->sel[cm->lo_orderdate] =  2.0/7;
+
+      params->mode[cm->c_region] = 1;
+      params->compare1[cm->c_region] = 1;
+      params->compare2[cm->c_region] = 1;
+      params->mode[cm->s_nation] = 1;
+      params->compare1[cm->s_nation] = 24;
+      params->compare2[cm->s_nation] = 24;
+      params->mode[cm->p_category] = 1;
+      params->compare1[cm->p_category] = 3;
+      params->compare2[cm->p_category] = 3;
+      params->mode[cm->d_year] = 1;
+      params->compare1[cm->d_year] = 1997;
+      params->compare2[cm->d_year] = 1998;
+      params->mode_group = 1;
+
+      params->unique_val[cm->p_partkey] = 1;
+      params->unique_val[cm->c_custkey] = 0;
+      params->unique_val[cm->s_suppkey] = 1000;
+      params->unique_val[cm->d_datekey] = 250 * 1000;
+
+      params->total_val = (1998-1992+1) * 250 * 1000;
+    }
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;
@@ -1481,17 +1799,10 @@ QueryProcessing::prepareQuery() {
     params->min_val[cm->s_suppkey] = 0;
     params->min_val[cm->d_datekey] = 1992;
 
-    params->unique_val[cm->p_partkey] = 0;
-    params->unique_val[cm->c_custkey] = 7;
-    params->unique_val[cm->s_suppkey] = 0;
-    params->unique_val[cm->d_datekey] = 1;
-
     params->dim_len[cm->p_partkey] = P_LEN;
     params->dim_len[cm->c_custkey] = C_LEN;
     params->dim_len[cm->s_suppkey] = S_LEN;
     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
-
-    params->total_val = ((1998-1992+1) * 25);
 
     params->ht_p = cm->customMalloc(4 * params->dim_len[cm->p_partkey]);
     params->ht_c = cm->customMalloc(2 * params->dim_len[cm->c_custkey]);
@@ -1513,10 +1824,9 @@ QueryProcessing::prepareQuery() {
     CubDebugExit(cudaMemset(params->d_ht_d, 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int)));
     CubDebugExit(cudaMemset(params->d_ht_c, 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int)));
 
+  } else {
+    assert(0);
   }
-
-  // diff = finish - st;
-  // cout << "Time Taken Total: " << time << endl;
 
   params->ht_GPU[cm->p_partkey] = params->d_ht_p;
   params->ht_GPU[cm->c_custkey] = params->d_ht_c;

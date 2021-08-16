@@ -7,6 +7,7 @@
 #include <iostream>
 #include <stdio.h>
 #include "tbb/tbb.h"
+#include "KernelArgs.h"
 
 using namespace std;
 using namespace tbb;
@@ -1343,10 +1344,11 @@ void build_CPU(int* filter_col, int compare1, int compare2, int mode,
         if (filter_col != NULL) {
           // if (mode == 0)
           //   flag = (filter_col[table_offset] == compare1);
-          // else if (mode == 1)
+          // else 
+          if (mode == 1)
             flag = (filter_col[table_offset] >= compare1 && filter_col[table_offset] <= compare2);
-          // else if (mode == 2)
-          //   flag = (filter_col[table_offset] == compare1 || filter_col[table_offset] == compare2);
+          else if (mode == 2)
+            flag = (filter_col[table_offset] == compare1 || filter_col[table_offset] == compare2);
         }
 
         if (flag) {
@@ -1371,10 +1373,11 @@ void build_CPU(int* filter_col, int compare1, int compare2, int mode,
       if (filter_col != NULL) {
         // if (mode == 0)
         //   flag = (filter_col[table_offset] == compare1);
-        // else if (mode == 1)
+        // else 
+        if (mode == 1)
           flag = (filter_col[table_offset] >= compare1 && filter_col[table_offset] <= compare2);
-        // else if (mode == 2)
-        //   flag = (filter_col[table_offset] == compare1 || filter_col[table_offset] == compare2);
+        else if (mode == 2)
+          flag = (filter_col[table_offset] == compare1 || filter_col[table_offset] == compare2);
       }
 
       if (flag) {
@@ -1498,19 +1501,21 @@ void filter_CPU(int *filter_col1, int* filter_col2,
         if (filter_col1 != NULL) {
           // if (mode1 == 0)
           //   selection_flag = (filter_col1[col_offset] == compare1);
-          // else if (mode1 == 1)
+          // else 
+          if (mode1 == 1)
             selection_flag = (filter_col1[col_offset] >= compare1 && filter_col1[col_offset] <= compare2);
-          // else if (mode1 == 2)
-          //   selection_flag = (filter_col1[col_offset] == compare1 || filter_col1[col_offset] == compare2);
+          else if (mode1 == 2)
+            selection_flag = (filter_col1[col_offset] == compare1 || filter_col1[col_offset] == compare2);
         }
 
         if (filter_col2 != NULL) {
           // if (mode2 == 0)
           //   selection_flag = selection_flag && (filter_col2[col_offset] == compare3);
-          // else if (mode2 == 1)
+          // else 
+          if (mode2 == 1)
             selection_flag = selection_flag && (filter_col2[col_offset] >= compare3 && filter_col2[col_offset] <= compare4);
-          // else if (mode2 == 2)
-          //   selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
+          else if (mode2 == 2)
+            selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
         }
 
         if (selection_flag) {
@@ -1530,21 +1535,23 @@ void filter_CPU(int *filter_col1, int* filter_col2,
       col_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
       if (filter_col1 != NULL) {
-      //   if (mode1 == 0)
-      //     selection_flag = (filter_col1[col_offset] == compare1);
-      //   else if (mode1 == 1)
+        // if (mode1 == 0)
+        //   selection_flag = (filter_col1[col_offset] == compare1);
+        // else 
+        if (mode1 == 1)
           selection_flag = (filter_col1[col_offset] >= compare1 && filter_col1[col_offset] <= compare2);
-      //   else if (mode1 == 2)
-      //     selection_flag = (filter_col1[col_offset] == compare1 || filter_col1[col_offset] == compare2);
+        else if (mode1 == 2)
+          selection_flag = (filter_col1[col_offset] == compare1 || filter_col1[col_offset] == compare2);
       }
 
       if (filter_col2 != NULL) {
-      //   if (mode2 == 0)
-      //     selection_flag = selection_flag && (filter_col2[col_offset] == compare3);
-      //   else if (mode2 == 1)
+        // if (mode2 == 0)
+        //   selection_flag = selection_flag && (filter_col2[col_offset] == compare3);
+        // else 
+        if (mode2 == 1)
           selection_flag = selection_flag && (filter_col2[col_offset] >= compare3 && filter_col2[col_offset] <= compare4);
-      //   else if (mode2 == 2)
-      //     selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
+        else if (mode2 == 2)
+          selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
       }
 
       if (selection_flag) {
@@ -1601,10 +1608,11 @@ void filter_CPU2(int* off_col, int *filter_col1, int* filter_col2,
         // if (filter_col2 != NULL) {
           // if (mode2 == 0)
           //   selection_flag = selection_flag && (filter_col2[col_offset] == compare3);
-          // else if (mode2 == 1)
+          // else 
+          if (mode2 == 1)
             selection_flag = selection_flag && (filter_col2[col_offset] >= compare3 && filter_col2[col_offset] <= compare4);
-          // else if (mode2 == 2)
-          //   selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
+          else if (mode2 == 2)
+            selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
         // }
 
         if (selection_flag) {
@@ -1632,10 +1640,11 @@ void filter_CPU2(int* off_col, int *filter_col1, int* filter_col2,
       // if (filter_col2 != NULL) {
         // if (mode2 == 0)
         //   selection_flag = selection_flag && (filter_col2[col_offset] == compare3);
-        // else if (mode2 == 1)
+        // else 
+        if (mode2 == 1)
           selection_flag = selection_flag && (filter_col2[col_offset] >= compare3 && filter_col2[col_offset] <= compare4);
-        // else if (mode2 == 2)
-        //   selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
+        else if (mode2 == 2)
+          selection_flag = selection_flag && (filter_col2[col_offset] == compare3 || filter_col2[col_offset] == compare4);
       // }
 
       if (selection_flag) {
@@ -2398,8 +2407,9 @@ void filter_probe_aggr_CPU2(int* lo_off, int* dim_off1, int* dim_off2, int* dim_
 void merge(int* resCPU, int* resGPU, int num_tuples) {
 
   int grainsize = num_tuples/NUM_THREADS + 4;
-  assert(grainsize < 20000);
-  assert(grainsize < SEGMENT_SIZE);
+  // cout << num_tuples << endl;
+  // assert(grainsize < 20000);
+  // assert(grainsize < SEGMENT_SIZE);
 
   parallel_for(blocked_range<size_t>(0, num_tuples, grainsize), [&](auto range) {
     int start = range.begin();

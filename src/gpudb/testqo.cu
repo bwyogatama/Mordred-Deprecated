@@ -2,24 +2,27 @@
 
 #include <chrono>
 #include <atomic>
+#include <string>
 
 //tbb::task_scheduler_init init(24);
 
 int main() {
 
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 209715200, 536870912, 536870912);
+	bool verbose = 1;
+
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 / 2, 209715200, 536870912, 536870912, verbose);
 	// CPUGPUProcessing* cgp = new CPUGPUProcessing(536870912, 536870912, 536870912);
 	// CacheManager* cm = cgp->cm;
 
-	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 10);
-	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 20);
-	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 30);
-	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 40);
-	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, cm->lo_revenue->total_segment);
-	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, cm->lo_supplycost->total_segment);
-	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 20);
-	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 40);
-	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, cm->lo_extendedprice->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 58);
+	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 0);
 	// cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
 	// cm->cacheColumnSegmentInGPU(cm->d_year, cm->d_year->total_segment);
 	// cm->cacheColumnSegmentInGPU(cm->p_partkey, cm->p_partkey->total_segment);
@@ -57,26 +60,25 @@ int main() {
 
 	bool exit = 0;
 	string input;
+	string query;
 	float time = 0;
 	float time1 = 0, time2 = 0;
 
 	while (!exit) {
 		cout << "Select Options:" << endl;
-		cout << "1. Run Query 1.1" << endl;
-		cout << "2. Run Query 2.1" << endl;
-		cout << "3. Run Query 3.1" << endl;
-		cout << "4. Run Query 4.1" << endl;
-		cout << "5. Run Random Query" << endl;
-		cout << "6. Update Cache (LFU)" << endl;
-		cout << "7. Update Cache (LRU)" << endl;
-		cout << "8. Update Cache (New)" << endl;
-		cout << "9. Exit" << endl;
+		cout << "1. Run Specific Query" << endl;
+		cout << "2. Run Random Queries" << endl;
+		cout << "3. Update Cache (LFU)" << endl;
+		cout << "4. Update Cache (LRU)" << endl;
+		cout << "5. Update Cache (New)" << endl;
+		cout << "6. Exit" << endl;
 		cout << "Your Input: ";
 		cin >> input;
 
 		if (input.compare("1") == 0) {
-			cout << "Executing Query 1.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 0);
+			cout << "Input Query: ";
+			cin >> query;
+			QueryProcessing* qp = new QueryProcessing(cgp, stoi(query), verbose);
 			qp->processQuery();
 			time1 = qp->processQuery();
 			qp->processQuery2();
@@ -84,35 +86,8 @@ int main() {
 			if (time1 <= time2) time += time1;
 			else time += time2;
 		} else if (input.compare("2") == 0) {
-			cout << "Executing Query 2.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 1);
-			qp->processQuery();
-			time1 = qp->processQuery();
-			qp->processQuery2();
-			time2 = qp->processQuery2();
-			if (time1 <= time2) time += time1;
-			else time += time2;
-		} else if (input.compare("3") == 0) {
-			cout << "Executing Query 3.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 2);
-			qp->processQuery();
-			time1 = qp->processQuery();
-			qp->processQuery2();
-			time2 = qp->processQuery2();
-			if (time1 <= time2) time += time1;
-			else time += time2;
-		} else if (input.compare("4") == 0) {
-			cout << "Executing Query 4.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 3);
-			qp->processQuery();
-			time1 = qp->processQuery();
-			qp->processQuery2();
-			time2 = qp->processQuery2();
-			if (time1 <= time2) time += time1;
-			else time += time2;
-		} else if (input.compare("5") == 0) {
 			cout << "Executing Random Query" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 0);
+			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
 				time1 = qp->processQuery();
@@ -120,20 +95,18 @@ int main() {
 				if (time1 <= time2) time += time1;
 				else time += time2;
 			}
-		} else if (input.compare("6") == 0) {
+		} else if (input.compare("3") == 0) {
 			cout << "LFU Replacement" << endl;
 			cgp->cm->runReplacement(0);
 			time = 0;
-		} else if (input.compare("7") == 0) {
+		} else if (input.compare("4") == 0) {
 			cout << "LRU Replacement" << endl;
-			cgp->cm->runReplacement2(1);
+			cgp->cm->runReplacement(1);
 			time = 0;
-		} else if (input.compare("8") == 0) {
+		} else if (input.compare("5") == 0) {
 			cout << "New Replacement" << endl;
 			cgp->cm->runReplacement(2);
 			time = 0;
-		} else if (input.compare("9") == 0) {
-			exit = true;
 		} else {
 			exit = true;
 		}

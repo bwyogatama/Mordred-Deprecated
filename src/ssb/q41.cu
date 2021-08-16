@@ -7,7 +7,7 @@
 
 #include <cuda.h>
 #include <cub/util_allocator.cuh>
-#include "cub/test/test_util.h"
+// #include "cub/test/test_util.h"
 
 #include "crystal/crystal.cuh"
 

@@ -5,41 +5,31 @@
 
 int main() {
 
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 209715200, 536870912, 536870912);
+	bool verbose = 1;
+
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 209715200, 536870912, 536870912, verbose);
 
 	bool exit = 0;
 	float time = 0;
 	string input;
+	string query;
 
 	while (!exit) {
 		cout << "Select Options:" << endl;
-		cout << "1. Run Query 1.1" << endl;
-		cout << "2. Run Query 2.1" << endl;
-		cout << "3. Run Query 3.1" << endl;
-		cout << "4. Run Query 4.1" << endl; 
-		cout << "5. Run Random Query" << endl;
+		cout << "1. Run Specific Query" << endl;
+		cout << "2. Run Random Queries" << endl;
+		cout << "3. Exit" << endl;
 		cout << "Your Input: ";
 		cin >> input;
 
 		if (input.compare("1") == 0) {
-			cout << "Executing Query 1.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 0);
+			cout << "Input Query: ";
+			cin >> query;
+			QueryProcessing* qp = new QueryProcessing(cgp, stoi(query), verbose);
 			time += qp->processOnDemand();
 		} else if (input.compare("2") == 0) {
-			cout << "Executing Query 2.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 1);
-			time += qp->processOnDemand();
-		} else if (input.compare("3") == 0) {
-			cout << "Executing Query 3.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 2);
-			time += qp->processOnDemand();
-		} else if (input.compare("4") == 0) {
-			cout << "Executing Query 4.1" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 3);
-			time += qp->processOnDemand();
-		} else if (input.compare("5") == 0) {
 			cout << "Executing Random Query" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 0);
+			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
 				time += qp->processOnDemand();

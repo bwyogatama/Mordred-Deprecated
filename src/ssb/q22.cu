@@ -7,7 +7,7 @@
 
 #include <cuda.h>
 #include <cub/util_allocator.cuh>
-#include "cub/test/test_util.h"
+// #include "cub/test/test_util.h"
 
 #include "crystal/crystal.cuh"
 
@@ -48,7 +48,7 @@ __global__ void probe(int* lo_orderdate, int* lo_partkey, int* lo_suppkey, int* 
 
   BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_suppkey + tile_offset, items, num_tile_items);
   BlockProbeAndPHT_1<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, selection_flags, ht_s, s_len, num_tile_items);
-
+  
   BlockLoad<int, BLOCK_THREADS, ITEMS_PER_THREAD>(lo_partkey + tile_offset, items, num_tile_items);
   BlockProbeAndPHT_2<int, int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, brand, selection_flags,
       ht_p, p_len, num_tile_items);
@@ -223,21 +223,21 @@ int main(int argc, char** argv)
   int num_trials          = 3;
 
   // Initialize command line
-  CommandLineArgs args(argc, argv);
-  args.GetCmdLineArgument("t", num_trials);
+  // CommandLineArgs args(argc, argv);
+  // args.GetCmdLineArgument("t", num_trials);
 
-  // Print usage
-  if (args.CheckCmdLineFlag("help"))
-  {
-      printf("%s "
-          "[--t=<num trials>] "
-          "[--v] "
-          "\n", argv[0]);
-      exit(0);
-  }
+  // // Print usage
+  // if (args.CheckCmdLineFlag("help"))
+  // {
+  //     printf("%s "
+  //         "[--t=<num trials>] "
+  //         "[--v] "
+  //         "\n", argv[0]);
+  //     exit(0);
+  // }
 
   // Initialize device
-  CubDebugExit(args.DeviceInit());
+  // CubDebugExit(args.DeviceInit());
 
   int *h_lo_orderdate = loadColumn<int>("lo_orderdate", LO_LEN);
   int *h_lo_partkey = loadColumn<int>("lo_partkey", LO_LEN);

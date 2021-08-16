@@ -56,9 +56,18 @@ public:
 	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize);
 	void parseQuery(int query);
 	void parseQuery11();
+	void parseQuery12();
+	void parseQuery13();
 	void parseQuery21();
+	void parseQuery22();
+	void parseQuery23();
 	void parseQuery31();
+	void parseQuery32();
+	void parseQuery33();
+	void parseQuery34();
 	void parseQuery41();
+	void parseQuery42();
+	void parseQuery43();
 
 	// void constructPipeline(vector<pair<int, int>>& CPUPipeline, vector<pair<int, int>>& GPUPipeline, 
 	// 	vector<vector<ColumnInfo*>>& CPUPipelineCol, vector<vector<ColumnInfo*>>& GPUPipelineCol, multimap<int, ColumnInfo*>& temp, 
@@ -117,10 +126,20 @@ QueryOptimizer::parseQuery(int query) {
 	par_segment_count = new short[cm->TOT_TABLE];
 	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
 
-	if (query == 0) parseQuery11();
-	else if (query == 1) parseQuery21();
-	else if (query == 2) parseQuery31();
-	else parseQuery41();
+	if (query == 11) parseQuery11();
+	else if (query == 12) parseQuery12();
+	else if (query == 13) parseQuery13();
+	else if (query == 21) parseQuery21();
+	else if (query == 22) parseQuery22();
+	else if (query == 23) parseQuery23();
+	else if (query == 31) parseQuery31();
+	else if (query == 32) parseQuery32();
+	else if (query == 33) parseQuery33();
+	else if (query == 34) parseQuery34();
+	else if (query == 41) parseQuery41();
+	else if (query == 42) parseQuery42();
+	else if (query == 43) parseQuery43();
+	else assert(0);
 }
 
 void
@@ -187,6 +206,58 @@ QueryOptimizer::parseQuery11() {
 }
 
 void 
+QueryOptimizer::parseQuery12() {
+
+	querySelectColumn.push_back(cm->lo_discount);
+	querySelectColumn.push_back(cm->lo_quantity);
+	querySelectColumn.push_back(cm->d_yearmonthnum);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryAggrColumn.push_back(cm->lo_extendedprice);
+	queryAggrColumn.push_back(cm->lo_discount);
+
+	join.resize(1);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_extendedprice);
+	aggregation[cm->lo_orderdate].push_back(cm->lo_discount);
+
+	select_probe[cm->lo_orderdate].push_back(cm->lo_quantity);
+	select_probe[cm->lo_orderdate].push_back(cm->lo_discount);
+
+	select_build[cm->d_datekey].push_back(cm->d_yearmonthnum);
+
+	dataDrivenOperatorPlacement();
+
+}
+
+void 
+QueryOptimizer::parseQuery13() {
+
+	querySelectColumn.push_back(cm->lo_discount);
+	querySelectColumn.push_back(cm->lo_quantity);
+	querySelectColumn.push_back(cm->d_datekey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryAggrColumn.push_back(cm->lo_extendedprice);
+	queryAggrColumn.push_back(cm->lo_discount);
+
+	join.resize(1);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_extendedprice);
+	aggregation[cm->lo_orderdate].push_back(cm->lo_discount);
+
+	select_probe[cm->lo_orderdate].push_back(cm->lo_quantity);
+	select_probe[cm->lo_orderdate].push_back(cm->lo_discount);
+
+	select_build[cm->d_datekey].push_back(cm->d_datekey);
+
+	dataDrivenOperatorPlacement();
+
+}
+
+void 
 QueryOptimizer::parseQuery21() {
 
 	querySelectColumn.push_back(cm->p_category);
@@ -208,6 +279,66 @@ QueryOptimizer::parseQuery21() {
 
 	select_build[cm->s_suppkey].push_back(cm->s_region);
 	select_build[cm->p_partkey].push_back(cm->p_category);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
+	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
+}
+
+void 
+QueryOptimizer::parseQuery22() {
+
+	querySelectColumn.push_back(cm->p_brand1);
+	querySelectColumn.push_back(cm->s_region);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->p_partkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_partkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->p_brand1);
+	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(3);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_partkey, cm->p_partkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->s_suppkey].push_back(cm->s_region);
+	select_build[cm->p_partkey].push_back(cm->p_brand1);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
+	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
+}
+
+void 
+QueryOptimizer::parseQuery23() {
+
+	querySelectColumn.push_back(cm->p_brand1);
+	querySelectColumn.push_back(cm->s_region);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->p_partkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_partkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->p_brand1);
+	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(3);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_partkey, cm->p_partkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->s_suppkey].push_back(cm->s_region);
+	select_build[cm->p_partkey].push_back(cm->p_brand1);
 
 	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
 	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
@@ -251,6 +382,108 @@ QueryOptimizer::parseQuery31() {
 }
 
 void 
+QueryOptimizer::parseQuery32() {
+	querySelectColumn.push_back(cm->d_year);
+	querySelectColumn.push_back(cm->c_nation);
+	querySelectColumn.push_back(cm->s_nation);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->c_custkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_custkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->c_city);
+	queryGroupByColumn.push_back(cm->s_city);
+	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(3);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->c_custkey].push_back(cm->c_nation);
+	select_build[cm->s_suppkey].push_back(cm->s_nation);
+	select_build[cm->d_datekey].push_back(cm->d_year);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
+
+	groupby_build[cm->c_custkey].push_back(cm->c_city);
+	groupby_build[cm->s_suppkey].push_back(cm->s_city);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
+}
+
+void 
+QueryOptimizer::parseQuery33() {
+	querySelectColumn.push_back(cm->d_year);
+	querySelectColumn.push_back(cm->c_city);
+	querySelectColumn.push_back(cm->s_city);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->c_custkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_custkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->c_city);
+	queryGroupByColumn.push_back(cm->s_city);
+	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(3);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->c_custkey].push_back(cm->c_city);
+	select_build[cm->s_suppkey].push_back(cm->s_city);
+	select_build[cm->d_datekey].push_back(cm->d_year);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
+
+	groupby_build[cm->c_custkey].push_back(cm->c_city);
+	groupby_build[cm->s_suppkey].push_back(cm->s_city);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
+}
+
+void 
+QueryOptimizer::parseQuery34() {
+	querySelectColumn.push_back(cm->d_yearmonthnum);
+	querySelectColumn.push_back(cm->c_city);
+	querySelectColumn.push_back(cm->s_city);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->c_custkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_custkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->c_city);
+	queryGroupByColumn.push_back(cm->s_city);
+	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(3);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->c_custkey].push_back(cm->c_city);
+	select_build[cm->s_suppkey].push_back(cm->s_city);
+	select_build[cm->d_datekey].push_back(cm->d_yearmonthnum);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
+
+	groupby_build[cm->c_custkey].push_back(cm->c_city);
+	groupby_build[cm->s_suppkey].push_back(cm->s_city);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+	dataDrivenOperatorPlacement();
+}
+
+void 
 QueryOptimizer::parseQuery41() {
 	querySelectColumn.push_back(cm->p_mfgr);
 	querySelectColumn.push_back(cm->c_region);
@@ -287,6 +520,89 @@ QueryOptimizer::parseQuery41() {
 	dataDrivenOperatorPlacement();
 }
 
+void 
+QueryOptimizer::parseQuery42() {
+	querySelectColumn.push_back(cm->p_mfgr);
+	querySelectColumn.push_back(cm->c_region);
+	querySelectColumn.push_back(cm->s_region);
+	querySelectColumn.push_back(cm->d_year);
+	queryBuildColumn.push_back(cm->p_partkey);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->c_custkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_partkey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_custkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->s_nation);
+	queryGroupByColumn.push_back(cm->p_category);
+	queryAggrColumn.push_back(cm->lo_supplycost);
+	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(4);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_partkey, cm->p_partkey);
+	join[3] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->p_partkey].push_back(cm->p_mfgr);
+	select_build[cm->c_custkey].push_back(cm->c_region);
+	select_build[cm->s_suppkey].push_back(cm->s_region);
+	select_build[cm->d_datekey].push_back(cm->d_year);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
+	aggregation[cm->lo_orderdate].push_back(cm->lo_supplycost);
+
+	groupby_build[cm->s_suppkey].push_back(cm->s_nation);
+	groupby_build[cm->p_partkey].push_back(cm->p_category);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+
+	dataDrivenOperatorPlacement();
+}
+
+void 
+QueryOptimizer::parseQuery43() {
+	querySelectColumn.push_back(cm->p_category);
+	querySelectColumn.push_back(cm->c_region);
+	querySelectColumn.push_back(cm->s_nation);
+	querySelectColumn.push_back(cm->d_year);
+	queryBuildColumn.push_back(cm->p_partkey);
+	queryBuildColumn.push_back(cm->s_suppkey);
+	queryBuildColumn.push_back(cm->c_custkey);
+	queryBuildColumn.push_back(cm->d_datekey);
+	queryProbeColumn.push_back(cm->lo_partkey);
+	queryProbeColumn.push_back(cm->lo_suppkey);
+	queryProbeColumn.push_back(cm->lo_custkey);
+	queryProbeColumn.push_back(cm->lo_orderdate);
+	queryGroupByColumn.push_back(cm->d_year);
+	queryGroupByColumn.push_back(cm->s_city);
+	queryGroupByColumn.push_back(cm->p_brand1);
+	queryAggrColumn.push_back(cm->lo_supplycost);
+	queryAggrColumn.push_back(cm->lo_revenue);
+
+	join.resize(4);
+	join[0] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_suppkey, cm->s_suppkey);
+	join[1] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_custkey, cm->c_custkey);
+	join[2] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_partkey, cm->p_partkey);
+	join[3] = pair<ColumnInfo*, ColumnInfo*> (cm->lo_orderdate, cm->d_datekey);
+
+	select_build[cm->p_partkey].push_back(cm->p_category);
+	select_build[cm->c_custkey].push_back(cm->c_region);
+	select_build[cm->s_suppkey].push_back(cm->s_nation);
+	select_build[cm->d_datekey].push_back(cm->d_year);
+
+	aggregation[cm->lo_orderdate].push_back(cm->lo_revenue);
+	aggregation[cm->lo_orderdate].push_back(cm->lo_supplycost);
+
+	groupby_build[cm->s_suppkey].push_back(cm->s_city);
+	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
+	groupby_build[cm->d_datekey].push_back(cm->d_year);
+
+
+	dataDrivenOperatorPlacement();
+}
 
 // 
 

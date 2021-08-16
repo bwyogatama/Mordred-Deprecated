@@ -8,6 +8,7 @@
 
 #include "crystal/crystal.cuh"
 #include "BlockLibrary.cuh"
+#include "KernelArgs.h"
 
 using namespace cub;
 
@@ -1107,15 +1108,15 @@ __global__ void build_GPU2(
   if (filter_idx != NULL) {
     int* ptr = gpuCache + filter_segment * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // if (mode == 0) { //equal to
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    // } else if (mode == 1) { //between
+    if (mode == 0) { //equal to
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    } else if (mode == 1) { //between
       BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    // } else if (mode == 2) { //equal or equal
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    // }
+    } else if (mode == 2) { //equal or equal
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+    }
   }
 
   cudaAssert(key_idx != NULL);
@@ -1230,30 +1231,30 @@ __global__ void filter_GPU2(
     int* ptr = gpuCache + filter_segment1 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
 
-    // if (mode1 == 0) { //equal to
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    // } else if (mode1 == 1) { //between
+    if (mode1 == 0) { //equal to
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+    } else if (mode1 == 1) { //between
       BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    // } else if (mode1 == 2) { //equal or equal
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
-    // }
+    } else if (mode1 == 2) { //equal or equal
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare1, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare2, selection_flags, num_tile_items);
+    }
   }
 
   if (filter_idx2 != NULL) {
     int* ptr = gpuCache + filter_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
 
-    // if (mode2 == 0) { //equal to
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    // } else if (mode2 == 1) { //between
+    if (mode2 == 0) { //equal to
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    } else if (mode2 == 1) { //between
       BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    // } else if (mode2 == 2) { //equal or equal
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    // }
+    } else if (mode2 == 2) { //equal or equal
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
+    }
   }
 
   #pragma unroll
@@ -1342,18 +1343,18 @@ __global__ void filter_GPU3(int* off_col,
   // }
 
   // if (filter_idx2 != NULL) {
-    // BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
-    // BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx2, num_tile_items);
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
+    BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, filter_idx2, num_tile_items);
 
-    // if (mode2 == 0) { //equal to
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    // } else if (mode2 == 1) { //between
+    if (mode2 == 0) { //equal to
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+    } else if (mode2 == 1) { //between
       BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
       BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    // } else if (mode2 == 2) { //equal or equal
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
-    // }
+    } else if (mode2 == 2) { //equal or equal
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare3, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, compare4, selection_flags, num_tile_items);
+    }
   // }
 
   #pragma unroll

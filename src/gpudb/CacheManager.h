@@ -43,9 +43,11 @@ public:
 		col_freq = 0;
 		query_freq = 0;
 		timestamp = 0;
+		temp = 0;
 	};
 	uint64_t col_freq;
 	uint64_t query_freq;
+	double temp;
 	uint64_t timestamp;
 };
 
@@ -560,12 +562,23 @@ CacheManager::updateColumnFrequency(ColumnInfo* column) {
 	column->stats->col_freq+=(1000 / column->total_segment);
 }
 
+// void
+// CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity) {
+// 	if (freq > column->stats->query_freq) {
+// 		column->stats->query_freq = freq;
+// 		// column->weight = (freq * speedup) / (selectivity * column->total_segment);
+// 		column->weight = (freq * speedup) / (column->total_segment);
+// 	}
+// }
+
 void
 CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity) {
-	if (freq > column->stats->query_freq) {
-		column->stats->query_freq = freq;
-		column->weight = (freq * speedup) / (selectivity * column->total_segment);
-	}
+	// if ((freq * 1.0 / selectivity) > column->stats->temp) {
+	// 	column->stats->query_freq = freq;
+	// 	column->weight = (freq * speedup) / (selectivity * column->total_segment);
+	// 	column->stats->temp = (freq * 1.0 / selectivity);
+	// }
+	column->weight += speedup / (selectivity * column->total_segment);
 }
 
 void
@@ -872,6 +885,16 @@ CacheManager::loadColumnToCPU() {
 	h_d_year = loadColumnPinned<int>("d_year", D_LEN);
 	h_d_yearmonthnum = loadColumnPinned<int>("d_yearmonthnum", D_LEN);
 
+	// lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, 0, h_lo_orderkey);
+	// lo_custkey = new ColumnInfo("lo_custkey", "lo", LO_LEN, 1, 0, h_lo_custkey);
+	// lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 2, 0, h_lo_suppkey);
+	// lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 3, 0, h_lo_orderdate);
+	// lo_partkey = new ColumnInfo("lo_partkey", "lo", LO_LEN, 4, 0, h_lo_partkey);
+	// lo_revenue = new ColumnInfo("lo_revenue", "lo", LO_LEN, 5, 0, h_lo_revenue);
+	// lo_discount = new ColumnInfo("lo_discount", "lo", LO_LEN, 6, 0, h_lo_discount);
+	// lo_quantity = new ColumnInfo("lo_quantity", "lo", LO_LEN, 7, 0, h_lo_quantity);
+	// lo_extendedprice = new ColumnInfo("lo_extendedprice", "lo", LO_LEN, 8, 0, h_lo_extendedprice);
+	// lo_supplycost = new ColumnInfo("lo_supplycost", "lo", LO_LEN, 9, 0, h_lo_supplycost);
 
 	lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, 0, h_lo_orderkey);
 	lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 1, 0, h_lo_suppkey);
@@ -902,6 +925,18 @@ CacheManager::loadColumnToCPU() {
 	d_datekey = new ColumnInfo("d_datekey", "d", D_LEN, 22, 4, h_d_datekey);
 	d_year = new ColumnInfo("d_year", "d", D_LEN, 23, 4, h_d_year);
 	d_yearmonthnum = new ColumnInfo("d_yearmonthnum", "d", D_LEN, 24, 4, h_d_yearmonthnum);
+
+
+	// allColumn[0] = lo_orderkey;
+	// allColumn[1] = lo_custkey;
+	// allColumn[2] = lo_suppkey;
+	// allColumn[3] = lo_orderdate;
+	// allColumn[4] = lo_partkey;
+	// allColumn[5] = lo_revenue;
+	// allColumn[6] = lo_discount;
+	// allColumn[7] = lo_quantity;
+	// allColumn[8] = lo_extendedprice;
+	// allColumn[9] = lo_supplycost;
 
 	allColumn[0] = lo_orderkey;
 	allColumn[1] = lo_suppkey;
