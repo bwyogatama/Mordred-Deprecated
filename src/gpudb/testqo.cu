@@ -11,16 +11,15 @@ int main() {
 	bool verbose = 1;
 
 	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 / 2, 209715200, 536870912, 536870912, verbose);
-	// CPUGPUProcessing* cgp = new CPUGPUProcessing(536870912, 536870912, 536870912);
 	// CacheManager* cm = cgp->cm;
 
 	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 58);
+	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 58);
 	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 0);
 	// cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);

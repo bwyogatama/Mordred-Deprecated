@@ -1,3 +1,6 @@
+#ifndef _BLOCK_LIBRARY_H_
+#define _BLOCK_LIBRARY_H_
+
 #pragma once
 
 #define cudaAssert( X ) if ( !(X) ) { printf( "Thread %d:%d failed assert at %s:%d!\n", blockIdx.x, threadIdx.x, __FILE__, __LINE__ ); return; }
@@ -885,3 +888,5 @@ __device__ __forceinline__ void BlockBuildOffsetGPU2(
     BlockBuildOffsetGPU2Direct<BLOCK_THREADS, ITEMS_PER_THREAD>(tid, items_off, selection_flags, gpuCache, key_idx, ht, ht_len, keys_min, num_items);
   }
 }
+
+#endif

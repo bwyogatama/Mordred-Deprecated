@@ -5,42 +5,6 @@
 #include "GPUProcessing.h"
 #include "CPUProcessing.h"
 
-class QueryParams{
-public:
-
-  int query;
-  
-  unordered_map<ColumnInfo*, int> min_key;
-  unordered_map<ColumnInfo*, int> min_val;
-  unordered_map<ColumnInfo*, int> unique_val;
-  unordered_map<ColumnInfo*, int> dim_len;
-
-  unordered_map<ColumnInfo*, int*> ht_CPU;
-  unordered_map<ColumnInfo*, int*> ht_GPU;
-
-  unordered_map<ColumnInfo*, int> compare1;
-  unordered_map<ColumnInfo*, int> compare2;
-  unordered_map<ColumnInfo*, int> mode;
-
-  unordered_map<ColumnInfo*, float> selectivity;
-  unordered_map<ColumnInfo*, float> sel;
-
-  int total_val, mode_group;
-
-  int *ht_p, *ht_c, *ht_s, *ht_d;
-  int *d_ht_p, *d_ht_c, *d_ht_s, *d_ht_d;
-
-  int* res;
-  int* d_res;
-
-  QueryParams(int _query): query(_query) {
-    assert(_query == 11 || _query == 12 || _query == 13 ||
-          _query == 21 || _query == 22 || _query == 23 ||
-          _query == 31 || _query == 32 || _query == 33 || _query == 34 ||
-          _query == 41 || _query == 42 || _query == 43); 
-  };
-};
-
 class CPUGPUProcessing {
 public:
   CacheManager* cm;
@@ -216,6 +180,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
   int _compare1[2] = {0}, _compare2[2] = {0};
   int _min_val[4] = {0}, _unique_val[4] = {0};
   int *aggr_idx[2] = {}, *group_idx[4] = {};
+  ColumnInfo* filter_col[2] = {};
 
   int tile_items = 128*4;
 
@@ -226,6 +191,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
     filter_idx[select_so_far + i] = col_idx[column->column_id];
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
+    filter_col[select_so_far + i] = column;
   }
 
   for (int i = 0; i < qo->joinGPUPipelineCol[sg].size(); i++) {
@@ -258,20 +224,26 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
     }
   }
 
-  struct filterArgsGPU fargs = {filter_idx[0], filter_idx[1], _compare1[0], _compare2[0], _compare1[1], _compare2[1], 1, 1};
+  struct filterArgsGPU fargs = {
+    filter_idx[0], filter_idx[1], 
+    _compare1[0], _compare2[0], _compare1[1], _compare2[1], 
+    1, 1,
+    (filter_col[0] != NULL) ? (params->map_filter_func_dev[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_dev[filter_col[1]]) : (NULL)
+  };
 
   struct probeArgsGPU pargs = {
     fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsGPU gargs = {
     aggr_idx[0], aggr_idx[1], group_idx[0], group_idx[1], group_idx[2], group_idx[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3],
     _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
-    params->total_val, params->mode_group
+    params->total_val, params->mode_group, params->d_group_func
   };
 
   cudaEvent_t start, stop;   // variables that holds 2 events 
@@ -325,7 +297,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_CPU(QueryParams* params, int** &h_
 
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_col[4] = {};
-  int *filter_col[2] = {};
+  ColumnInfo *filter_col[2] = {};
   int _compare1[2] = {0}, _compare2[2] = {0};
   int _min_val[4] = {0}, _unique_val[4] = {0};
   int *aggr_col[2] = {}, *group_col[4] = {};
@@ -333,7 +305,7 @@ CPUGPUProcessing::call_pfilter_probe_group_by_CPU(QueryParams* params, int** &h_
   for (int i = 0; i < qo->selectCPUPipelineCol[sg].size(); i++) {
     if (select_so_far == qo->select_probe[cm->lo_orderdate].size()) break;
     ColumnInfo* column = qo->selectCPUPipelineCol[sg][i];
-    filter_col[select_so_far + i] = column->col_ptr;
+    filter_col[select_so_far + i] = column;
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
   }
@@ -365,23 +337,26 @@ CPUGPUProcessing::call_pfilter_probe_group_by_CPU(QueryParams* params, int** &h_
   }
 
   struct filterArgsCPU fargs = {
-    filter_col[0], filter_col[1],
+    (filter_col[0] != NULL) ? (filter_col[0]->col_ptr) : (NULL), 
+    (filter_col[1] != NULL) ? (filter_col[1]->col_ptr) : (NULL),
     _compare1[0], _compare2[0], _compare1[1], _compare2[1],
-    1, 1
+    1, 1,
+    (filter_col[0] != NULL) ? (params->map_filter_func_host[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_host[filter_col[1]]) : (NULL)
   };
 
   struct probeArgsCPU pargs = {
     fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsCPU gargs = {
     aggr_col[0], aggr_col[1], group_col[0], group_col[1], group_col[2], group_col[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3],
     _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
-    params->total_val, params->mode_group
+    params->total_val, params->mode_group, params->h_group_func
   };
 
   cudaEvent_t start, stop;   // variables that holds 2 events 
@@ -428,7 +403,7 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
   int _compare1[2] = {0}, _compare2[2] = {0};
   float output_selectivity = 1.0;
   int output_estimate = 0;
-  //ColumnInfo* fkey[4] = {};
+  ColumnInfo* filter_col[2] = {};
 
   int tile_items = 128*4;
 
@@ -445,6 +420,8 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
     filter_idx[select_so_far + i] = col_idx[column->column_id];
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
+    filter_col[select_so_far + i] = column;
+
     output_selectivity *= params->selectivity[column];
   }
 
@@ -458,20 +435,23 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
     ht[table_id - 1] = params->ht_GPU[pkey];
     _min_key[table_id - 1] = params->min_key[pkey];
     _dim_len[table_id - 1] = params->dim_len[pkey];
+
     output_selectivity *= params->selectivity[column];
   }
 
   struct filterArgsGPU fargs = {
     filter_idx[0], filter_idx[1],
     _compare1[0], _compare2[0], _compare1[1], _compare2[1],
-    1, 1
+    1, 1,
+    (filter_col[0] != NULL) ? (params->map_filter_func_dev[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_dev[filter_col[1]]) : (NULL)
   };
 
   struct probeArgsGPU pargs = {
     fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   if (off_col == NULL) {
@@ -551,7 +531,7 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_col[4] = {};
   int out_total = 0;
-  int *filter_col[2] = {};
+  ColumnInfo *filter_col[2] = {};
   int _compare1[2] = {0}, _compare2[2] = {0};
   float output_selectivity = 1.0;
   int output_estimate = 0;
@@ -563,7 +543,7 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
   for (int i = 0; i < qo->selectCPUPipelineCol[sg].size(); i++) {
     if (select_so_far == qo->select_probe[cm->lo_orderdate].size()) break;
     ColumnInfo* column = qo->selectCPUPipelineCol[sg][i];
-    filter_col[select_so_far + i] = column->col_ptr;
+    filter_col[select_so_far + i] = column;
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
     output_selectivity *= params->selectivity[column];
@@ -581,16 +561,19 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
   }
 
   struct filterArgsCPU fargs = {
-    filter_col[0], filter_col[1],
+    (filter_col[0] != NULL) ? (filter_col[0]->col_ptr) : (NULL), 
+    (filter_col[1] != NULL) ? (filter_col[1]->col_ptr) : (NULL),
     _compare1[0], _compare2[0], _compare1[1], _compare2[1],
-    1, 1
+    1, 1, 
+    (filter_col[0] != NULL) ? (params->map_filter_func_host[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_host[filter_col[1]]) : (NULL)
   };
 
   struct probeArgsCPU pargs = {
     fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   if (h_off_col == NULL) {
@@ -699,14 +682,14 @@ CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, i
     fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsGPU gargs = {
     aggr_idx[0], aggr_idx[1], group_idx[0], group_idx[1], group_idx[2], group_idx[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3],
     _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
-    params->total_val, params->mode_group
+    params->total_val, params->mode_group, params->d_group_func
   };
 
   cudaEvent_t start, stop;
@@ -794,14 +777,14 @@ CPUGPUProcessing::call_probe_group_by_CPU(QueryParams* params, int** &h_off_col,
     fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsCPU gargs = {
     aggr_col[0], aggr_col[1], group_col[0], group_col[1], group_col[2], group_col[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3],
     _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
-    params->total_val, params->mode_group
+    params->total_val, params->mode_group, params->h_group_func
   };
 
   cudaEvent_t start, stop;
@@ -873,7 +856,7 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
     fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   if (off_col == NULL) {
@@ -974,7 +957,7 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
     fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   if (h_off_col == NULL) {
@@ -1045,6 +1028,7 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
   int _compare1[2] = {0}, _compare2[2] = {0}, _mode[2] = {0};
   float output_selectivity = 1.0;
   int output_estimate = 0;
+  ColumnInfo* filter_col[2] = {};
 
   if (qo->selectGPUPipelineCol[sg].size() == 0) return;
 
@@ -1060,13 +1044,17 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
     _mode[select_so_far + i] = params->mode[column];
+    filter_col[select_so_far + i] = column;
+
     output_selectivity *= params->selectivity[column];
   }
 
   struct filterArgsGPU fargs = {
     filter_idx[0], filter_idx[1],
     _compare1[0], _compare2[0], _compare1[1], _compare2[1],
-    _mode[0], _mode[1]
+    _mode[0], _mode[1], 
+    (filter_col[0] != NULL) ? (params->map_filter_func_dev[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_dev[filter_col[1]]) : (NULL)
   };
 
   if (off_col == NULL) {
@@ -1127,7 +1115,7 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
 void
 CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far) {
   int **off_col_out;
-  int *filter_col[2] = {};
+  ColumnInfo *filter_col[2] = {};
   int out_total = 0;
   int _compare1[2] = {0}, _compare2[2] = {0}, _mode[2] = {0};
   float output_selectivity = 1.0;
@@ -1140,7 +1128,7 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
   for (int i = 0; i < qo->selectCPUPipelineCol[sg].size(); i++) {
     if (select_so_far == qo->select_probe[cm->lo_orderdate].size()) break;
     ColumnInfo* column = qo->selectCPUPipelineCol[sg][i];
-    filter_col[select_so_far + i] = column->col_ptr;
+    filter_col[select_so_far + i] = column;
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
     _mode[select_so_far + i] = params->mode[column];
@@ -1148,9 +1136,12 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
   }
 
   struct filterArgsCPU fargs = {
-    filter_col[0], filter_col[1],
+    (filter_col[0] != NULL) ? (filter_col[0]->col_ptr) : (NULL), 
+    (filter_col[1] != NULL) ? (filter_col[1]->col_ptr) : (NULL),
     _compare1[0], _compare2[0], _compare1[1], _compare2[1],
-    _mode[0], _mode[1]
+    _mode[0], _mode[1], 
+    (filter_col[0] != NULL) ? (params->map_filter_func_host[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_host[filter_col[1]]) : (NULL)
   };
 
   cudaEvent_t start, stop;
@@ -1245,7 +1236,8 @@ CPUGPUProcessing::call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, i
     struct filterArgsGPU fargs = {
       filter_idx, NULL,
       params->compare1[filter_col], params->compare2[filter_col], 0, 0,
-      params->mode[filter_col], 0
+      params->mode[filter_col], 0,
+      (filter_col != NULL) ? (params->map_filter_func_dev[filter_col]) : (NULL), NULL
     };
 
     struct buildArgsGPU bargs = {
@@ -1306,7 +1298,8 @@ CPUGPUProcessing::call_bfilter_build_CPU(QueryParams* params, int* &h_off_col, i
   struct filterArgsCPU fargs = {
     filter_ptr, NULL,
     params->compare1[filter_col], params->compare2[filter_col], 0, 0,
-    params->mode[filter_col], 0
+    params->mode[filter_col], 0, 
+    (filter_col != NULL) ? (params->map_filter_func_host[filter_col]) : (NULL), NULL
   };
 
   struct buildArgsCPU bargs = {
@@ -1364,7 +1357,7 @@ CPUGPUProcessing::call_build_GPU(QueryParams* params, int* &d_off_col, int* h_to
 
     dimkey_idx = col_idx[column->column_id];
 
-    struct filterArgsGPU fargs = {NULL, NULL, 0, 0, 0, 0, 0, 0};
+    struct filterArgsGPU fargs = {NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, NULL};
 
     struct buildArgsGPU bargs = {
       dimkey_idx, group_idx,
@@ -1416,7 +1409,7 @@ CPUGPUProcessing::call_build_CPU(QueryParams* params, int* &h_off_col, int* h_to
     group_ptr = qo->groupby_build[column][0]->col_ptr;
   }
 
-  struct filterArgsCPU fargs = {NULL, NULL, 0, 0, 0, 0, 0, 0};
+  struct filterArgsCPU fargs = {NULL, NULL, 0, 0, 0, 0, 0, 0, NULL, NULL};
 
   struct buildArgsCPU bargs = {
     column->col_ptr, group_ptr,
@@ -1481,7 +1474,7 @@ CPUGPUProcessing::call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d
   struct filterArgsGPU fargs = {
     filter_idx, NULL,
     params->compare1[column], params->compare2[column], 0, 0,
-    params->mode[column], 0
+    params->mode[column], 0, params->map_filter_func_dev[column], NULL
   };
 
   short* d_segment_group;
@@ -1532,7 +1525,7 @@ CPUGPUProcessing::call_bfilter_CPU(QueryParams* params, int* &h_off_col, int* h_
   struct filterArgsCPU fargs = {
     filter_col, NULL,
     params->compare1[column], params->compare2[column], 0, 0,
-    params->mode[column], 0
+    params->mode[column], 0, params->map_filter_func_host[column], NULL
   };
 
   short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
@@ -1575,7 +1568,7 @@ CPUGPUProcessing::call_group_by_GPU(QueryParams* params, int** &off_col, int* h_
     aggr_idx[0], aggr_idx[1], group_idx[0], group_idx[1], group_idx[2], group_idx[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3],
     _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
-    params->total_val, params->mode_group
+    params->total_val, params->mode_group, params->d_group_func
   };
 
   struct offsetGPU offset = {
@@ -1616,7 +1609,7 @@ CPUGPUProcessing::call_group_by_CPU(QueryParams* params, int** &h_off_col, int* 
     aggr_col[0], aggr_col[1], group_col[0], group_col[1], group_col[2], group_col[3],
     _min_val[0], _min_val[1], _min_val[2], _min_val[3],
     _unique_val[0], _unique_val[1], _unique_val[2], _unique_val[3],
-    params->total_val, params->mode_group
+    params->total_val, params->mode_group, params->h_group_func
   };
 
   struct offsetCPU offset = {
@@ -1645,7 +1638,7 @@ CPUGPUProcessing::call_aggregation_GPU(QueryParams* params, int* &off_col, int* 
     aggr_idx[0], aggr_idx[1], NULL, NULL, NULL, NULL,
     0, 0, 0, 0,
     0, 0, 0, 0,
-    0, params->mode_group
+    0, params->mode_group, params->d_group_func
   };
 
   aggregationGPU<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
@@ -1669,7 +1662,7 @@ CPUGPUProcessing::call_aggregation_CPU(QueryParams* params, int* &h_off_col, int
     aggr_col[0], aggr_col[1], NULL, NULL, NULL, NULL,
     0, 0, 0, 0,
     0, 0, 0, 0,
-    0, params->mode_group
+    0, params->mode_group, params->h_group_func
   };
 
   aggregationCPU(h_off_col, gargs, *h_total, params->res);
@@ -1705,14 +1698,14 @@ CPUGPUProcessing::call_probe_aggr_GPU(QueryParams* params, int** &off_col, int* 
     fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsGPU gargs = {
     aggr_idx[0], aggr_idx[1], NULL, NULL, NULL, NULL,
     0, 0, 0, 0,
     0, 0, 0, 0,
-    0, params->mode_group
+    0, params->mode_group, params->d_group_func
   };
 
   cudaEvent_t start, stop;
@@ -1787,14 +1780,14 @@ CPUGPUProcessing::call_probe_aggr_CPU(QueryParams* params, int** &h_off_col, int
     fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsCPU gargs = {
     aggr_col[0], aggr_col[1], NULL, NULL, NULL, NULL,
     0, 0, 0, 0,
     0, 0, 0, 0,
-    0, params->mode_group
+    0, params->mode_group, params->h_group_func
   };
 
   cudaEvent_t start, stop;
@@ -1841,6 +1834,7 @@ CPUGPUProcessing::call_pfilter_probe_aggr_GPU(QueryParams* params, int** &off_co
   int *filter_idx[2] = {};
   int _compare1[2] = {0}, _compare2[2] = {0};
   int *aggr_idx[2] = {};
+  ColumnInfo* filter_col[2] = {};
 
   int tile_items = 128*4;
 
@@ -1851,6 +1845,7 @@ CPUGPUProcessing::call_pfilter_probe_aggr_GPU(QueryParams* params, int** &off_co
     filter_idx[select_so_far + i] = col_idx[column->column_id];
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
+    filter_col[select_so_far + i] = column;
   }
 
   for (int i = 0; i < qo->joinGPUPipelineCol[sg].size(); i++) {
@@ -1874,21 +1869,23 @@ CPUGPUProcessing::call_pfilter_probe_aggr_GPU(QueryParams* params, int** &off_co
   struct filterArgsGPU fargs = {
     filter_idx[0], filter_idx[1],
     _compare1[0], _compare2[0], _compare1[1], _compare2[1],
-    1, 1
+    1, 1,
+    (filter_col[0] != NULL) ? (params->map_filter_func_dev[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_dev[filter_col[1]]) : (NULL)
   };
 
   struct probeArgsGPU pargs = {
     fkey_idx[0], fkey_idx[1], fkey_idx[2], fkey_idx[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsGPU gargs = {
     aggr_idx[0], aggr_idx[1], NULL, NULL, NULL, NULL,
     0, 0, 0, 0,
     0, 0, 0, 0,
-    0, params->mode_group
+    0, params->mode_group, params->d_group_func
   };
 
   cudaEvent_t start, stop;   // variables that holds 2 events 
@@ -1941,14 +1938,14 @@ void
 CPUGPUProcessing::call_pfilter_probe_aggr_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far) {
   int _min_key[4] = {0}, _dim_len[4] = {0};
   int *ht[4] = {}, *fkey_col[4] = {};
-  int *filter_col[2] = {};
+  ColumnInfo* filter_col[2] = {};
   int _compare1[2] = {0}, _compare2[2] = {0};
   int *aggr_col[2] = {};
 
   for (int i = 0; i < qo->selectCPUPipelineCol[sg].size(); i++) {
     if (select_so_far == qo->select_probe[cm->lo_orderdate].size()) break;
     ColumnInfo* column = qo->selectCPUPipelineCol[sg][i];
-    filter_col[select_so_far + i] = column->col_ptr;
+    filter_col[select_so_far + i] = column;
     _compare1[select_so_far + i] = params->compare1[column];
     _compare2[select_so_far + i] = params->compare2[column];
   }
@@ -1969,23 +1966,26 @@ CPUGPUProcessing::call_pfilter_probe_aggr_CPU(QueryParams* params, int** &h_off_
   }
 
   struct filterArgsCPU fargs = {
-    filter_col[0], filter_col[1],
+    (filter_col[0] != NULL) ? (filter_col[0]->col_ptr) : (NULL), 
+    (filter_col[1] != NULL) ? (filter_col[1]->col_ptr) : (NULL),
     _compare1[0], _compare2[0], _compare1[1], _compare2[1],
-    1, 1
+    1, 1,
+    (filter_col[0] != NULL) ? (params->map_filter_func_host[filter_col[0]]) : (NULL), 
+    (filter_col[1] != NULL) ? (params->map_filter_func_host[filter_col[1]]) : (NULL)
   };
 
   struct probeArgsCPU pargs = {
     fkey_col[0], fkey_col[1], fkey_col[2], fkey_col[3],
     ht[0], ht[1], ht[2], ht[3], 
     _dim_len[0], _dim_len[1], _dim_len[2], _dim_len[3],
-    _min_key[0], _min_key[1], _min_key[2], _min_key[3],
+    _min_key[0], _min_key[1], _min_key[2], _min_key[3]
   };
 
   struct groupbyArgsCPU gargs = {
     aggr_col[0], aggr_col[1], NULL, NULL, NULL, NULL,
     0, 0, 0, 0,
     0, 0, 0, 0,
-    0, params->mode_group
+    0, params->mode_group, params->h_group_func
   };
 
   cudaEvent_t start, stop;   // variables that holds 2 events 

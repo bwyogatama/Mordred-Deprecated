@@ -1303,6 +1303,14 @@ QueryProcessing::prepareQuery() {
       params->compare2[cm->lo_quantity] = 24;
       params->mode_group = 2;
 
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_quantity]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->d_year] = &host_pred_between;
+      params->map_filter_func_host[cm->lo_discount] = &host_pred_between;
+      params->map_filter_func_host[cm->lo_quantity] = &host_pred_between;
+
     } else if (query == 12) {
 
       params->selectivity[cm->d_yearmonthnum] = 1;
@@ -1325,6 +1333,14 @@ QueryProcessing::prepareQuery() {
       params->compare1[cm->lo_quantity] = 26;
       params->compare2[cm->lo_quantity] = 35;
       params->mode_group = 2;
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_yearmonthnum]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_quantity]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->d_yearmonthnum] = &host_pred_between;
+      params->map_filter_func_host[cm->lo_discount] = &host_pred_between;
+      params->map_filter_func_host[cm->lo_quantity] = &host_pred_between;
 
     } else if (query == 13) {
 
@@ -1349,7 +1365,17 @@ QueryProcessing::prepareQuery() {
       params->compare2[cm->lo_quantity] = 35;
       params->mode_group = 2;
 
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_datekey]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_quantity]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->d_datekey] = &host_pred_between;
+      params->map_filter_func_host[cm->lo_discount] = &host_pred_between;
+      params->map_filter_func_host[cm->lo_quantity] = &host_pred_between;
     }
+
+    CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_mul_func<int>, sizeof(group_func_t<int>)));
+    params->h_group_func = &host_mul_func;
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;
@@ -1411,6 +1437,13 @@ QueryProcessing::prepareQuery() {
       params->compare1[cm->p_category] = 1;
       params->compare2[cm->p_category] = 1;
       params->mode_group = 0;
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_category]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->s_region] = &host_pred_between;
+      params->map_filter_func_host[cm->p_category] = &host_pred_between;
+
     } else if (query == 22) {
       params->selectivity[cm->p_brand1] = 1.0/125 * 2;
       params->selectivity[cm->s_region] = 0.2 * 2;
@@ -1433,6 +1466,13 @@ QueryProcessing::prepareQuery() {
       params->compare1[cm->p_brand1] = 260;
       params->compare2[cm->p_brand1] = 267;
       params->mode_group = 0;
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_brand1]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->s_region] = &host_pred_between;
+      params->map_filter_func_host[cm->p_brand1] = &host_pred_between;
+
     } else if (query == 23) {
       params->selectivity[cm->p_brand1] = 1.0/1000 * 2;
       params->selectivity[cm->s_region] = 0.2 * 2;
@@ -1455,7 +1495,16 @@ QueryProcessing::prepareQuery() {
       params->compare1[cm->p_brand1] = 260;
       params->compare2[cm->p_brand1] = 260;
       params->mode_group = 0;
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_brand1]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->s_region] = &host_pred_between;
+      params->map_filter_func_host[cm->p_brand1] = &host_pred_between;
     }
+
+    CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_sub_func<int>, sizeof(group_func_t<int>)));
+    params->h_group_func = &host_sub_func;
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;
@@ -1540,6 +1589,15 @@ QueryProcessing::prepareQuery() {
       params->unique_val[cm->d_datekey] = 1;
 
       params->total_val = ((1998-1992+1) * 25 * 25);
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->c_region] = &host_pred_between;
+      params->map_filter_func_host[cm->s_region] = &host_pred_between;
+      params->map_filter_func_host[cm->d_year] = &host_pred_between;
+
     } else if (query == 32) {
       params->selectivity[cm->c_nation] = 1.0/25 * 2;
       params->selectivity[cm->s_nation] = 1.0/25 * 2;
@@ -1572,6 +1630,15 @@ QueryProcessing::prepareQuery() {
       params->unique_val[cm->d_datekey] = 1;
 
       params->total_val = ((1998-1992+1) * 250 * 250);
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_nation]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_nation]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->c_nation] = &host_pred_between;
+      params->map_filter_func_host[cm->s_nation] = &host_pred_between;
+      params->map_filter_func_host[cm->d_year] = &host_pred_between;
+
     } else if (query == 33) {
       params->selectivity[cm->c_city] = 1.0/125 * 2;
       params->selectivity[cm->s_city] = 1.0/125 * 2;
@@ -1604,6 +1671,15 @@ QueryProcessing::prepareQuery() {
       params->unique_val[cm->d_datekey] = 1;
 
       params->total_val = ((1998-1992+1) * 250 * 250);
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->c_city] = &host_pred_eq_or_eq;
+      params->map_filter_func_host[cm->s_city] = &host_pred_eq_or_eq;
+      params->map_filter_func_host[cm->d_year] = &host_pred_between;
+
     } else if (query == 34) {
       params->selectivity[cm->c_city] = 1.0/125 * 2;
       params->selectivity[cm->s_city] = 1.0/125 * 2;
@@ -1636,7 +1712,18 @@ QueryProcessing::prepareQuery() {
       params->unique_val[cm->d_datekey] = 1;
 
       params->total_val = ((1998-1992+1) * 250 * 250);
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_yearmonthnum]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->c_city] = &host_pred_eq_or_eq;
+      params->map_filter_func_host[cm->s_city] = &host_pred_eq_or_eq;
+      params->map_filter_func_host[cm->d_yearmonthnum] = &host_pred_between;
     }
+
+    CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_sub_func<int>, sizeof(group_func_t<int>)));
+    params->h_group_func = &host_sub_func;
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;
@@ -1709,6 +1796,15 @@ QueryProcessing::prepareQuery() {
       params->unique_val[cm->d_datekey] = 1;
 
       params->total_val = ((1998-1992+1) * 25);
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_mfgr]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->c_region] = &host_pred_between;
+      params->map_filter_func_host[cm->s_region] = &host_pred_between;
+      params->map_filter_func_host[cm->p_mfgr] = &host_pred_between;
+
     } else if (query == 42) {
       params->selectivity[cm->p_mfgr] = 0.4 * 2;
       params->selectivity[cm->c_region] = 0.2 * 2;
@@ -1748,6 +1844,17 @@ QueryProcessing::prepareQuery() {
       params->unique_val[cm->d_datekey] = 25 * 25;
 
       params->total_val = (1998-1992+1) * 25 * 25;
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_mfgr]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->c_region] = &host_pred_between;
+      params->map_filter_func_host[cm->s_region] = &host_pred_between;
+      params->map_filter_func_host[cm->p_mfgr] = &host_pred_between;
+      params->map_filter_func_host[cm->d_year] = &host_pred_between;
+
     } else if (query == 43) {
       params->selectivity[cm->p_category] = 1.0/25 * 2;
       params->selectivity[cm->c_region] = 0.2 * 2;
@@ -1787,7 +1894,20 @@ QueryProcessing::prepareQuery() {
       params->unique_val[cm->d_datekey] = 250 * 1000;
 
       params->total_val = (1998-1992+1) * 250 * 1000;
+
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_nation]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_category]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+      CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
+
+      params->map_filter_func_host[cm->c_region] = &host_pred_between;
+      params->map_filter_func_host[cm->s_nation] = &host_pred_between;
+      params->map_filter_func_host[cm->p_category] = &host_pred_between;
+      params->map_filter_func_host[cm->d_year] = &host_pred_between;
     }
+
+    CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_sub_func<int>, sizeof(group_func_t<int>)));
+    params->h_group_func = &host_sub_func;
 
     params->min_key[cm->p_partkey] = 0;
     params->min_key[cm->c_custkey] = 0;

@@ -1,6 +1,146 @@
 #ifndef _KERNEL_ARGS_H_
 #define _KERNEL_ARGS_H_
 
+#include "crystal/crystal.cuh"
+#include "BlockLibrary.cuh"
+
+// #define BLOCK_T 128
+// #define ITEMS_PER_T 4
+
+template<typename T>
+using group_func_t = T (*) (T, T);
+
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREADS>
+using filter_func_t_dev = void (*) (T(&) [ITEMS_PER_THREADS], int(&) [ITEMS_PER_THREADS], T, T, int);
+
+template<typename T>
+using filter_func_t_host = bool (*) (T, T, T);
+
+template <typename T> 
+__device__ T sub_func (T x, T y)
+{
+    return x - y;
+}
+
+template <typename T> 
+__device__ T mul_func (T x, T y)
+{
+    return x * y;
+}
+
+template <typename T> 
+T host_sub_func (T x, T y)
+{
+    return x - y;
+}
+
+template <typename T> 
+T host_mul_func (T x, T y)
+{
+    return x * y;
+}
+
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREADS>
+__device__ void pred_eq (
+	T  (&items)[ITEMS_PER_THREADS],
+	int (&selection_flags)[ITEMS_PER_THREADS], 
+	T compare1, T compare2, int num_tile_items)
+{
+    BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREADS>(items, compare1, selection_flags, num_tile_items);
+}
+
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREADS>
+__device__ void pred_eq_or_eq (
+	T  (&items)[ITEMS_PER_THREADS],
+	int (&selection_flags)[ITEMS_PER_THREADS], 
+	T compare1, T compare2, int num_tile_items)
+{
+	BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREADS>(items, compare1, selection_flags, num_tile_items);
+	BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREADS>(items, compare2, selection_flags, num_tile_items);
+}
+
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREADS>
+__device__ void pred_between (
+	T  (&items)[ITEMS_PER_THREADS],
+	int (&selection_flags)[ITEMS_PER_THREADS], 
+	T compare1, T compare2, int num_tile_items)
+{
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREADS>(items, compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREADS>(items, compare2, selection_flags, num_tile_items);
+}
+
+template<typename T>
+bool host_pred_eq (T x, T compare1, T compare2) {
+	return (x == compare1);
+}
+
+template<typename T>
+bool host_pred_eq_or_eq (T x, T compare1, T compare2) {
+	return ((x == compare1) || (x == compare2));
+}
+
+template<typename T>
+bool host_pred_between (T x, T compare1, T compare2) {
+	return ((x >= compare1) && (x <= compare2));
+}
+
+template <typename T> 
+__device__ group_func_t<T> p_sub_func = sub_func<T>;
+
+template <typename T> 
+__device__ group_func_t<T> p_mul_func = mul_func<T>;
+
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREADS>
+__device__ filter_func_t_dev<T, BLOCK_THREADS, ITEMS_PER_THREADS> p_pred_eq = pred_eq<T, BLOCK_THREADS, ITEMS_PER_THREADS>;
+
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREADS>
+__device__ filter_func_t_dev<T, BLOCK_THREADS, ITEMS_PER_THREADS> p_pred_eq_or_eq = pred_eq_or_eq<T, BLOCK_THREADS, ITEMS_PER_THREADS>;
+
+template<typename T, int BLOCK_THREADS, int ITEMS_PER_THREADS>
+__device__ filter_func_t_dev<T, BLOCK_THREADS, ITEMS_PER_THREADS> p_pred_between = pred_between<T, BLOCK_THREADS, ITEMS_PER_THREADS>;
+
+class QueryParams{
+public:
+
+  int query;
+  
+  map<ColumnInfo*, int> min_key;
+  map<ColumnInfo*, int> min_val;
+  map<ColumnInfo*, int> unique_val;
+  map<ColumnInfo*, int> dim_len;
+
+  map<ColumnInfo*, int*> ht_CPU;
+  map<ColumnInfo*, int*> ht_GPU;
+
+  map<ColumnInfo*, int> compare1;
+  map<ColumnInfo*, int> compare2;
+  map<ColumnInfo*, int> mode;
+
+  map<ColumnInfo*, float> selectivity;
+  map<ColumnInfo*, float> sel;
+
+  int total_val, mode_group;
+
+  int *ht_p, *ht_c, *ht_s, *ht_d;
+  int *d_ht_p, *d_ht_c, *d_ht_s, *d_ht_d;
+
+  int* res;
+  int* d_res;
+
+  group_func_t<int> d_group_func;
+  group_func_t<int> h_group_func;
+
+  map<ColumnInfo*, filter_func_t_dev<int, 128, 4>> map_filter_func_dev;
+  map<ColumnInfo*, filter_func_t_host<int>> map_filter_func_host;
+
+  QueryParams(int _query): query(_query) {
+    assert(_query == 11 || _query == 12 || _query == 13 ||
+          _query == 21 || _query == 22 || _query == 23 ||
+          _query == 31 || _query == 32 || _query == 33 || _query == 34 ||
+          _query == 41 || _query == 42 || _query == 43); 
+  };
+};
+
 typedef struct probeArgsGPU {
 	int* key_idx1;
 	int* key_idx2;
@@ -89,6 +229,8 @@ typedef struct groupbyArgsGPU {
 	int total_val;
 	int mode;
 
+	group_func_t<int> d_group_func;
+
 	// groupbyArgsGPU()
 	// : aggr_idx1(NULL), aggr_idx2(NULL), group_idx1(NULL), group_idx2(NULL), group_idx3(NULL), group_idx4(NULL),
 	//   min_val1(0), min_val2(0), min_val3(0), min_val4(0), unique_val1(0), unique_val2(0), unique_val3(0), unique_val4(0),
@@ -113,6 +255,8 @@ typedef struct groupbyArgsCPU {
 	int total_val;
 	int mode;
 
+	group_func_t<int> h_group_func;
+
 	// groupbyArgsCPU()
 	// : aggr_col1(NULL), aggr_col2(NULL), group_col1(NULL), group_col2(NULL), group_col3(NULL), group_col4(NULL),
 	//   min_val1(0), min_val2(0), min_val3(0), min_val4(0), unique_val1(0), unique_val2(0), unique_val3(0), unique_val4(0),
@@ -129,6 +273,9 @@ typedef struct filterArgsGPU {
 	int mode1;
 	int mode2;
 
+	filter_func_t_dev<int, 128, 4> d_filter_func1;
+	filter_func_t_dev<int, 128, 4> d_filter_func2;
+
 	// filterArgsGPU()
 	// : filter_idx1(NULL), filter_idx2(NULL), compare1(0), compare2(0), compare3(0), compare4(0),
 	// mode1(0), mode2(0) {}
@@ -143,6 +290,9 @@ typedef struct filterArgsCPU {
 	int compare4;
 	int mode1;
 	int mode2;
+
+	filter_func_t_host<int> h_filter_func1;
+	filter_func_t_host<int> h_filter_func2;
 
 	// filterArgsCPU()
 	// : filter_col1(NULL), filter_col2(NULL), compare1(0), compare2(0), compare3(0), compare4(0),
