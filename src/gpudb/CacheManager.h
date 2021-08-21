@@ -180,6 +180,8 @@ public:
 
 	CacheManager(size_t cache_size, size_t ondemand_size, size_t _processing_size, size_t _pinned_memsize);
 
+	void resetCache(size_t cache_size, size_t ondemand_size, size_t _processing_size, size_t _pinned_memsize);
+
 	~CacheManager();
 
 	void cacheColumnSegmentInGPU(ColumnInfo* column, int total_segment);
@@ -206,6 +208,8 @@ public:
 
 	void updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity);
 
+	void updateColumnWeightDirect(ColumnInfo* column, double cost);
+
 	void updateColumnTimestamp(ColumnInfo* column, double timestamp);
 
 	void weightAdjustment();
@@ -215,6 +219,8 @@ public:
 	void runReplacement2(int strategy);
 
 	void runReplacementNew();
+
+	void runReplacementNewNew();
 
 	void loadColumnToCPU();
 
@@ -310,6 +316,60 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 	
 }
 
+void
+CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize) {
+
+	CubDebugExit(cudaFree(gpuCache));
+	CubDebugExit(cudaFree(gpuProcessing));
+	delete[] cpuProcessing;
+	CubDebugExit(cudaFreeHost(pinnedMemory));
+
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		CubDebugExit(cudaFreeHost(segment_list[i]));
+		free(segment_bitmap[i]);
+	}
+	free(segment_list);
+	free(segment_bitmap);
+
+	cache_size = _cache_size;
+	ondemand_size = _ondemand_size;
+	cache_total_seg = _cache_size/SEGMENT_SIZE;
+	ondemand_segment = _ondemand_size/SEGMENT_SIZE;
+	processing_size = _processing_size;
+	pinned_memsize = _pinned_memsize;
+
+	cout << cache_size << " " << ondemand_size << endl;
+
+	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size + ondemand_size) * sizeof(int)));
+	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size + ondemand_size) * sizeof(int)));
+	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(int)));
+
+	cpuProcessing = (int*) malloc(_processing_size * sizeof(int));
+	CubDebugExit(cudaHostAlloc((void**) &pinnedMemory, _pinned_memsize * sizeof(int), cudaHostAllocDefault));
+	gpuPointer = 0;
+	cpuPointer = 0;
+	pinnedPointer = 0;
+	onDemandPointer = cache_size;
+
+	while (!empty_gpu_segment.empty()) {
+		empty_gpu_segment.pop();
+	}
+
+	for(int i = 0; i < cache_total_seg; i++) {
+		empty_gpu_segment.push(i);
+	}
+
+	segment_bitmap = (char**) malloc (TOT_COLUMN * sizeof(char*));
+	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		int n = allColumn[i]->total_segment;
+		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
+		CubDebugExit(cudaHostAlloc((void**) &(segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
+		memset(segment_bitmap[i], 0, n * sizeof(char));
+		memset(segment_list[i], -1, n * sizeof(int));
+	}
+}
+
 int* 
 CacheManager::customMalloc(int size) {
   // printf("%d\n", size);
@@ -397,7 +457,7 @@ CacheManager::cacheColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 			assert(seg->priority == 0);
 			index_to_segment[column->column_id][seg->segment_id] = seg;
 			column->seg_ptr += SEGMENT_SIZE;
-			//printf("%d\n", i);
+			// printf("%d\n", i);
 			cacheSegmentInGPU(seg);
 		}
 	}
@@ -414,6 +474,7 @@ CacheManager::cacheSegmentInGPU(Segment* seg) {
 	assert(segment_list[seg->column->column_id][seg->segment_id] == -1);
 	segment_list[seg->column->column_id][seg->segment_id] = idx;
 	cached_seg_in_GPU[seg->column->column_id].push(seg);
+	// cout << idx << " " << idx * SEGMENT_SIZE << endl;
 	CubDebugExit(cudaMemcpy(&gpuCache[idx * SEGMENT_SIZE], seg->seg_ptr, SEGMENT_SIZE * sizeof(int), cudaMemcpyHostToDevice));
 	allColumn[seg->column->column_id]->tot_seg_in_GPU++;
 	assert(allColumn[seg->column->column_id]->tot_seg_in_GPU <= allColumn[seg->column->column_id]->total_segment);
@@ -579,6 +640,12 @@ CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, d
 	// 	column->stats->temp = (freq * 1.0 / selectivity);
 	// }
 	column->weight += speedup / (selectivity * column->total_segment);
+	// cout << column->column_name << " " << speedup << " " << column->weight << endl;
+}
+
+void
+CacheManager::updateColumnWeightDirect(ColumnInfo* column, double cost) {
+	column->weight += cost/column->total_segment;
 }
 
 void
@@ -669,6 +736,9 @@ CacheManager::runReplacement(int strategy) {
 	} else if (strategy == 2) {
 		runReplacementNew();
 		return;
+	} else if (strategy == 3) {
+		runReplacementNewNew();
+		return;
 	}
 
 	int temp_buffer_size = 0; // in segment
@@ -701,6 +771,7 @@ CacheManager::runReplacement(int strategy) {
 			cout << "Caching column ";
 			cout << (*cit2)->column_name << endl;
     		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
+    		cout << "Successfully cached" << endl;
     	}
     }
 
@@ -722,6 +793,9 @@ CacheManager::runReplacement2(int strategy) {
 		}
 	} else if (strategy == 2) {
 		runReplacementNew();
+		return;
+	} else if (strategy == 3) {
+		runReplacementNewNew();
 		return;
 	}
 
@@ -820,6 +894,55 @@ CacheManager::runReplacementNew() {
 
     cout << "Cached segment: " << filled_cache << " Cache total: " << cache_total_seg << endl;
     assert(filled_cache <= cache_total_seg);
+
+};
+
+void
+CacheManager::runReplacementNewNew() {
+	std::multimap<double, ColumnInfo*> weight_map;
+	std::map<ColumnInfo*, int> should_cached;
+	int moved_segment = 0;
+	int erased_segment = 0;
+
+	for (int i = TOT_COLUMN-1; i >= 0; i--) {
+		weight_map.insert({allColumn[i]->weight, allColumn[i]});
+		cout << "Column: " << allColumn[i]->column_name << " weight: " << allColumn[i]->weight << endl;
+	}
+
+	int temp_buffer_size = 0; // in segment
+	std::multimap<double, ColumnInfo*>::reverse_iterator cit;
+
+    for(cit=weight_map.rbegin(); cit!=weight_map.rend(); ++cit){
+    	should_cached[cit->second] = 0;
+    	if (temp_buffer_size < cache_total_seg) {
+	        if(temp_buffer_size + cit->second->total_segment <= cache_total_seg && cit->first>0){
+	            should_cached[cit->second] = cit->second->total_segment;
+	            temp_buffer_size+=cit->second->total_segment;
+	        } else if (temp_buffer_size + cit->second->total_segment > cache_total_seg && cit->first > 0) {
+	        	should_cached[cit->second] = cache_total_seg - temp_buffer_size;
+	        	temp_buffer_size=cache_total_seg;
+	        }
+    	}
+    }
+
+    cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
+    assert(temp_buffer_size <= cache_total_seg);
+
+    for (int i = 0; i < TOT_COLUMN; i++) {
+		if (should_cached[allColumn[i]] < allColumn[i]->tot_seg_in_GPU) {
+			erased_segment = (allColumn[i]->tot_seg_in_GPU - should_cached[allColumn[i]]);
+			cout << "Deleting " << erased_segment << " segments for column " << allColumn[i]->column_name << endl;
+			deleteColumnSegmentInGPU(allColumn[i], erased_segment);
+		}
+    }
+
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		if (should_cached[allColumn[i]] > allColumn[i]->tot_seg_in_GPU) {
+			moved_segment = (should_cached[allColumn[i]] - allColumn[i]->tot_seg_in_GPU);
+			cout << "Caching " << moved_segment << " segments for column " << allColumn[i]->column_name << endl;
+			cacheColumnSegmentInGPU(allColumn[i], moved_segment);
+		}
+	}
 
 };
 

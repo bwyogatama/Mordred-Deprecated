@@ -2,8 +2,7 @@
 #define _QUERY_PROCESSING_H_
 
 #include "CPUGPUProcessing.h"
-
-#define NUM_QUERIES 13
+#include "CostModel.cuh"
 
 int queries[13] = {11, 12, 13, 21, 22, 23, 31, 32, 33, 34, 41, 42, 43};
 
@@ -12,6 +11,7 @@ public:
   CacheManager* cm;
   QueryOptimizer* qo;
   CPUGPUProcessing* cgp;
+  CostModel* cost_mod;
 
   QueryParams* params;
   cudaStream_t streams[128];
@@ -28,6 +28,13 @@ public:
     params = new QueryParams(_query);
     query_freq[_query] = 0;
     verbose = _verbose;
+    cost_mod = new CostModel();
+  }
+
+  ~QueryProcessing() {
+    query_freq.clear();
+    delete params;
+    delete cost_mod;
   }
 
   void generate_rand_query() {
@@ -48,11 +55,15 @@ public:
 
   void updateStatsQuery();
 
-  float processQuery();
+  double processQuery();
 
-  float processQuery2();
+  double processQuery2();
 
-  float processOnDemand();
+  double processOnDemand();
+
+  void profile();
+
+  void percentageData();
 
 };
 
@@ -83,7 +94,6 @@ QueryProcessing::runQuery() {
 
         if (verbose) {
           cout << qo->join[i].second->column_name << endl;
-
           printf("sg = %d\n", sg);
         }
 
@@ -1007,10 +1017,175 @@ QueryProcessing::runOnDemand() {
   }
 };
 
+void
+QueryProcessing::profile() {
+  for (int i = 0; i < 13; i++) {
 
-float
+    cudaEvent_t start, stop; 
+    float default_time = 0, time1 = 0, time2 = 0;
+
+    query = queries[i];
+
+    cout << endl;
+    cout << "Query: " << query << endl;
+
+    qo->parseQuery(query);
+    qo->dataDrivenOperatorPlacement();
+    prepareQuery();
+    runQuery();
+    // endQuery();
+    // qo->clearPlacement();
+
+    // qo->dataDrivenOperatorPlacement();
+    // prepareQuery();
+
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+
+    runQuery();
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&default_time, start, stop);
+
+    endQuery();
+
+    qo->clearPlacement();
+    qo->clearParsing();
+
+    qo->parseQuery(query);
+
+    cout << "Default time " << default_time << endl;
+
+    for (int j = 0; j < qo->querySelectColumn.size(); j++) {
+      cm->cacheColumnSegmentInGPU(qo->querySelectColumn[j], qo->querySelectColumn[j]->total_segment);
+      qo->dataDrivenOperatorPlacement();
+      prepareQuery();
+
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      cudaEventRecord(start, 0);
+
+      runQuery2();
+
+      cudaEventRecord(stop, 0);
+      cudaEventSynchronize(stop);
+      cudaEventElapsedTime(&time1, start, stop);
+
+      cout << qo->querySelectColumn[j]->column_name << " " << time1 << endl;
+
+      if (time1 < default_time) qo->speedup[query][qo->querySelectColumn[j]] = default_time - time1;
+      else qo->speedup[query][qo->querySelectColumn[j]] = 0;
+
+      endQuery();
+
+      cm->deleteColumnSegmentInGPU(qo->querySelectColumn[j], qo->querySelectColumn[j]->total_segment);
+
+      qo->clearPlacement();
+    }
+
+    for (int j = 0; j < qo->join.size(); j++) {
+      cm->cacheColumnSegmentInGPU(qo->join[j].first, qo->join[j].first->total_segment);
+      cm->cacheColumnSegmentInGPU(qo->join[j].second, qo->join[j].second->total_segment);
+      qo->dataDrivenOperatorPlacement();
+      prepareQuery();
+
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      cudaEventRecord(start, 0);
+
+      runQuery();
+
+      cudaEventRecord(stop, 0);
+      cudaEventSynchronize(stop);
+      cudaEventElapsedTime(&time1, start, stop);
+
+      cudaEventCreate(&start);
+      cudaEventCreate(&stop);
+      cudaEventRecord(start, 0);
+
+      runQuery2();
+
+      cudaEventRecord(stop, 0);
+      cudaEventSynchronize(stop);
+      cudaEventElapsedTime(&time2, start, stop);
+
+      if (time1 < time2) {
+        cout << qo->join[j].first->column_name << " " << qo->join[j].second->column_name << " " << time1 << endl;
+        if (time1 < default_time) {
+          qo->speedup[query][qo->join[j].first] = default_time - time1;
+          qo->speedup[query][qo->join[j].second] = default_time - time1;
+        } else {
+          qo->speedup[query][qo->join[j].first] = 0;
+          qo->speedup[query][qo->join[j].second] = 0;
+        }
+      } else {
+        cout << qo->join[j].first->column_name << " " << qo->join[j].second->column_name << " " << time2 << endl;
+        if (time2 < default_time) {
+          qo->speedup[query][qo->join[j].first] = default_time - time2;
+          qo->speedup[query][qo->join[j].second] = default_time - time2;
+        } else {
+          qo->speedup[query][qo->join[j].first] = 0;
+          qo->speedup[query][qo->join[j].second] = 0;
+        }
+      }
+
+
+      endQuery();
+
+      cm->deleteColumnSegmentInGPU(qo->join[j].first, qo->join[j].first->total_segment);
+      cm->deleteColumnSegmentInGPU(qo->join[j].second, qo->join[j].second->total_segment);
+
+      qo->clearPlacement();
+    }
+
+    for (int j = 0; j < qo->queryGroupByColumn.size(); j++) {
+      cm->cacheColumnSegmentInGPU(qo->queryGroupByColumn[j], qo->queryGroupByColumn[j]->total_segment);
+    }
+    for (int j = 0; j < qo->queryAggrColumn.size(); j++) {
+      cm->cacheColumnSegmentInGPU(qo->queryAggrColumn[j], qo->queryAggrColumn[j]->total_segment);
+    }
+    
+    qo->dataDrivenOperatorPlacement();
+    prepareQuery();
+
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    cudaEventRecord(start, 0);
+
+    runQuery2();
+
+    cudaEventRecord(stop, 0);
+    cudaEventSynchronize(stop);
+    cudaEventElapsedTime(&time1, start, stop);
+
+    cout << "groupby aggregation " << time1 << endl;
+
+    endQuery();
+
+    for (int j = 0; j < qo->queryGroupByColumn.size(); j++) {
+      cm->deleteColumnSegmentInGPU(qo->queryGroupByColumn[j], qo->queryGroupByColumn[j]->total_segment);
+      if (time1 < default_time) qo->speedup[query][qo->queryGroupByColumn[j]] = default_time - time1;
+      else qo->speedup[query][qo->queryGroupByColumn[j]] = 0;
+    }
+    for (int j = 0; j < qo->queryAggrColumn.size(); j++) {
+      cm->deleteColumnSegmentInGPU(qo->queryAggrColumn[j], qo->queryAggrColumn[j]->total_segment);
+      if (time1 < default_time) qo->speedup[query][qo->queryAggrColumn[j]] = default_time - time1;
+      else qo->speedup[query][qo->queryAggrColumn[j]] = 0;
+    }
+
+    qo->clearPlacement();
+    qo->clearParsing();
+
+  }
+}
+
+
+double
 QueryProcessing::processOnDemand() {
   qo->parseQuery(query);
+  qo->dataDrivenOperatorPlacement();
   prepareQuery();
 
   cudaEvent_t start, stop;   // variables that holds 2 events 
@@ -1045,11 +1220,14 @@ QueryProcessing::processOnDemand() {
   
   endQuery();
 
+  qo->clearPlacement();
+  qo->clearParsing();
+
   return time;
 };
 
 
-float
+double
 QueryProcessing::processQuery() {
 
   // chrono::high_resolution_clock::time_point st, finish;
@@ -1062,6 +1240,7 @@ QueryProcessing::processQuery() {
   cudaEventRecord(start, 0); // start measuring  the time
 
   qo->parseQuery(query);
+  qo->dataDrivenOperatorPlacement();
 
   cudaEventRecord(stop, 0);                  // Stop time measuring
   cudaEventSynchronize(stop);               // Wait until the completion of all device 
@@ -1122,11 +1301,14 @@ QueryProcessing::processQuery() {
 
   endQuery();
 
+  qo->clearPlacement();
+  qo->clearParsing();
+
   return time;
 
 };
 
-float
+double
 QueryProcessing::processQuery2() {
 
   // chrono::high_resolution_clock::time_point st, finish;
@@ -1139,6 +1321,7 @@ QueryProcessing::processQuery2() {
   cudaEventRecord(start, 0); // start measuring  the time
 
   qo->parseQuery(query);
+  qo->dataDrivenOperatorPlacement();
 
   cudaEventRecord(stop, 0);                  // Stop time measuring
   cudaEventSynchronize(stop);               // Wait until the completion of all device 
@@ -1199,9 +1382,69 @@ QueryProcessing::processQuery2() {
 
   endQuery();
 
+  qo->clearPlacement();
+  qo->clearParsing();
+
   return time;
 
 };
+
+void
+QueryProcessing::percentageData() {
+
+  double fraction[NUM_QUERIES] = {0};
+
+  cout << endl;
+  for (int k = 0; k < NUM_QUERIES; k++) {
+    int cur_query = queries[k];
+
+    qo->parseQuery(cur_query);
+
+    int total = 0;
+
+    int cached = 0;
+
+    for (int i = 0; i < qo->querySelectColumn.size(); i++) {
+      ColumnInfo* column = qo->querySelectColumn[i];
+      total += column->total_segment;
+      cached += column->tot_seg_in_GPU;
+    }
+
+    for (int i = 0; i < qo->queryBuildColumn.size(); i++) {
+      ColumnInfo* column = qo->queryBuildColumn[i];
+      total += column->total_segment;
+      cached += column->tot_seg_in_GPU;
+    }
+
+    for (int i = 0; i < qo->queryProbeColumn.size(); i++) {
+      ColumnInfo* column = qo->queryProbeColumn[i];
+      total += column->total_segment;
+      cached += column->tot_seg_in_GPU;
+    }
+
+    for (int i = 0; i < qo->queryGroupByColumn.size(); i++) {
+      ColumnInfo* column = qo->queryGroupByColumn[i];
+      total += column->total_segment;
+      cached += column->tot_seg_in_GPU;
+    }
+
+    for (int i = 0; i < qo->queryAggrColumn.size(); i++) {
+      ColumnInfo* column = qo->queryAggrColumn[i];
+      total += column->total_segment;
+      cached += column->tot_seg_in_GPU;
+    }
+
+    fraction[k] = cached*1.0/total;
+
+    cout << "Query " << cur_query << " fraction: " << fraction[k] << endl;
+
+    qo->clearParsing();
+
+  }
+  cout << endl;
+
+
+}
 
 void
 QueryProcessing::endQuery() {
@@ -1224,7 +1467,7 @@ QueryProcessing::endQuery() {
   params->compare2.clear();
   params->mode.clear();
 
-  qo->clearVector();
+  // qo->clearVector();
 
   cm->resetPointer();
 
@@ -1243,31 +1486,74 @@ QueryProcessing::updateStatsQuery() {
     ColumnInfo* column = qo->querySelectColumn[i];
     cm->updateColumnFrequency(column);
     cm->updateColumnTimestamp(column, timestamp.count());
-    cm->updateColumnWeight(column, query_freq[query], 40, params->sel[column]);
+    cm->updateColumnWeight(column, query_freq[query], qo->speedup[query][column], 1);
+   
+    // double cost = cost_mod->filter_cost(column->LEN, params->sel[column]);
+    // cout << column->column_name << " " << cost << endl;
+    // cm->updateColumnWeightDirect(column, cost);   
   }
+
   for (int i = 0; i < qo->queryBuildColumn.size(); i++) {
     ColumnInfo* column = qo->queryBuildColumn[i];
     cm->updateColumnFrequency(column);
     cm->updateColumnTimestamp(column, timestamp.count());
-    cm->updateColumnWeight(column, query_freq[query], 100, 1);
+    cm->updateColumnWeight(column, query_freq[query], qo->speedup[query][column], 1);
+
+    // double temp = 1;
+    // ColumnInfo* fkey = qo->pkey_fkey[column];
+    // for (int j = 0; j < qo->queryProbeColumn.size(); j++) {
+    //   if (fkey != qo->queryProbeColumn[j]) temp *= params->sel[qo->queryProbeColumn[j]];
+    // }
+    // bool isgroup = (qo->groupby_build.find(column) != qo->groupby_build.end());
+    // double cost = cost_mod->build_cost(column->LEN * params->sel[fkey], fkey->LEN * temp, params->sel[fkey], isgroup);
+    // cout << column->column_name << " " << cost << endl;
+    // cm->updateColumnWeightDirect(column, cost);
   }
+
   for (int i = 0; i < qo->queryProbeColumn.size(); i++) {
     ColumnInfo* column = qo->queryProbeColumn[i];
     cm->updateColumnFrequency(column);
     cm->updateColumnTimestamp(column, timestamp.count());
-    cm->updateColumnWeight(column, query_freq[query], 100, params->sel[column]);
+    cm->updateColumnWeight(column, query_freq[query], qo->speedup[query][column], 1);
+
+    // double temp = 1;
+    // for (int j = 0; j < qo->queryProbeColumn.size(); j++) {
+    //   if (column != qo->queryProbeColumn[j]) temp *= params->sel[qo->queryProbeColumn[j]];
+    // }
+    // double cost = cost_mod->probe_cost(column->LEN * temp, params->sel[column], qo->join.size()-1);
+    // cout << column->column_name << " " << cost << endl;
+    // cm->updateColumnWeightDirect(column, cost);
+
   }
+
   for (int i = 0; i < qo->queryGroupByColumn.size(); i++) {
     ColumnInfo* column = qo->queryGroupByColumn[i];
     cm->updateColumnFrequency(column);
     cm->updateColumnTimestamp(column, timestamp.count());
-    cm->updateColumnWeight(column, query_freq[query], 10, 1);
+    cm->updateColumnWeight(column, query_freq[query], qo->speedup[query][column], 1);
+
+    // double temp = 1;
+    // for (int j = 0; j < qo->queryProbeColumn.size(); j++) {
+    //   temp *= params->sel[qo->queryProbeColumn[j]];
+    // }
+    // double cost = cost_mod->group_cost(cm->lo_orderdate->LEN * temp, qo->join.size(), qo->groupby_build.size(), qo->aggregation.size());
+    // cout << column->column_name << " " << cost << endl;
+    // cm->updateColumnWeightDirect(column, cost);   
   }
+
   for (int i = 0; i < qo->queryAggrColumn.size(); i++) {
     ColumnInfo* column = qo->queryAggrColumn[i];
     cm->updateColumnFrequency(column);
     cm->updateColumnTimestamp(column, timestamp.count());
-    cm->updateColumnWeight(column, query_freq[query], 10, 1);
+    cm->updateColumnWeight(column, query_freq[query], qo->speedup[query][column], 1);
+
+    // double temp = 1;
+    // for (int j = 0; j < qo->queryProbeColumn.size(); j++) {
+    //   temp *= params->sel[qo->queryProbeColumn[j]];
+    // }
+    // double cost = cost_mod->group_cost(column->LEN * temp, qo->join.size(), qo->groupby_build.size(), qo->aggregation.size());
+    // cout << column->column_name << " " << cost << endl;
+    // cm->updateColumnWeightDirect(column, cost); 
   }
 }
 

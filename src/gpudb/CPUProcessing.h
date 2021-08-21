@@ -1353,9 +1353,12 @@ void build_CPU(struct filterArgsCPU fargs,
 
     int start_segment, start_group, segment_idx;
     int end_segment;
+
     start_segment = segment_group[start / SEGMENT_SIZE];
     end_segment = segment_group[end / SEGMENT_SIZE];
     start_group = start / SEGMENT_SIZE;
+
+    // cout << start_segment << " " << end_segment << endl;
 
     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
       #pragma simd
@@ -2517,4 +2520,142 @@ void merge(int* resCPU, int* resGPU, int num_tuples) {
   });
 }
 
+
+void probe_group_by_CPU_prof(
+  struct probeArgsCPU pargs,  struct groupbyArgsCPU gargs, int num_tuples, 
+  int* res, int start_offset = 0, short* segment_group = NULL) {
+
+
+  int grainsize = num_tuples/4096 + 4;
+  assert(grainsize < 20000);
+  assert(grainsize < SEGMENT_SIZE);
+  assert(segment_group != NULL);
+
+
+  // Probe
+  parallel_for(blocked_range<size_t>(0, num_tuples, grainsize), [&](auto range) {
+    unsigned int start = range.begin();
+    unsigned int end = range.end();
+    unsigned int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+
+    int start_segment, start_group, segment_idx;
+    int end_segment;
+    start_segment = segment_group[start / SEGMENT_SIZE];
+    end_segment = segment_group[end / SEGMENT_SIZE];
+    start_group = start / SEGMENT_SIZE;
+
+    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+      #pragma simd
+      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+        int hash;
+        long long slot;
+        int dim_val1 = 0, dim_val2 = 0, dim_val3 = 0, dim_val4 = 0;
+        int lo_offset;
+
+        if ((i / SEGMENT_SIZE) == start_group) segment_idx = start_segment;
+        else segment_idx = end_segment;
+
+        lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
+
+        if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
+          hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
+          slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
+          if (slot == 0) continue;
+          dim_val1 = slot;
+        }
+
+
+
+        if (pargs.key_col2 != NULL && pargs.ht2 != NULL) {
+          hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
+          slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
+          if (slot == 0) continue;
+          dim_val2 = slot;
+        }
+
+        if (pargs.key_col3 != NULL && pargs.ht3 != NULL) {
+          hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
+          slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
+          if (slot == 0) continue;
+          dim_val3 = slot;
+        }
+
+        if (pargs.key_col4 != NULL && pargs.ht4 != NULL) {
+          hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+          slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+          if (slot == 0) continue;
+          dim_val4 = slot;
+        }
+
+        hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
+        if (dim_val1 != 0) res[hash * 6] = dim_val1;
+        if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
+        if (dim_val3 != 0) res[hash * 6 + 2] = dim_val3;
+        if (dim_val4 != 0) res[hash * 6 + 3] = dim_val4;
+
+        int aggr1 = 0; int aggr2 = 0;
+        if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
+        if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
+        int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+
+        __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
+      }
+    }
+
+    for (int i = end_batch ; i < end; i++) {
+
+      int hash;
+      long long slot;
+      int dim_val1 = 0, dim_val2 = 0, dim_val3 = 0, dim_val4 = 0;
+      int lo_offset;
+
+      if ((i / SEGMENT_SIZE) == start_group) segment_idx = start_segment;
+      else segment_idx = end_segment;
+
+      lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
+
+      if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
+        hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
+        slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
+        if (slot == 0) continue;
+        dim_val1 = slot;
+      }
+
+      if (pargs.key_col2 != NULL && pargs.ht2 != NULL) {
+        hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
+        slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
+        if (slot == 0) continue;
+        dim_val2 = slot;
+      }
+
+      if (pargs.key_col3 != NULL && pargs.ht3 != NULL) {
+        hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
+        slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
+        if (slot == 0) continue;
+        dim_val3 = slot;
+      }
+
+      if (pargs.key_col4 != NULL && pargs.ht4 != NULL) {
+        hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+        slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+        if (slot == 0) continue;
+        dim_val4 = slot;
+      }
+
+      hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
+      if (dim_val1 != 0) res[hash * 6] = dim_val1;
+      if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
+      if (dim_val3 != 0) res[hash * 6 + 2] = dim_val3;
+      if (dim_val4 != 0) res[hash * 6 + 3] = dim_val4;
+
+      int aggr1 = 0; int aggr2 = 0;
+      if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
+      if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
+      int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+
+      __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
+    }
+  }, simple_partitioner());
+
+}
 #endif

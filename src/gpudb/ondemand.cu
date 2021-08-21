@@ -5,7 +5,9 @@
 
 int main() {
 
-	bool verbose = 1;
+	bool verbose = 0;
+
+	srand(123);
 
 	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 209715200, 536870912, 536870912, verbose);
 
@@ -28,12 +30,15 @@ int main() {
 			QueryProcessing* qp = new QueryProcessing(cgp, stoi(query), verbose);
 			time += qp->processOnDemand();
 		} else if (input.compare("2") == 0) {
+			time = 0;
 			cout << "Executing Random Query" << endl;
 			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
 				time += qp->processOnDemand();
 			}
+			delete qp;
+			srand(123);
 		} else {
 			exit = true;
 		}

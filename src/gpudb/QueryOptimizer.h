@@ -3,8 +3,69 @@
 
 #include "CacheManager.h"
 
+#define NUM_QUERIES 13
+
 class CacheManager;
 class ColumnInfo;
+
+class Operator {
+public:
+	string type;
+	int device;
+	vector<Operator*> children;
+	vector<Operator*> parents;
+	Operator(int _device) {
+		device = _device;
+	};
+	void appendChild(Operator* child) {
+		children.push_back(child);
+	};
+	void appendParent(Operator* parent) {
+		parents.push_back(parent);
+	};
+};
+
+class Filter : public Operator {
+public:
+	int* sg_filter;
+	ColumnInfo* filter_col;
+};
+
+class Join : public Operator {
+public:
+	int* segment_group_foreign;
+	int* segment_group_primary;
+	ColumnInfo* foreign_key;
+	ColumnInfo* primary_key;
+};
+
+class GroupBy : public Operator {
+public:
+	int* segment_group_groupby;
+	vector<ColumnInfo*> group_key;
+	vector<ColumnInfo*> aggregation_col;
+};
+
+class CPUtoGPU : public Operator {
+public:
+	int* segment_group_copy;
+};
+
+class GPUtoCPU : public Operator {
+public:
+	int* segment_group_copy;
+};
+
+class Materialize : public Operator {
+public:
+	int* segment_group_mat;
+	ColumnInfo* mat_col;
+};
+
+class Merge : public Operator {
+public:
+	vector<int*> segment_group_merge;
+};
 
 class QueryOptimizer {
 public:
@@ -23,6 +84,7 @@ public:
 	unordered_map<ColumnInfo*, vector<ColumnInfo*>> select_build;
 
 	unordered_map<ColumnInfo*, ColumnInfo*> fkey_pkey;
+	unordered_map<ColumnInfo*, ColumnInfo*> pkey_fkey;
 
 	// vector<pair<int, int>> joinGPU;
 	// vector<pair<int, int>> joinCPU;
@@ -53,7 +115,11 @@ public:
 	short* par_segment_count;
 	int* last_segment;
 
+	map<int, map<ColumnInfo*, double>> speedup;
+
 	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize);
+	~QueryOptimizer();
+
 	void parseQuery(int query);
 	void parseQuery11();
 	void parseQuery12();
@@ -73,7 +139,8 @@ public:
 	// 	vector<vector<ColumnInfo*>>& CPUPipelineCol, vector<vector<ColumnInfo*>>& GPUPipelineCol, multimap<int, ColumnInfo*>& temp, 
 	// 	ColumnInfo* column, int N);
 
-	void clearVector();
+	void clearParsing();
+	void clearPlacement();
 
 	void dataDrivenOperatorPlacement();
 	void groupBitmap();
@@ -90,41 +157,20 @@ QueryOptimizer::QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t
 	fkey_pkey[cm->lo_partkey] = cm->p_partkey;
 	fkey_pkey[cm->lo_custkey] = cm->c_custkey;
 	fkey_pkey[cm->lo_suppkey] = cm->s_suppkey;
+	pkey_fkey[cm->d_datekey] = cm->lo_orderdate;
+	pkey_fkey[cm->p_partkey] = cm->lo_partkey;
+	pkey_fkey[cm->c_custkey] = cm->lo_custkey;
+	pkey_fkey[cm->s_suppkey] = cm->lo_suppkey;
+}
+
+QueryOptimizer::~QueryOptimizer() {
+	fkey_pkey.clear();
+	pkey_fkey.clear();
+	delete cm;
 }
 
 void 
 QueryOptimizer::parseQuery(int query) {
-
-	selectGPUPipelineCol.resize(64);
-	selectCPUPipelineCol.resize(64);
-	joinGPUPipelineCol.resize(64);
-	joinCPUPipelineCol.resize(64);
-	groupbyGPUPipelineCol.resize(64);
-	groupbyCPUPipelineCol.resize(64);
-
-	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
-	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
-
-	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
-	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), 64 * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
-		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
-		par_segment[i] = (short*) malloc (64 * sizeof(short));
-		joinGPU[i] = (bool*) malloc(64 * sizeof(bool));
-		joinCPU[i] = (bool*) malloc(64 * sizeof(bool));
-		memset(joinGPU[i], 0, 64 * sizeof(bool));
-		memset(joinCPU[i], 0, 64 * sizeof(bool));
-		memset(segment_group_count[i], 0, 64 * sizeof(short));
-		memset(par_segment[i], 0, 64 * sizeof(short));
-	}
-
-	last_segment = new int[cm->TOT_TABLE];
-	par_segment_count = new short[cm->TOT_TABLE];
-	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
 
 	if (query == 11) parseQuery11();
 	else if (query == 12) parseQuery12();
@@ -143,7 +189,7 @@ QueryOptimizer::parseQuery(int query) {
 }
 
 void
-QueryOptimizer::clearVector() {
+QueryOptimizer::clearPlacement() {
 
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		CubDebugExit(cudaFreeHost(segment_group[i]));
@@ -159,18 +205,22 @@ QueryOptimizer::clearVector() {
 	free(joinGPU);
 	free(joinCPU);
 
-	join.clear();
-	aggregation.clear();
-	groupby_build.clear();
-	select_probe.clear();
-	select_build.clear();
-
 	joinCPUPipelineCol.clear(); //vector
 	joinGPUPipelineCol.clear();
 	selectCPUPipelineCol.clear(); //vector
 	selectGPUPipelineCol.clear();
 	groupbyGPUPipelineCol.clear();
 	groupbyCPUPipelineCol.clear();
+}
+
+void
+QueryOptimizer::clearParsing() {
+
+	join.clear();
+	aggregation.clear();
+	groupby_build.clear();
+	select_probe.clear();
+	select_build.clear();
 
 	querySelectColumn.clear();
 	queryBuildColumn.clear();
@@ -201,7 +251,7 @@ QueryOptimizer::parseQuery11() {
 
 	select_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 
 }
 
@@ -227,7 +277,7 @@ QueryOptimizer::parseQuery12() {
 
 	select_build[cm->d_datekey].push_back(cm->d_yearmonthnum);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 
 }
 
@@ -253,7 +303,7 @@ QueryOptimizer::parseQuery13() {
 
 	select_build[cm->d_datekey].push_back(cm->d_datekey);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 
 }
 
@@ -284,7 +334,7 @@ QueryOptimizer::parseQuery21() {
 	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -314,7 +364,7 @@ QueryOptimizer::parseQuery22() {
 	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -344,7 +394,7 @@ QueryOptimizer::parseQuery23() {
 	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -378,7 +428,7 @@ QueryOptimizer::parseQuery31() {
 	groupby_build[cm->s_suppkey].push_back(cm->s_nation);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -412,7 +462,7 @@ QueryOptimizer::parseQuery32() {
 	groupby_build[cm->s_suppkey].push_back(cm->s_city);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -446,7 +496,7 @@ QueryOptimizer::parseQuery33() {
 	groupby_build[cm->s_suppkey].push_back(cm->s_city);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -480,7 +530,7 @@ QueryOptimizer::parseQuery34() {
 	groupby_build[cm->s_suppkey].push_back(cm->s_city);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -517,7 +567,7 @@ QueryOptimizer::parseQuery41() {
 	groupby_build[cm->c_custkey].push_back(cm->c_nation);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -559,7 +609,7 @@ QueryOptimizer::parseQuery42() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 void 
@@ -601,13 +651,44 @@ QueryOptimizer::parseQuery43() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 
-	dataDrivenOperatorPlacement();
+	// dataDrivenOperatorPlacement();
 }
 
 // 
 
 void
 QueryOptimizer::dataDrivenOperatorPlacement() {
+
+	selectGPUPipelineCol.resize(64);
+	selectCPUPipelineCol.resize(64);
+	joinGPUPipelineCol.resize(64);
+	joinCPUPipelineCol.resize(64);
+	groupbyGPUPipelineCol.resize(64);
+	groupbyCPUPipelineCol.resize(64);
+
+	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+
+	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
+	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), 64 * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
+		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
+		par_segment[i] = (short*) malloc (64 * sizeof(short));
+		joinGPU[i] = (bool*) malloc(64 * sizeof(bool));
+		joinCPU[i] = (bool*) malloc(64 * sizeof(bool));
+		memset(joinGPU[i], 0, 64 * sizeof(bool));
+		memset(joinCPU[i], 0, 64 * sizeof(bool));
+		memset(segment_group_count[i], 0, 64 * sizeof(short));
+		memset(par_segment[i], 0, 64 * sizeof(short));
+	}
+
+	last_segment = new int[cm->TOT_TABLE];
+	par_segment_count = new short[cm->TOT_TABLE];
+	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
 
 	groupGPUcheck = true;
 

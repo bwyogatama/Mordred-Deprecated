@@ -22,6 +22,11 @@ public:
     verbose = _verbose;
   }
 
+  ~CPUGPUProcessing() {
+    delete[] col_idx;
+    delete qo;
+  }
+
   void resetCGP() {
     for (int i = 0; i < cm->TOT_COLUMN; i++) {
       col_idx[i] = NULL;
@@ -521,7 +526,7 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
 
   if (verbose) cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << " sg: " << sg << endl;
   assert(*h_total <= output_estimate);
-  assert(*h_total > 0);
+  // assert(*h_total > 0);
 
 };
 
@@ -634,7 +639,7 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
 
   if (verbose) cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << " sg: " << sg << endl;
   assert(*h_total <= output_estimate);
-  assert(*h_total > 0);
+  // assert(*h_total > 0);
 
 };
 
@@ -921,11 +926,12 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
     off_col[i] = off_col_out[i];
 
   CubDebugExit(cudaMemcpyAsync(h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost, stream));
+  
   CubDebugExit(cudaStreamSynchronize(stream));
 
   if (verbose) cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << " sg: " << sg  << endl;
   assert(*h_total <= output_estimate);
-  assert(*h_total > 0);
+  // assert(*h_total > 0);
 
 };
 
@@ -1016,7 +1022,7 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
 
   if (verbose) cout << "h_total: " << *h_total << " output_estimate: " << output_estimate << " sg: " << sg  << endl;
   assert(*h_total <= output_estimate);
-  assert(*h_total > 0);
+  // assert(*h_total > 0);
 
 };
 
