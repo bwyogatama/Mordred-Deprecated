@@ -4,67 +4,46 @@
 #include "CacheManager.h"
 
 #define NUM_QUERIES 13
+#define MAX_GROUPS 64
 
 class CacheManager;
 class ColumnInfo;
 
+enum OperatorType {
+    Filter, Probe, Build, GroupBy, Aggr, CPUtoGPU, GPUtoCPU, Materialize, Merge
+};
+
+enum DeviceType {
+    CPU, GPU
+};
+
 class Operator {
 public:
-	string type;
-	int device;
-	vector<Operator*> children;
-	vector<Operator*> parents;
-	Operator(int _device) {
+	DeviceType device;
+	int table_id;
+	OperatorType type;
+	unsigned short sg;
+	short* segment_group;
+	Operator* children;
+	Operator* parents;
+
+	vector<ColumnInfo*> columns;
+	vector<ColumnInfo*> supporting_columns;
+
+	Operator(OperatorType _type, unsigned short _sg, int _table_id, DeviceType _device) {
+		type = _type;
+		sg = _sg;
+		table_id = _table_id;
 		device = _device;
 	};
-	void appendChild(Operator* child) {
-		children.push_back(child);
+	void addChild(Operator* child) {
+		children = child;
+		child->parents = this;
 	};
-	void appendParent(Operator* parent) {
-		parents.push_back(parent);
+	void setDevice(DeviceType _device) {
+		device = _device;
 	};
-};
 
-class Filter : public Operator {
-public:
-	short* sg_filter;
-	ColumnInfo* filter_col;
-};
-
-class Join : public Operator {
-public:
-	short* segment_group_foreign;
-	short* segment_group_primary;
-	ColumnInfo* foreign_key;
-	ColumnInfo* primary_key;
-};
-
-class GroupBy : public Operator {
-public:
-	short* segment_group_groupby;
-	vector<ColumnInfo*> group_key;
-	vector<ColumnInfo*> aggregation_col;
-};
-
-class CPUtoGPU : public Operator {
-public:
-	short* segment_group_copy;
-};
-
-class GPUtoCPU : public Operator {
-public:
-	short* segment_group_copy;
-};
-
-class Materialize : public Operator {
-public:
-	short* segment_group_mat;
-	ColumnInfo* mat_col;
-};
-
-class Merge : public Operator {
-public:
-	vector<short*> segment_group_merge;
 };
 
 class QueryOptimizer {
@@ -86,12 +65,13 @@ public:
 	unordered_map<ColumnInfo*, ColumnInfo*> fkey_pkey;
 	unordered_map<ColumnInfo*, ColumnInfo*> pkey_fkey;
 
-	vector<vector<ColumnInfo*>> joinGPUPipelineCol;
-	vector<vector<ColumnInfo*>> joinCPUPipelineCol;
-	vector<vector<ColumnInfo*>> selectGPUPipelineCol;
-	vector<vector<ColumnInfo*>> selectCPUPipelineCol;
-	vector<vector<ColumnInfo*>> groupbyGPUPipelineCol;
-	vector<vector<ColumnInfo*>> groupbyCPUPipelineCol;
+	vector<vector<vector<vector<Operator*>>>> opGPUPipeline; // for each table, for each segment group, for each pipeline, vector of operator
+	vector<vector<vector<vector<Operator*>>>> opCPUPipeline; // for each table, for each segment group, for each pipeline, vector of operator
+
+	vector<vector<<Operator*>> opRoots;
+
+	vector<Operator*> opParsed;
+
 	bool groupGPUcheck;
 	bool* joinGPUcheck, *joinCPUcheck, **joinGPU, **joinCPU;
 
@@ -231,6 +211,30 @@ QueryOptimizer::parseQuery11() {
 
 	// dataDrivenOperatorPlacement();
 
+	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op->columns.push_back(cm->lo_discount);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op->columns.push_back(cm->lo_quantity);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Aggr);
+	op->columns.push_back(cm->lo_extendedprice);
+	op->columns.push_back(cm->lo_discount);
+	opParsed[0].push_back(op);
+
+
+	Operator* op = new Operator*(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_year);
+	opParsed[3].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[3].push_back(op);
+
 }
 
 void 
@@ -257,6 +261,31 @@ QueryOptimizer::parseQuery12() {
 
 	// dataDrivenOperatorPlacement();
 
+	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op->columns.push_back(cm->lo_discount);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op->columns.push_back(cm->lo_quantity);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Aggr);
+	op->columns.push_back(cm->lo_extendedprice);
+	op->columns.push_back(cm->lo_discount);
+	opParsed[0].push_back(op);
+
+
+	Operator* op = new Operator*(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_yearmonthnum);
+	opParsed[3].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[3].push_back(op);
+
+
 }
 
 void 
@@ -282,6 +311,30 @@ QueryOptimizer::parseQuery13() {
 	select_build[cm->d_datekey].push_back(cm->d_datekey);
 
 	// dataDrivenOperatorPlacement();
+
+	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op->columns.push_back(cm->lo_discount);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op->columns.push_back(cm->lo_quantity);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Aggr);
+	op->columns.push_back(cm->lo_extendedprice);
+	op->columns.push_back(cm->lo_discount);
+	opParsed[0].push_back(op);
+
+
+	Operator* op = new Operator*(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_datekey);
+	opParsed[3].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[3].push_back(op);
 
 }
 
@@ -313,6 +366,45 @@ QueryOptimizer::parseQuery21() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_partkey);
+	op->supporting_columns.push_back(cm->p_partkey);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->supporting_columns.push_back(cm->d_year);
+	op->supporting_columns.push_back(cm->p_brand1);
+	opParsed[0].push_back(op);
+
+	Operator* op = new Operator*(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_region);
+	opParsed[3].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[3].push_back(op);
+
+	Operator* op = new Operator*(CPU, 0, 3, Filter);
+	op->columns.push_back(cm->p_category);
+	opParsed[3].push_back(op);
+	Operator* op = new Operator*(CPU, 0, 3, Build);
+	op->columns.push_back(cm->p_partkey);
+	op->supporting_columns.push_back(cm->lo_partkey);
+	opParsed[3].push_back(op);
+
+	Operator* op = new Operator*(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[3].push_back(op);
 }
 
 void 
@@ -637,12 +729,8 @@ QueryOptimizer::parseQuery43() {
 void
 QueryOptimizer::dataDrivenOperatorPlacement() {
 
-	selectGPUPipelineCol.resize(64);
-	selectCPUPipelineCol.resize(64);
-	joinGPUPipelineCol.resize(64);
-	joinCPUPipelineCol.resize(64);
-	groupbyGPUPipelineCol.resize(64);
-	groupbyCPUPipelineCol.resize(64);
+	opGPUPipeline.resize(MAX_GROUPS);
+	opCPUPipeline.resize(MAX_GROUPS);
 
 	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
 	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
@@ -653,15 +741,15 @@ QueryOptimizer::dataDrivenOperatorPlacement() {
 	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
 	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), 64 * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
-		segment_group_count[i] = (short*) malloc (64 * sizeof(short));
-		par_segment[i] = (short*) malloc (64 * sizeof(short));
-		joinGPU[i] = (bool*) malloc(64 * sizeof(bool));
-		joinCPU[i] = (bool*) malloc(64 * sizeof(bool));
-		memset(joinGPU[i], 0, 64 * sizeof(bool));
-		memset(joinCPU[i], 0, 64 * sizeof(bool));
-		memset(segment_group_count[i], 0, 64 * sizeof(short));
-		memset(par_segment[i], 0, 64 * sizeof(short));
+		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), MAX_GROUPS * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
+		segment_group_count[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
+		par_segment[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
+		joinGPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
+		joinCPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
+		memset(joinGPU[i], 0, MAX_GROUPS * sizeof(bool));
+		memset(joinCPU[i], 0, MAX_GROUPS * sizeof(bool));
+		memset(segment_group_count[i], 0, MAX_GROUPS * sizeof(short));
+		memset(par_segment[i], 0, MAX_GROUPS * sizeof(short));
 	}
 
 	last_segment = new int[cm->TOT_TABLE];
@@ -705,34 +793,20 @@ QueryOptimizer::groupBitmap() {
 
 	for (int i = 0; i < cm->lo_orderdate->total_segment; i++) {
 		unsigned short temp = 0;
+		int table_id = cm->lo_orderdate->table_id;
 
-		for (int j = 0; j < select_probe[cm->lo_orderdate].size(); j++) {
-			ColumnInfo* column = select_probe[cm->lo_orderdate][j];
-			bool isGPU = cm->segment_bitmap[column->column_id][i];
-			//temp = temp | (isGPU << (select_probe[cm->lo_orderdate].size() - j - 1));
-			temp = temp | (isGPU << j);
+		for (int j = 0; j < opParsed[table_id].size(); j++) {
+			Operator* op = opParsed[table_id][j];
+			for (int k = 0; k < op->columns.size(); k++) {
+				ColumnInfo* column = op->columns[k];
+				bool isGPU = cm->segment_bitmap[column->column_id][i];
+				temp = temp | (isGPU << k);
+			}
+			temp = temp << op->columns.size();
 		}
 
-		temp = temp << join.size();
-
-		for (int j = 0; j < join.size(); j++) {
-			bool isGPU = cm->segment_bitmap[join[j].first->column_id][i];
-			//temp = temp | (isGPU << (join.size() - j - 1));
-			temp = temp | (isGPU << j);
-		}
-
-		temp = temp << aggregation[cm->lo_orderdate].size();
-
-		for (int j = 0; j < aggregation[cm->lo_orderdate].size(); j++) {
-			ColumnInfo* column = aggregation[cm->lo_orderdate][j];
-			bool isGPU = cm->segment_bitmap[column->column_id][i];
-			//temp = temp | (isGPU << (join.size() - j - 1));
-			temp = temp | (isGPU << j);
-		}
-
-		segment_group[cm->lo_orderdate->table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[cm->lo_orderdate->table_id][temp]] = i;
-		segment_group_count[cm->lo_orderdate->table_id][temp]++;
-		//printf("temp = %d count = %d\n", temp, segment_group_count[0][temp]);
+		segment_group[table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[cm->table_id][temp]] = i;
+		segment_group_count[table_id][temp]++;
 
 		if (i == cm->lo_orderdate->total_segment - 1) {
 			if (cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) {
@@ -741,58 +815,91 @@ QueryOptimizer::groupBitmap() {
 		}
 	}
 
-	for (unsigned short i = 0; i < 64; i++) { //64 segment groups
-		if (segment_group_count[cm->lo_orderdate->table_id][i] > 0) {
+	for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+		int table_id = cm->lo_orderdate->table_id;
+		if (segment_group_count[table_id][i] > 0) {
 
-			unsigned short  bit = 1;
 			unsigned short sg = i;
-			for (int j = 0; j < aggregation[cm->lo_orderdate].size(); j++) {
-				bit = (sg & (1 << j)) >> j;
-				if (bit == 0) break;
+
+			for (int j = 0; j < opParsed[table_id].size(); j++) {
+
+				Operator* op = opParsed[table_id][j];
+				unsigned short  bit = 1;
+				for (int k = 0; k < op->columns.size(); k++) {
+					bit = (sg & (1 << k)) >> k;
+					if (!bit) break;
+				}
+
+				if (op->type == GroupBy) {
+					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
+				} else if (op->type == Aggr) {
+					(bit) ? (op->device = GPU):(op->device = CPU); 		
+				} else if (op->type == Probe) {	
+					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
+				} else if (op->type == Filter) {
+					(bit) ? (op->device = GPU):(op->device = CPU);
+				} else if (op->type == Build) {
+					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
+				}
+
+				sg = sg >> op->columns.size();
 			}
 
-			for (int j = 0; j < aggregation[cm->lo_orderdate].size(); j++) {
-				if (bit & groupGPUcheck) groupbyGPUPipelineCol[i].push_back(aggregation[cm->lo_orderdate][j]);
-				else groupbyCPUPipelineCol[i].push_back(aggregation[cm->lo_orderdate][j]);
-			}
-
-			sg = sg >> aggregation[cm->lo_orderdate].size();
-
-			// cout << sg << endl;
-
-			for (int j = 0; j < join.size(); j++) {
-				bit = (sg & (1 << j)) >> j;
-				if (bit && joinGPUcheck[join[j].second->table_id]) {
-					joinGPU[join[j].second->table_id][i] = 1;
-					joinGPUPipelineCol[i].push_back(join[j].first);
-				} else {
-					joinCPU[join[j].second->table_id][i] = 1;
-					joinCPUPipelineCol[i].push_back(join[j].first);
+			for (int j = 0; j < opParsed[table_id].size(); j++) {
+				Operator* op = opParsed[table_id][j];
+				if (op->type != GroupBy && op->type != Build) {
+					if (op->device == GPU) {
+						opGPUPipeline[table_id][i][0].push_back(op);
+					} else if (op->device == CPU) {
+						opCPUPipeline[table_id][i][0].push_back(op);	
+					}
+				} else if (op->type == GroupBy) {
+					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+					else {
+						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+					}
+				} else if (op->type == Build) {
+					
 				}
 			}
 
-			// for (int k = 0; k < joinGPUPipelineCol[i].size(); k++) {
-			// 	cout << joinGPUPipelineCol[i][k]->column_name << endl;
-			// }
+			Operator* op;
 
-			sg = sg >> join.size();
-
-			for (int j = 0; j < select_probe[cm->lo_orderdate].size(); j++) {
-				bit = (sg & (1 << j)) >> j;
-				if (bit) selectGPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
-				else {
-					//cout << select_probe[cm->lo_orderdate][j]->column_name << " " << i << endl;
-					selectCPUPipelineCol[i].push_back(select_probe[cm->lo_orderdate][j]);
+			if (opGPUPipeline[table_id][i][0].size() > 0) {
+				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+				op = opRoots[table_id][i];
+				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+					op->addChild(opGPUPipeline[table_id][i][0][j]);
+					op = opGPUPipeline[table_id][i][0][j];
+				}
+				if (opCPUPipeline[table_id][i][0].size() > 0) {
+					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
+					op->addChild(transferOp);
+					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
+					transferOp->addChild(matOp);
+					op = matOp;
+					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+						op->addChild(opCPUPipeline[table_id][i][0][j]);
+						op = opCPUPipeline[table_id][i][0][j];
+					}
+				}
+			} else {
+				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
+				op = opRoots[table_id][i];
+				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+					op->addChild(opCPUPipeline[table_id][i][0][j]);
+					op = opCPUPipeline[table_id][i][0][j];
 				}
 			}
-
-			sg = sg >> select_probe[cm->lo_orderdate].size();
 		}
 	}
 
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		bool checkGPU = false, checkCPU = false;
-		for (int j = 0; j < 64; j++) {
+		for (int j = 0; j < MAX_GROUPS; j++) {
 			if (joinGPU[i][j] && joinGPUcheck[i]) checkGPU = true;
 			if (joinCPU[i][j]) checkCPU = true;
 		}
@@ -805,15 +912,14 @@ QueryOptimizer::groupBitmap() {
 		for (int j = 0; j < join[i].second->total_segment; j++) {
 			unsigned short temp = 0;
 
-			for (int k = 0; k < select_build[join[i].second].size(); k++) {
-
-				ColumnInfo* column = select_build[join[i].second][k];
-				bool isGPU = cm->segment_bitmap[column->column_id][j];
-				//temp = temp | (isGPU << (select_build[join[i].second].size() - k - 1));
-				temp = temp | (isGPU << k);
-
-				// cout << select_build[join[i].second][k]->column_name << endl;
-				// cout << temp << endl;
+			for (int k = 0; k < opParsed[table_id].size(); k++) {
+				Operator* op = opParsed[table_id][k];
+				for (int l = 0; l < op->columns.size(); l++) {
+					ColumnInfo* column = op->columns[l];
+					bool isGPU = cm->segment_bitmap[column->column_id][i];
+					temp = temp | (isGPU << l);
+				}
+				temp = temp << (op->columns.size());
 			}
 
 			segment_group[join[i].second->table_id][temp * join[i].second->total_segment + segment_group_count[join[i].second->table_id][temp]] = j;
@@ -831,7 +937,7 @@ QueryOptimizer::groupBitmap() {
 
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		short count = 0;
-		for (int sg = 0; sg < 64; sg++) {
+		for (int sg = 0; sg < MAX_GROUPS; sg++) {
 			if (segment_group_count[i][sg] > 0) {
 				par_segment[i][count] = sg;
 				count++;
