@@ -20,7 +20,7 @@ void runCPU(int* values, int size, int offset) {
     parallel_for( blocked_range<int>(offset, offset+size),
                        [&](blocked_range<int> r)
     {
-    	int worker_index = tbb::task_arena::current_thread_index();
+    	// int worker_index = tbb::task_arena::current_thread_index();
     	//printf("worker_index = %d\n", worker_index);
         for (int i=r.begin(); i<r.end(); ++i)
         {
@@ -107,9 +107,9 @@ int main() {
 
 	//printf("test\n");
 
-	for (int i = 0; i < 64000; i++) {
+	// for (int i = 0; i < 64000; i++) {
 		//assert(h_values[i] == values[i]);
-	}
+	// }
 
 	return 0;
 

@@ -805,7 +805,7 @@ QueryOptimizer::groupBitmap() {
 			temp = temp << op->columns.size();
 		}
 
-		segment_group[table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[cm->table_id][temp]] = i;
+		segment_group[table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[table_id][temp]] = i;
 		segment_group_count[table_id][temp]++;
 
 		if (i == cm->lo_orderdate->total_segment - 1) {
@@ -862,7 +862,11 @@ QueryOptimizer::groupBitmap() {
 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
 					}
 				} else if (op->type == Build) {
-					
+					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+					else {
+						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+					}					
 				}
 			}
 

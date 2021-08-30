@@ -111,7 +111,7 @@ CPUGPUProcessing::switch_device_fact(int** &off_col, int** &h_off_col, int* &d_t
     CubDebugExit(cudaStreamSynchronize(stream));
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (h_off_col[i] != NULL) {
-        off_col[i] = cm->customCudaMalloc(*h_total);
+        off_col[i] = (int*) cm->customCudaMalloc<int>(*h_total);
         CubDebugExit(cudaMemcpyAsync(off_col[i], h_off_col[i], *h_total * sizeof(int), cudaMemcpyHostToDevice, stream));
       }
     }
@@ -127,7 +127,7 @@ CPUGPUProcessing::switch_device_fact(int** &off_col, int** &h_off_col, int* &d_t
     CubDebugExit(cudaStreamSynchronize(stream));
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (off_col[i] != NULL) {
-        h_off_col[i] = cm->customCudaHostAlloc(*h_total);
+        h_off_col[i] = (int*) cm->customCudaHostAlloc<int>(*h_total);
         CubDebugExit(cudaMemcpyAsync(h_off_col[i], off_col[i], *h_total * sizeof(int), cudaMemcpyDeviceToHost, stream));
       }
     }
@@ -148,7 +148,7 @@ CPUGPUProcessing::switch_device_dim(int* &d_off_col, int* &h_off_col, int* &d_to
     assert(h_off_col != NULL);
     assert(*h_total > 0);
 
-    d_off_col = cm->customCudaMalloc(*h_total);
+    d_off_col = (int*) cm->customCudaMalloc<int>(*h_total);
 
     CubDebugExit(cudaMemcpyAsync(d_total, h_total, sizeof(int), cudaMemcpyHostToDevice, stream));
 
@@ -162,7 +162,7 @@ CPUGPUProcessing::switch_device_dim(int* &d_off_col, int* &h_off_col, int* &d_to
     if (d_off_col == NULL) return;
     assert(d_off_col != NULL);
 
-    h_off_col = cm->customCudaHostAlloc(*h_total);
+    h_off_col = (int*) cm->customCudaHostAlloc<int>(*h_total);
 
     CubDebugExit(cudaMemcpyAsync(h_total, d_total, sizeof(int), cudaMemcpyDeviceToHost, stream));
 
@@ -267,7 +267,8 @@ CPUGPUProcessing::call_pfilter_probe_group_by_GPU(QueryParams* params, int** &of
     }
 
     short* d_segment_group;
-    d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    d_segment_group = (short*) cm->customCudaMalloc<short>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -465,7 +466,7 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (i == 0 || qo->joinGPUcheck[i])
-        off_col_out[i] = cm->customCudaMalloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaMalloc<int>(output_estimate);
     }
 
     struct offsetGPU out_off = {
@@ -480,7 +481,8 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
     }
 
     short* d_segment_group;
-    d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    d_segment_group = (short*) cm->customCudaMalloc<short>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -498,7 +500,7 @@ CPUGPUProcessing::call_pfilter_probe_GPU(QueryParams* params, int** &off_col, in
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (off_col[i] != NULL || i == 0 || qo->joinGPUcheck[i])
-        off_col_out[i] = cm->customCudaMalloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaMalloc<int>(output_estimate);
     }
 
     struct offsetGPU in_off = {
@@ -587,7 +589,7 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (i == 0 || qo->joinCPUcheck[i])
-        off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaHostAlloc<int>(output_estimate);
     }
 
     struct offsetCPU out_off = {
@@ -614,7 +616,7 @@ CPUGPUProcessing::call_pfilter_probe_CPU(QueryParams* params, int** &h_off_col, 
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (h_off_col[i] != NULL || i == 0 || qo->joinCPUcheck[i])
-        off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaHostAlloc<int>(output_estimate);
     }
 
     struct offsetCPU in_off = {
@@ -713,7 +715,8 @@ CPUGPUProcessing::call_probe_group_by_GPU(QueryParams* params, int** &off_col, i
     }
 
     short* d_segment_group;
-    d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    d_segment_group = (short*) cm->customCudaMalloc<short>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -870,7 +873,7 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (i == 0 || qo->joinGPUcheck[i])
-        off_col_out[i] = cm->customCudaMalloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaMalloc<int>(output_estimate);
     }
 
     struct offsetGPU out_off = {
@@ -885,7 +888,8 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
     }
 
     short* d_segment_group;
-    d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    d_segment_group = (short*) cm->customCudaMalloc<int>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -902,7 +906,7 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (off_col[i] != NULL || i == 0 || qo->joinGPUcheck[i])
-        off_col_out[i] = cm->customCudaMalloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaMalloc<int>(output_estimate);
     }
 
     struct offsetGPU in_off = {
@@ -912,6 +916,8 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
     struct offsetGPU out_off = {
       off_col_out[0], off_col_out[1], off_col_out[2], off_col_out[3], off_col_out[4]
     };
+
+    CHECK_ERROR_STREAM(stream);
 
     probe_GPU3<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
       cm->gpuCache, in_off, pargs, out_off, *h_total, d_total);
@@ -972,7 +978,7 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (i == 0 || qo->joinCPUcheck[i])
-        off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaHostAlloc<int>(output_estimate);
     }
 
     struct offsetCPU out_off = {
@@ -998,7 +1004,7 @@ CPUGPUProcessing::call_probe_CPU(QueryParams* params, int** &h_off_col, int* h_t
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (h_off_col[i] != NULL || i == 0 || qo->joinCPUcheck[i])
-        off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaHostAlloc<int>(output_estimate);
     }
 
     struct offsetCPU in_off = {
@@ -1067,7 +1073,7 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
 
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
-    off_col_out[0] = cm->customCudaMalloc(output_estimate);
+    off_col_out[0] = (int*) cm->customCudaMalloc<int>(output_estimate);
 
     int LEN;
     if (sg == qo->last_segment[0]) {
@@ -1077,7 +1083,8 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
     }
 
     short* d_segment_group;
-    d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    d_segment_group = (short*) cm->customCudaMalloc<short>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -1094,7 +1101,7 @@ CPUGPUProcessing::call_pfilter_GPU(QueryParams* params, int** &off_col, int* &d_
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (off_col[i] != NULL || i == 0)
-        off_col_out[i] = cm->customCudaMalloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaMalloc<int>(output_estimate);
     }
 
     filter_GPU3<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>
@@ -1161,7 +1168,7 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
 
     output_estimate = SEGMENT_SIZE * qo->segment_group_count[0][sg] * output_selectivity;
 
-    off_col_out[0] = cm->customCudaHostAlloc(output_estimate);
+    off_col_out[0] = (int*) cm->customCudaHostAlloc<int>(output_estimate);
 
     int LEN;
     if (sg == qo->last_segment[0]) {
@@ -1183,7 +1190,7 @@ CPUGPUProcessing::call_pfilter_CPU(QueryParams* params, int** &h_off_col, int* h
 
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (h_off_col[i] != NULL || i == 0)
-        off_col_out[i] = cm->customCudaHostAlloc(output_estimate);
+        off_col_out[i] = (int*) cm->customCudaHostAlloc<int>(output_estimate);
     }
 
     filter_CPU2(h_off_col[0], fargs, off_col_out[0], *h_total, &out_total, 0);
@@ -1261,7 +1268,8 @@ CPUGPUProcessing::call_bfilter_build_GPU(QueryParams* params, int* &d_off_col, i
       } 
 
       short* d_segment_group;
-      d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(column->total_segment));
+      // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(column->total_segment));
+      d_segment_group = (short*) cm->customCudaMalloc<short>(column->total_segment);
       short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
       CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[table][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -1380,7 +1388,8 @@ CPUGPUProcessing::call_build_GPU(QueryParams* params, int* &d_off_col, int* h_to
       }
 
       short* d_segment_group;
-      d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(column->total_segment));
+      // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(column->total_segment));
+      d_segment_group = (short*) cm->customCudaMalloc<short>(column->total_segment);
       short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
       CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[table][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -1463,7 +1472,7 @@ CPUGPUProcessing::call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d
 
   int output_estimate = qo->segment_group_count[table][sg] * SEGMENT_SIZE * params->selectivity[column];
   
-  d_off_col = cm->customCudaMalloc(output_estimate);
+  d_off_col = (int*) cm->customCudaMalloc<int>(output_estimate);
 
   CubDebugExit(cudaMemsetAsync(d_total, 0, sizeof(int), stream));
 
@@ -1484,7 +1493,8 @@ CPUGPUProcessing::call_bfilter_GPU(QueryParams* params, int* &d_off_col, int* &d
   };
 
   short* d_segment_group;
-  d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(column->total_segment));
+  // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(column->total_segment));
+  d_segment_group = (short*) cm->customCudaMalloc<short>(column->total_segment);
   short* segment_group_ptr = qo->segment_group[table] + (sg * column->total_segment);
   CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[table][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -1519,7 +1529,7 @@ CPUGPUProcessing::call_bfilter_CPU(QueryParams* params, int* &h_off_col, int* h_
 
   int output_estimate = qo->segment_group_count[table][sg] * SEGMENT_SIZE * params->selectivity[column];
 
-  h_off_col = cm->customCudaHostAlloc(output_estimate);
+  h_off_col = (int*) cm->customCudaHostAlloc<int>(output_estimate);
 
   int LEN;
   if (sg == qo->last_segment[table]) {
@@ -1730,7 +1740,8 @@ CPUGPUProcessing::call_probe_aggr_GPU(QueryParams* params, int** &off_col, int* 
     }
 
     short* d_segment_group;
-    d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    d_segment_group = (short*) cm->customCudaMalloc<short>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 
@@ -1910,7 +1921,8 @@ CPUGPUProcessing::call_pfilter_probe_aggr_GPU(QueryParams* params, int** &off_co
     }
 
     short* d_segment_group;
-    d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
+    d_segment_group = (short*) cm->customCudaMalloc<short>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 

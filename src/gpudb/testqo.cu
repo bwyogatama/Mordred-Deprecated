@@ -18,7 +18,7 @@ int main() {
 	QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 	qp->profile();
 
-	cgp->cm->resetCache(209715200 * 4, 209715200, 536870912, 536870912);
+	cgp->cm->resetCache(209715200 / 2, 209715200 / 2, 536870912, 536870912);
 
 	cout << endl;
 

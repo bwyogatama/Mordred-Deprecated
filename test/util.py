@@ -27,7 +27,7 @@ def transform(dataset, scale_factor):
     op = '../data/s%d_columnar/' % scale_factor
     with cd(path):
         os.system('mkdir -p %s' % op)
-        os.system('python convert.py ../data/s%d/' % scale_factor)
+        os.system('python3 convert.py ../data/s%d/' % scale_factor)
         os.system('./loader --lineorder %s/lineorder.tbl --ddate %s/date.tbl --customer %s/customer.tbl.p --supplier %s/supplier.tbl.p --part %s/part.tbl.p --datadir %s' % (ip, ip, ip, ip, ip, op))
 
 if __name__ == "__main__":

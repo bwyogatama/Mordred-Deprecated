@@ -1060,12 +1060,14 @@ __global__ void probe_GPU3(
     if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
       if(selection_flags[ITEM]) {
         int offset = block_off + c_t_count++;
+        // printf("%d\n", items_lo[ITEM]);
         out_off.lo_off[offset] = items_lo[ITEM];
+        // printf("%d\n", items_lo[ITEM]);
         if (out_off.dim_off1 != NULL) out_off.dim_off1[offset] = dim_offset1[ITEM];
         if (out_off.dim_off2 != NULL) out_off.dim_off2[offset] = dim_offset2[ITEM];
         if (out_off.dim_off3 != NULL) out_off.dim_off3[offset] = dim_offset3[ITEM];
         if (out_off.dim_off4 != NULL) out_off.dim_off4[offset] = dim_offset4[ITEM];
-        //printf("%d %d %d %d\n", dim_offset1[ITEM], dim_offset2[ITEM], dim_offset3[ITEM], dim_offset4[ITEM]);
+        // printf("%d %d %d %d\n", dim_offset1[ITEM], dim_offset2[ITEM], dim_offset3[ITEM], dim_offset4[ITEM]);
       }
     }
   }

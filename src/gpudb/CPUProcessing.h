@@ -15,6 +15,205 @@ using namespace tbb;
 #define BATCH_SIZE 256
 #define NUM_THREADS 48
 
+// void filter_probe_CPU(
+//   struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct offsetCPU out_off, int num_tuples,
+//   int* total, int start_offset = 0, short* segment_group = NULL) {
+
+
+//   int grainsize = num_tuples/4096 + 4;
+//   assert(grainsize < 20000);
+//   assert(grainsize < SEGMENT_SIZE);
+//   assert(segment_group != NULL);
+
+
+//   // Probe
+//   parallel_for(blocked_range<size_t>(0, num_tuples, grainsize), [&](auto range) { //make sure the grainsize is not too big (will result in segfault on temp[5][end-start] -> not enough stack memory)
+//     unsigned int start = range.begin();
+//     unsigned int end = range.end();
+//     unsigned int temp[5][end-start];
+//     unsigned int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
+//     unsigned int count = 0;
+
+//     int start_segment, start_group, segment_idx;
+//     int end_segment;
+//     start_segment = segment_group[start / SEGMENT_SIZE];
+//     end_segment = segment_group[end / SEGMENT_SIZE];
+//     start_group = start / SEGMENT_SIZE;
+
+//     int count_filter1[2] = {0}, count_filter2[2] = {0};
+//     // int count_probe1[2] = {0}, count_probe2[2] = {0}, count_probe3[2] = {0}; 
+//     int count_probe4[2] = {0};
+
+//     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+//       #pragma simd
+//       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+//         int hash;
+//         long long slot;
+//         // int slot1 = 1, slot2 = 1, slot3 = 1; 
+//         int slot4 = 1;
+//         int lo_offset;
+
+//         if ((i / SEGMENT_SIZE) == start_group) segment_idx = start_segment;
+//         else segment_idx = end_segment;
+
+//         lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
+
+//         count_filter1[segment_idx - start_segment]++;
+
+//         // if (fargs.filter_col1 != NULL) {
+//           // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+//           if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+//         // }
+
+//         count_filter2[segment_idx - start_segment]++;
+
+//         // if (fargs.filter_col2 != NULL) {
+//           // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+//           if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+//         // }
+
+//         // count_probe1[segment_idx - start_segment]++;
+
+//         // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
+//         //   hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
+//         //   slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
+//         //   if (slot == 0) continue;
+//         //   slot1 = slot >> 32;
+//         // }
+
+//         // count_probe2[segment_idx - start_segment]++;
+
+//         // if (pargs.ht2 != NULL && pargs.key_col2 != NULL) {
+//         //   hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
+//         //   slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
+//         //   if (slot == 0) continue;
+//         //   slot2 = slot >> 32;
+//         // }
+
+//         // count_probe3[segment_idx - start_segment]++;
+
+//         // if (pargs.ht3 != NULL && pargs.key_col3 != NULL) {
+//         //   hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
+//         //   slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
+//         //   if (slot == 0) continue;
+//         //   slot3 = slot >> 32;
+//         // }
+
+//         count_probe4[segment_idx - start_segment]++;
+
+//         // if (pargs.ht4 != NULL && pargs.key_col4 != NULL) {
+//           hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+//           slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+//           if (slot == 0) continue;
+//           slot4 = slot >> 32;
+//         // }
+
+
+//         temp[0][count] = lo_offset;
+//         // temp[1][count] = slot1-1;
+//         // temp[2][count] = slot2-1;
+//         // temp[3][count] = slot3-1;
+//         temp[4][count] = slot4-1;
+//         count++;
+
+//       }
+//     }
+
+//     for (int i = end_batch ; i < end; i++) {
+//         int hash;
+//         long long slot;
+//         // int slot1 = 1, slot2 = 1, slot3 = 1; 
+//         int slot4 = 1;
+//         int lo_offset;
+
+//         if ((i / SEGMENT_SIZE) == start_group) segment_idx = start_segment;
+//         else segment_idx = end_segment;
+
+//         lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
+
+//         count_filter1[segment_idx - start_segment]++;
+
+//         // if (fargs.filter_col1 != NULL) {
+//           // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+//           if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+//         // }
+
+//         count_filter2[segment_idx - start_segment]++;
+
+//         // if (fargs.filter_col2 != NULL) {
+//           // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+//           if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+//         // }
+
+//         // count_probe1[segment_idx - start_segment]++;
+
+//         // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
+//         //   hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
+//         //   slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
+//         //   if (slot == 0) continue;
+//         //   slot1 = slot >> 32;
+//         // }
+
+//         // count_probe2[segment_idx - start_segment]++;
+
+//         // if (pargs.ht2 != NULL && pargs.key_col2 != NULL) {
+//         //   hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
+//         //   slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
+//         //   if (slot == 0) continue;
+//         //   slot2 = slot >> 32;
+//         // }
+
+//         // count_probe3[segment_idx - start_segment]++;
+
+//         // if (pargs.ht3 != NULL && pargs.key_col3 != NULL) {
+//         //   hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
+//         //   slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
+//         //   if (slot == 0) continue;
+//         //   slot3 = slot >> 32;
+//         // }
+
+//         count_probe4[segment_idx - start_segment]++;
+
+//         // if (pargs.ht4 != NULL && pargs.key_col4 != NULL) {
+//           hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+//           slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+//           if (slot == 0) continue;
+//           slot4 = slot >> 32;
+//         // }
+
+
+//         temp[0][count] = lo_offset;
+//         // temp[1][count] = slot1-1;
+//         // temp[2][count] = slot2-1;
+//         // temp[3][count] = slot3-1;
+//         temp[4][count] = slot4-1;
+//         count++;
+//     }
+
+//     int thread_off = __atomic_fetch_add(total, count, __ATOMIC_RELAXED);
+
+//     for (int i = 0; i < count; i++) {
+//       assert(out_off.h_lo_off != NULL);
+//       if (out_off.h_lo_off != NULL) out_off.h_lo_off[thread_off+i] = temp[0][i];
+//       // if (out_off.h_dim_off1 != NULL) out_off.h_dim_off1[thread_off+i] = temp[1][i];
+//       // if (out_off.h_dim_off2 != NULL) out_off.h_dim_off2[thread_off+i] = temp[2][i];
+//       // if (out_off.h_dim_off3 != NULL) out_off.h_dim_off3[thread_off+i] = temp[3][i];
+//       if (out_off.h_dim_off4 != NULL) out_off.h_dim_off4[thread_off+i] = temp[4][i];
+//     }
+
+//     for  (int i = start_segment; i < end_segment; i++) {
+//       __atomic_fetch_add(&(sargs.count[fargs.filter_id1][i]), count_filter1[i-start_segment], __ATOMIC_RELAXED);
+//       __atomic_fetch_add(&(sargs.count[fargs.filter_id2][i]), count_filter2[i-start_segment], __ATOMIC_RELAXED);
+//       // __atomic_fetch_add(&(sargs.count[pargs.probe_id1][i]), count_probe1[i-start_segment], __ATOMIC_RELAXED);
+//       // __atomic_fetch_add(&(sargs.count[pargs.probe_id2][i]), count_probe2[i-start_segment], __ATOMIC_RELAXED);
+//       // __atomic_fetch_add(&(sargs.count[pargs.probe_id3][i]), count_probe3[i-start_segment], __ATOMIC_RELAXED);
+//       __atomic_fetch_add(&(sargs.count[pargs.probe_id4][i]), count_probe4[i-start_segment], __ATOMIC_RELAXED);
+//     }
+
+//   }, simple_partitioner());
+// }
+
+
 void filter_probe_CPU(
   struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct offsetCPU out_off, int num_tuples,
   int* total, int start_offset = 0, short* segment_group = NULL) {
@@ -40,6 +239,10 @@ void filter_probe_CPU(
     end_segment = segment_group[end / SEGMENT_SIZE];
     start_group = start / SEGMENT_SIZE;
 
+    int count_filter1[2] = {0}, count_filter2[2] = {0};
+    // int count_probe1[2] = {0}, count_probe2[2] = {0}, count_probe3[2] = {0}; 
+    int count_probe4[2] = {0};
+
     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
       #pragma simd
       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
@@ -54,15 +257,21 @@ void filter_probe_CPU(
 
         lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
+        count_filter1[segment_idx - start_segment]++;
+
         // if (fargs.filter_col1 != NULL) {
           // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
           if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
         // }
 
+        count_filter2[segment_idx - start_segment]++;
+
         // if (fargs.filter_col2 != NULL) {
           // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
           if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
         // }
+
+        // count_probe1[segment_idx - start_segment]++;
 
         // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
         //   hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
@@ -71,6 +280,7 @@ void filter_probe_CPU(
         //   slot1 = slot >> 32;
         // }
 
+        // count_probe2[segment_idx - start_segment]++;
 
         // if (pargs.ht2 != NULL && pargs.key_col2 != NULL) {
         //   hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
@@ -79,6 +289,7 @@ void filter_probe_CPU(
         //   slot2 = slot >> 32;
         // }
 
+        // count_probe3[segment_idx - start_segment]++;
 
         // if (pargs.ht3 != NULL && pargs.key_col3 != NULL) {
         //   hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
@@ -87,6 +298,7 @@ void filter_probe_CPU(
         //   slot3 = slot >> 32;
         // }
 
+        count_probe4[segment_idx - start_segment]++;
 
         // if (pargs.ht4 != NULL && pargs.key_col4 != NULL) {
           hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
@@ -107,65 +319,74 @@ void filter_probe_CPU(
     }
 
     for (int i = end_batch ; i < end; i++) {
-      int hash;
-      long long slot;
-      // int slot1 = 1, slot2 = 1, slot3 = 1;
-      int slot4 = 1;
-      int lo_offset;
+        int hash;
+        long long slot;
+        // int slot1 = 1, slot2 = 1, slot3 = 1; 
+        int slot4 = 1;
+        int lo_offset;
 
-      if ((i / SEGMENT_SIZE) == start_group) segment_idx = start_segment;
-      else segment_idx = end_segment;
+        if ((i / SEGMENT_SIZE) == start_group) segment_idx = start_segment;
+        else segment_idx = end_segment;
 
-      lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
+        lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
+
+        count_filter1[segment_idx - start_segment]++;
 
         // if (fargs.filter_col1 != NULL) {
           // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
           if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
         // }
 
+        count_filter2[segment_idx - start_segment]++;
+
         // if (fargs.filter_col2 != NULL) {
           // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
           if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
         // }
 
-      // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
-      //   hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
-      //   slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
-      //   if (slot == 0) continue;
-      //   slot1 = slot >> 32;
-      // }
+        // count_probe1[segment_idx - start_segment]++;
+
+        // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
+        //   hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
+        //   slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
+        //   if (slot == 0) continue;
+        //   slot1 = slot >> 32;
+        // }
+
+        // count_probe2[segment_idx - start_segment]++;
+
+        // if (pargs.ht2 != NULL && pargs.key_col2 != NULL) {
+        //   hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
+        //   slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
+        //   if (slot == 0) continue;
+        //   slot2 = slot >> 32;
+        // }
+
+        // count_probe3[segment_idx - start_segment]++;
+
+        // if (pargs.ht3 != NULL && pargs.key_col3 != NULL) {
+        //   hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
+        //   slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
+        //   if (slot == 0) continue;
+        //   slot3 = slot >> 32;
+        // }
+
+        count_probe4[segment_idx - start_segment]++;
+
+        // if (pargs.ht4 != NULL && pargs.key_col4 != NULL) {
+          hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+          slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+          if (slot == 0) continue;
+          slot4 = slot >> 32;
+        // }
 
 
-      // if (pargs.ht2 != NULL && pargs.key_col2 != NULL) {
-      //   hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
-      //   slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
-      //   if (slot == 0) continue;
-      //   slot2 = slot >> 32;
-      // }
-
-
-      // if (pargs.ht3 != NULL && pargs.key_col3 != NULL) {
-      //   hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
-      //   slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
-      //   if (slot == 0) continue;
-      //   slot3 = slot >> 32;
-      // }
-
-
-      // if (pargs.ht4 != NULL && pargs.key_col4 != NULL) {
-        hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
-        slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
-        if (slot == 0) continue;
-        slot4 = slot >> 32;
-      // }
-
-
-      temp[0][count] = lo_offset;
-      // temp[1][count] = slot1-1;
-      // temp[2][count] = slot2-1;
-      // temp[3][count] = slot3-1;
-      temp[4][count] = slot4-1;
-      count++;
+        temp[0][count] = lo_offset;
+        // temp[1][count] = slot1-1;
+        // temp[2][count] = slot2-1;
+        // temp[3][count] = slot3-1;
+        temp[4][count] = slot4-1;
+        count++;
     }
 
     int thread_off = __atomic_fetch_add(total, count, __ATOMIC_RELAXED);

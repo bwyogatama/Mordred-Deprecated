@@ -88,9 +88,9 @@ QueryProcessing::runQuery() {
         int* d_total = NULL;
         int* h_total = NULL;
 
-        h_total = cm->customCudaHostAlloc(1);
+        h_total = (int*) cm->customCudaHostAlloc<int>(1);
         memset(h_total, 0, sizeof(int));
-        d_total = cm->customCudaMalloc(1);
+        d_total = (int*) cm->customCudaMalloc<int>(1);
 
         if (verbose) {
           cout << qo->join[i].second->column_name << endl;
@@ -148,9 +148,9 @@ QueryProcessing::runQuery() {
       int* d_total = NULL;
       int* h_total = NULL;
 
-      h_total = cm->customCudaHostAlloc(1);
+      h_total = (int*) cm->customCudaHostAlloc<int>(1);
       memset(h_total, 0, sizeof(int));
-      d_total = cm->customCudaMalloc(1);
+      d_total = (int*) cm->customCudaMalloc<int>(1);
 
       if (verbose) printf("sg = %d\n", sg);
 
@@ -447,7 +447,7 @@ QueryProcessing::runQuery() {
 
   CubDebugExit(cudaDeviceSynchronize());
   
-  int* resGPU = cm->customMalloc(params->total_val * 6);
+  int* resGPU = (int*) cm->customMalloc<int>(params->total_val * 6);
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
 }
@@ -475,9 +475,9 @@ QueryProcessing::runQuery2() {
         int* d_total = NULL;
         int* h_total = NULL;
 
-        h_total = cm->customCudaHostAlloc(1);
+        h_total = (int*) cm->customCudaHostAlloc<int>(1);
         memset(h_total, 0, sizeof(int));
-        d_total = cm->customCudaMalloc(1);
+        d_total = (int*) cm->customCudaMalloc<int>(1);
 
         if (verbose) {
           cout << qo->join[i].second->column_name << endl;
@@ -536,9 +536,9 @@ QueryProcessing::runQuery2() {
       int* d_total = NULL;
       int* h_total = NULL;
 
-      h_total = cm->customCudaHostAlloc(1);
+      h_total = (int*) cm->customCudaHostAlloc<int>(1);
       memset(h_total, 0, sizeof(int));
-      d_total = cm->customCudaMalloc(1);
+      d_total = (int*) cm->customCudaMalloc<int>(1);
 
       if (verbose) printf("sg = %d\n", sg);
 
@@ -778,7 +778,7 @@ QueryProcessing::runQuery2() {
 
   CubDebugExit(cudaDeviceSynchronize());
   
-  int* resGPU = cm->customMalloc(params->total_val * 6);
+  int* resGPU = (int*) cm->customMalloc<int>(params->total_val * 6);
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
 }
@@ -1019,7 +1019,7 @@ QueryProcessing::runOnDemand() {
 
 void
 QueryProcessing::profile() {
-  for (int i = 0; i < 13; i++) {
+  for (int i = 0; i < NUM_QUERIES; i++) {
 
     cudaEvent_t start, stop; 
     float default_time = 0, time1 = 0, time2 = 0;
@@ -1688,11 +1688,11 @@ QueryProcessing::prepareQuery() {
     params->ht_p = NULL;
     params->ht_c = NULL;
     params->ht_s = NULL;
-    params->ht_d = cm->customMalloc(2 * params->dim_len[cm->d_datekey]);
+    params->ht_d = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
 
     memset(params->ht_d, 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
 
-    params->d_ht_d = cm->customCudaMalloc(4 * params->dim_len[cm->d_datekey]);
+    params->d_ht_d = (int*) cm->customCudaMalloc<int>(4 * params->dim_len[cm->d_datekey]);
     params->d_ht_p = NULL;
     params->d_ht_c = NULL;
     params->d_ht_s = NULL;
@@ -1814,14 +1814,14 @@ QueryProcessing::prepareQuery() {
 
     params->total_val = ((1998-1992+1) * (5 * 5 * 40));
 
-    params->ht_p = cm->customMalloc(2 * params->dim_len[cm->p_partkey]);
+    params->ht_p = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->p_partkey]);
     params->ht_c = NULL;
-    params->ht_s = cm->customMalloc(2 * params->dim_len[cm->s_suppkey]);
-    params->ht_d = cm->customMalloc(2 * params->dim_len[cm->d_datekey]);
+    params->ht_s = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
+    params->ht_d = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
 
-    params->d_ht_p = cm->customCudaMalloc(2 * params->dim_len[cm->p_partkey]);
-    params->d_ht_s = cm->customCudaMalloc(2 * params->dim_len[cm->s_suppkey]);
-    params->d_ht_d = cm->customCudaMalloc(2 * params->dim_len[cm->d_datekey]);
+    params->d_ht_p = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->p_partkey]);
+    params->d_ht_s = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
+    params->d_ht_d = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->d_datekey]);
     params->d_ht_c = NULL;
 
     // cudaEventCreate(&start);   // creating the event 1
@@ -2027,17 +2027,17 @@ QueryProcessing::prepareQuery() {
     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
 
     params->ht_p = NULL;
-    params->ht_c = cm->customMalloc(2 * params->dim_len[cm->c_custkey]);
-    params->ht_s = cm->customMalloc(2 * params->dim_len[cm->s_suppkey]);
-    params->ht_d = cm->customMalloc(2 * params->dim_len[cm->d_datekey]);
+    params->ht_c = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->c_custkey]);
+    params->ht_s = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
+    params->ht_d = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
 
     memset(params->ht_d, 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
     memset(params->ht_c, 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int));
     memset(params->ht_s, 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int));
 
-    params->d_ht_c = cm->customCudaMalloc(2 * params->dim_len[cm->c_custkey]);
-    params->d_ht_s = cm->customCudaMalloc(2 * params->dim_len[cm->s_suppkey]);
-    params->d_ht_d = cm->customCudaMalloc(2 * params->dim_len[cm->d_datekey]);
+    params->d_ht_c = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->c_custkey]);
+    params->d_ht_s = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
+    params->d_ht_d = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->d_datekey]);
     params->d_ht_p = NULL;
 
     CubDebugExit(cudaMemset(params->d_ht_c, 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int)));
@@ -2210,20 +2210,20 @@ QueryProcessing::prepareQuery() {
     params->dim_len[cm->s_suppkey] = S_LEN;
     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
 
-    params->ht_p = cm->customMalloc(4 * params->dim_len[cm->p_partkey]);
-    params->ht_c = cm->customMalloc(2 * params->dim_len[cm->c_custkey]);
-    params->ht_s = cm->customMalloc(2 * params->dim_len[cm->s_suppkey]);
-    params->ht_d = cm->customMalloc(2 * params->dim_len[cm->d_datekey]);
+    params->ht_p = (int*) cm->customMalloc<int>(4 * params->dim_len[cm->p_partkey]);
+    params->ht_c = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->c_custkey]);
+    params->ht_s = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
+    params->ht_d = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
 
     memset(params->ht_d, 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
     memset(params->ht_p, 0, 2 * params->dim_len[cm->p_partkey] * sizeof(int));
     memset(params->ht_s, 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int));
     memset(params->ht_c, 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int));
 
-    params->d_ht_p = cm->customCudaMalloc(2 * params->dim_len[cm->p_partkey]);
-    params->d_ht_s = cm->customCudaMalloc(2 * params->dim_len[cm->s_suppkey]);
-    params->d_ht_d = cm->customCudaMalloc(2 * params->dim_len[cm->d_datekey]);
-    params->d_ht_c = cm->customCudaMalloc(2 * params->dim_len[cm->c_custkey]);
+    params->d_ht_p = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->p_partkey]);
+    params->d_ht_s = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
+    params->d_ht_d = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->d_datekey]);
+    params->d_ht_c = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->c_custkey]);
 
     CubDebugExit(cudaMemset(params->d_ht_p, 0, 2 * params->dim_len[cm->p_partkey] * sizeof(int)));
     CubDebugExit(cudaMemset(params->d_ht_s, 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int)));
@@ -2245,11 +2245,12 @@ QueryProcessing::prepareQuery() {
   params->ht_CPU[cm->d_datekey] = params->ht_d;
 
   int res_array_size = params->total_val * 6;
-  params->res = cm->customMalloc(res_array_size);
+  params->res = (int*) cm->customMalloc<int>(res_array_size);
   memset(params->res, 0, res_array_size * sizeof(int));
      
-  params->d_res = cm->customCudaMalloc(res_array_size);
+  params->d_res = (int*) cm->customCudaMalloc<int>(res_array_size);
   CubDebugExit(cudaMemset(params->d_res, 0, res_array_size * sizeof(int)));
+
 
 };
 

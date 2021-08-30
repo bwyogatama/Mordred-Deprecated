@@ -150,7 +150,7 @@ public:
 class CacheManager {
 public:
 	int* gpuCache;
-	int* gpuProcessing, *cpuProcessing, *pinnedMemory;
+	uint64_t* gpuProcessing, *cpuProcessing, *pinnedMemory;
 	int gpuPointer, cpuPointer, pinnedPointer, onDemandPointer;
 	int cache_total_seg, cache_size, processing_size, pinned_memsize, ondemand_size, ondemand_segment;
 	int TOT_COLUMN;
@@ -224,11 +224,20 @@ public:
 
 	void loadColumnToCPU();
 
-	int* customMalloc(int size);
+	template <typename T>
+	T* customMalloc(int size);
 
-	int* customCudaMalloc(int size);
+	template <typename T>
+	T* customCudaMalloc(int size);
 
-	int* customCudaHostAlloc(int size);
+	template <typename T>
+	T* customCudaHostAlloc(int size);
+
+	// int* customMalloc(int size);
+
+	// int* customCudaMalloc(int size);
+
+	// int* customCudaHostAlloc(int size);
 
 	int* onDemandTransfer(int* data_ptr, int size, cudaStream_t stream);
 
@@ -278,10 +287,10 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 
 	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size + ondemand_size) * sizeof(int)));
 	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size + ondemand_size) * sizeof(int)));
-	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(int)));
+	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(uint64_t)));
 
-	cpuProcessing = (int*) malloc(_processing_size * sizeof(int));
-	CubDebugExit(cudaHostAlloc((void**) &pinnedMemory, _pinned_memsize * sizeof(int), cudaHostAllocDefault));
+	cpuProcessing = (uint64_t*) malloc(_processing_size * sizeof(uint64_t));
+	CubDebugExit(cudaHostAlloc((void**) &pinnedMemory, _pinned_memsize * sizeof(uint64_t), cudaHostAllocDefault));
 	gpuPointer = 0;
 	cpuPointer = 0;
 	pinnedPointer = 0;
@@ -342,10 +351,10 @@ CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _proc
 
 	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size + ondemand_size) * sizeof(int)));
 	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size + ondemand_size) * sizeof(int)));
-	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(int)));
+	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(uint64_t)));
 
-	cpuProcessing = (int*) malloc(_processing_size * sizeof(int));
-	CubDebugExit(cudaHostAlloc((void**) &pinnedMemory, _pinned_memsize * sizeof(int), cudaHostAllocDefault));
+	cpuProcessing = (uint64_t*) malloc(_processing_size * sizeof(uint64_t));
+	CubDebugExit(cudaHostAlloc((void**) &pinnedMemory, _pinned_memsize * sizeof(uint64_t), cudaHostAllocDefault));
 	gpuPointer = 0;
 	cpuPointer = 0;
 	pinnedPointer = 0;
@@ -370,28 +379,63 @@ CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _proc
 	}
 }
 
-int* 
+template <typename T>
+T*
 CacheManager::customMalloc(int size) {
-  // printf("%d\n", size);
-  int start = __atomic_fetch_add(&cpuPointer, size, __ATOMIC_RELAXED);
-  // printf("%d\n", start + size);
-  assert(start + size < processing_size);
-  return cpuProcessing + start;
+	// printf("%d\n", size);
+	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
+	int start = __atomic_fetch_add(&cpuPointer, alloc, __ATOMIC_RELAXED);
+	// printf("%d\n", start + size);
+	assert((start + alloc) < processing_size);
+	return reinterpret_cast<T*>(cpuProcessing + start);
 };
 
-int*
+template <typename T>
+T*
 CacheManager::customCudaMalloc(int size) {
-  int start = __atomic_fetch_add(&gpuPointer, size, __ATOMIC_RELAXED);
-  assert(start + size < processing_size);
-  return gpuProcessing + start;
+	// cout << size * sizeof(T) << endl;
+	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
+	int start = __atomic_fetch_add(&gpuPointer, alloc, __ATOMIC_RELAXED);
+	assert((start + alloc) < processing_size);
+	// cout << size << " " << start << endl;
+	return reinterpret_cast<T*>(gpuProcessing + start);
 };
 
-int*
+template <typename T>
+T*
 CacheManager::customCudaHostAlloc(int size) {
-  int start = __atomic_fetch_add(&pinnedPointer, size, __ATOMIC_RELAXED);
-  assert(start + size < processing_size);
-  return pinnedMemory + start;
+	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
+	int start = __atomic_fetch_add(&pinnedPointer, alloc, __ATOMIC_RELAXED);
+	assert((start + alloc) < processing_size);
+	return reinterpret_cast<T*>(pinnedMemory + start);
 };
+
+// template <typename T>
+// T*
+// CacheManager::customMalloc(int size) {
+//   // printf("%d\n", size);
+//   int start = __atomic_fetch_add(&cpuPointer, size, __ATOMIC_RELAXED);
+//   // printf("%d\n", start + size);
+//   assert(start + size < processing_size);
+//   return reinterpret_cast<T*>(cpuProcessing + start);
+// };
+
+// template <typename T>
+// T*
+// CacheManager::customCudaMalloc(int size) {
+//   int start = __atomic_fetch_add(&gpuPointer, size, __ATOMIC_RELAXED);
+//   assert(start + size < processing_size);
+//   return reinterpret_cast<T*>(gpuProcessing + start);
+// };
+
+// template <typename T>
+// T*
+// CacheManager::customCudaHostAlloc(int size) {
+//   int start = __atomic_fetch_add(&pinnedPointer, size, __ATOMIC_RELAXED);
+//   assert(start + size < processing_size);
+//   return reinterpret_cast<T*>(pinnedMemory + start);
+// };
+
 
 int*
 CacheManager::onDemandTransfer(int* data_ptr, int size, cudaStream_t stream) {
@@ -409,7 +453,7 @@ CacheManager::onDemandTransfer(int* data_ptr, int size, cudaStream_t stream) {
 void
 CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream) {
     if (col_idx[column->column_id] == NULL) {
-      int* desired = customCudaMalloc(column->total_segment); int* expected = NULL;
+      int* desired = (int*) customCudaMalloc<int>(column->total_segment); int* expected = NULL;
       CubDebugExit(cudaMemcpyAsync(desired, segment_list[column->column_id], column->total_segment * sizeof(int), cudaMemcpyHostToDevice, stream));
       CubDebugExit(cudaStreamSynchronize(stream));
       __atomic_compare_exchange_n(&(col_idx[column->column_id]), &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
