@@ -30,7 +30,7 @@ public:
 	vector<ColumnInfo*> columns;
 	vector<ColumnInfo*> supporting_columns;
 
-	Operator(OperatorType _type, unsigned short _sg, int _table_id, DeviceType _device) {
+	Operator(DeviceType _device, unsigned short _sg, int _table_id, OperatorType _type) {
 		type = _type;
 		sg = _sg;
 		table_id = _table_id;
@@ -65,12 +65,19 @@ public:
 	unordered_map<ColumnInfo*, ColumnInfo*> fkey_pkey;
 	unordered_map<ColumnInfo*, ColumnInfo*> pkey_fkey;
 
-	vector<vector<vector<vector<Operator*>>>> opGPUPipeline; // for each table, for each segment group, for each pipeline, vector of operator
-	vector<vector<vector<vector<Operator*>>>> opCPUPipeline; // for each table, for each segment group, for each pipeline, vector of operator
+	vector<vector<vector<vector<Operator*>>>> opGPUPipeline; // for each table, for each segment group, for each pipeline, there is vector of operator
+	vector<vector<vector<vector<Operator*>>>> opCPUPipeline; // for each table, for each segment group, for each pipeline, there is vector of operator
 
-	vector<vector<<Operator*>> opRoots;
+	vector<vector<Operator*>> opRoots; // for each table, for each segment group there is operator
 
-	vector<Operator*> opParsed;
+	vector<vector<Operator*>> opParsed; // for each table, there is vector of operator
+
+	vector<vector<ColumnInfo*>> joinGPUPipelineCol;
+	vector<vector<ColumnInfo*>> joinCPUPipelineCol;
+	vector<vector<ColumnInfo*>> selectGPUPipelineCol;
+	vector<vector<ColumnInfo*>> selectCPUPipelineCol;
+	vector<vector<ColumnInfo*>> groupbyGPUPipelineCol;
+	vector<vector<ColumnInfo*>> groupbyCPUPipelineCol;
 
 	bool groupGPUcheck;
 	bool* joinGPUcheck, *joinCPUcheck, **joinGPU, **joinCPU;
@@ -169,6 +176,10 @@ QueryOptimizer::clearPlacement() {
 	selectGPUPipelineCol.clear();
 	groupbyGPUPipelineCol.clear();
 	groupbyCPUPipelineCol.clear();
+
+	opCPUPipeline.clear();
+	opGPUPipeline.clear();
+	opRoots.clear();
 }
 
 void
@@ -185,6 +196,8 @@ QueryOptimizer::clearParsing() {
 	queryProbeColumn.clear();
 	queryGroupByColumn.clear();
 	queryAggrColumn.clear();
+
+	opParsed.clear();
 }
 
 void 
@@ -211,29 +224,32 @@ QueryOptimizer::parseQuery11() {
 
 	// dataDrivenOperatorPlacement();
 
-	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator (CPU, 0, 0, Filter);
 	op->columns.push_back(cm->lo_discount);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op = new Operator (CPU, 0, 0, Filter);
 	op->columns.push_back(cm->lo_quantity);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op = new Operator (CPU, 0, 0, Probe);
 	op->columns.push_back(cm->lo_orderdate);
 	op->supporting_columns.push_back(cm->d_datekey);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Aggr);
+	op = new Operator (CPU, 0, 0, Aggr);
 	op->columns.push_back(cm->lo_extendedprice);
 	op->columns.push_back(cm->lo_discount);
 	opParsed[0].push_back(op);
 
 
-	Operator* op = new Operator*(CPU, 0, 4, Filter);
+	op = new Operator (CPU, 0, 4, Filter);
 	op->columns.push_back(cm->d_year);
-	opParsed[3].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 4, Build);
+	opParsed[4].push_back(op);
+	op = new Operator (CPU, 0, 4, Build);
 	op->columns.push_back(cm->d_datekey);
 	op->supporting_columns.push_back(cm->lo_orderdate);
-	opParsed[3].push_back(op);
+	opParsed[4].push_back(op);
 
 }
 
@@ -261,29 +277,32 @@ QueryOptimizer::parseQuery12() {
 
 	// dataDrivenOperatorPlacement();
 
-	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator (CPU, 0, 0, Filter);
 	op->columns.push_back(cm->lo_discount);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op = new Operator (CPU, 0, 0, Filter);
 	op->columns.push_back(cm->lo_quantity);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op = new Operator (CPU, 0, 0, Probe);
 	op->columns.push_back(cm->lo_orderdate);
 	op->supporting_columns.push_back(cm->d_datekey);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Aggr);
+	op = new Operator (CPU, 0, 0, Aggr);
 	op->columns.push_back(cm->lo_extendedprice);
 	op->columns.push_back(cm->lo_discount);
 	opParsed[0].push_back(op);
 
 
-	Operator* op = new Operator*(CPU, 0, 4, Filter);
+	op = new Operator (CPU, 0, 4, Filter);
 	op->columns.push_back(cm->d_yearmonthnum);
-	opParsed[3].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 4, Build);
+	opParsed[4].push_back(op);
+	op = new Operator (CPU, 0, 4, Build);
 	op->columns.push_back(cm->d_datekey);
 	op->supporting_columns.push_back(cm->lo_orderdate);
-	opParsed[3].push_back(op);
+	opParsed[4].push_back(op);
 
 
 }
@@ -312,29 +331,32 @@ QueryOptimizer::parseQuery13() {
 
 	// dataDrivenOperatorPlacement();
 
-	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator (CPU, 0, 0, Filter);
 	op->columns.push_back(cm->lo_discount);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Filter);
+	op = new Operator (CPU, 0, 0, Filter);
 	op->columns.push_back(cm->lo_quantity);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op = new Operator (CPU, 0, 0, Probe);
 	op->columns.push_back(cm->lo_orderdate);
 	op->supporting_columns.push_back(cm->d_datekey);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Aggr);
+	op = new Operator (CPU, 0, 0, Aggr);
 	op->columns.push_back(cm->lo_extendedprice);
 	op->columns.push_back(cm->lo_discount);
 	opParsed[0].push_back(op);
 
 
-	Operator* op = new Operator*(CPU, 0, 4, Filter);
+	op = new Operator (CPU, 0, 4, Filter);
 	op->columns.push_back(cm->d_datekey);
-	opParsed[3].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 4, Build);
+	opParsed[4].push_back(op);
+	op = new Operator (CPU, 0, 4, Build);
 	op->columns.push_back(cm->d_datekey);
 	op->supporting_columns.push_back(cm->lo_orderdate);
-	opParsed[3].push_back(op);
+	opParsed[4].push_back(op);
 
 }
 
@@ -367,44 +389,47 @@ QueryOptimizer::parseQuery21() {
 
 	// dataDrivenOperatorPlacement();
 
-	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator (CPU, 0, 0, Probe);
 	op->columns.push_back(cm->lo_suppkey);
 	op->supporting_columns.push_back(cm->s_suppkey);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op = new Operator (CPU, 0, 0, Probe);
 	op->columns.push_back(cm->lo_partkey);
 	op->supporting_columns.push_back(cm->p_partkey);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, Probe);
+	op = new Operator (CPU, 0, 0, Probe);
 	op->columns.push_back(cm->lo_orderdate);
 	op->supporting_columns.push_back(cm->d_datekey);
 	opParsed[0].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 0, GroupBy);
+	op = new Operator (CPU, 0, 0, GroupBy);
 	op->columns.push_back(cm->lo_revenue);
 	op->supporting_columns.push_back(cm->d_year);
 	op->supporting_columns.push_back(cm->p_brand1);
 	opParsed[0].push_back(op);
 
-	Operator* op = new Operator*(CPU, 0, 1, Filter);
+	op = new Operator (CPU, 0, 1, Filter);
 	op->columns.push_back(cm->s_region);
-	opParsed[3].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 1, Build);
+	opParsed[1].push_back(op);
+	op = new Operator (CPU, 0, 1, Build);
 	op->columns.push_back(cm->s_suppkey);
 	op->supporting_columns.push_back(cm->lo_suppkey);
-	opParsed[3].push_back(op);
+	opParsed[1].push_back(op);
 
-	Operator* op = new Operator*(CPU, 0, 3, Filter);
+	op = new Operator (CPU, 0, 3, Filter);
 	op->columns.push_back(cm->p_category);
 	opParsed[3].push_back(op);
-	Operator* op = new Operator*(CPU, 0, 3, Build);
+	op = new Operator (CPU, 0, 3, Build);
 	op->columns.push_back(cm->p_partkey);
 	op->supporting_columns.push_back(cm->lo_partkey);
 	opParsed[3].push_back(op);
 
-	Operator* op = new Operator*(CPU, 0, 4, Build);
+	op = new Operator(CPU, 0, 4, Build);
 	op->columns.push_back(cm->d_datekey);
 	op->supporting_columns.push_back(cm->lo_orderdate);
-	opParsed[3].push_back(op);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -435,6 +460,48 @@ QueryOptimizer::parseQuery22() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_partkey);
+	op->supporting_columns.push_back(cm->p_partkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->supporting_columns.push_back(cm->d_year);
+	op->supporting_columns.push_back(cm->p_brand1);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_region);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 3, Filter);
+	op->columns.push_back(cm->p_brand1);
+	opParsed[3].push_back(op);
+	op = new Operator(CPU, 0, 3, Build);
+	op->columns.push_back(cm->p_partkey);
+	op->supporting_columns.push_back(cm->lo_partkey);
+	opParsed[3].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -465,6 +532,48 @@ QueryOptimizer::parseQuery23() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_partkey);
+	op->supporting_columns.push_back(cm->p_partkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->supporting_columns.push_back(cm->d_year);
+	op->supporting_columns.push_back(cm->p_brand1);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_region);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 3, Filter);
+	op->columns.push_back(cm->p_brand1);
+	opParsed[3].push_back(op);
+	op = new Operator(CPU, 0, 3, Build);
+	op->columns.push_back(cm->p_partkey);
+	op->supporting_columns.push_back(cm->lo_partkey);
+	opParsed[3].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -499,6 +608,52 @@ QueryOptimizer::parseQuery31() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_custkey);
+	op->supporting_columns.push_back(cm->c_custkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->supporting_columns.push_back(cm->c_nation);
+	op->supporting_columns.push_back(cm->s_nation);
+	op->supporting_columns.push_back(cm->d_year);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_region);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 2, Filter);
+	op->columns.push_back(cm->c_region);
+	opParsed[2].push_back(op);
+	op = new Operator(CPU, 0, 2, Build);
+	op->columns.push_back(cm->c_custkey);
+	op->supporting_columns.push_back(cm->lo_custkey);
+	opParsed[2].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_year);
+	opParsed[4].push_back(op);
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -533,6 +688,52 @@ QueryOptimizer::parseQuery32() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_custkey);
+	op->supporting_columns.push_back(cm->c_custkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->supporting_columns.push_back(cm->c_city);
+	op->supporting_columns.push_back(cm->s_city);
+	op->supporting_columns.push_back(cm->d_year);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_nation);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 2, Filter);
+	op->columns.push_back(cm->c_nation);
+	opParsed[2].push_back(op);
+	op = new Operator(CPU, 0, 2, Build);
+	op->columns.push_back(cm->c_custkey);
+	op->supporting_columns.push_back(cm->lo_custkey);
+	opParsed[2].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_year);
+	opParsed[4].push_back(op);
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -567,6 +768,52 @@ QueryOptimizer::parseQuery33() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_custkey);
+	op->supporting_columns.push_back(cm->c_custkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->supporting_columns.push_back(cm->c_city);
+	op->supporting_columns.push_back(cm->s_city);
+	op->supporting_columns.push_back(cm->d_year);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_city);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 2, Filter);
+	op->columns.push_back(cm->c_city);
+	opParsed[2].push_back(op);
+	op = new Operator(CPU, 0, 2, Build);
+	op->columns.push_back(cm->c_custkey);
+	op->supporting_columns.push_back(cm->lo_custkey);
+	opParsed[2].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_year);
+	opParsed[4].push_back(op);
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -601,6 +848,52 @@ QueryOptimizer::parseQuery34() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_custkey);
+	op->supporting_columns.push_back(cm->c_custkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->supporting_columns.push_back(cm->c_city);
+	op->supporting_columns.push_back(cm->s_city);
+	op->supporting_columns.push_back(cm->d_year);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_city);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 2, Filter);
+	op->columns.push_back(cm->c_city);
+	opParsed[2].push_back(op);
+	op = new Operator(CPU, 0, 2, Build);
+	op->columns.push_back(cm->c_custkey);
+	op->supporting_columns.push_back(cm->lo_custkey);
+	opParsed[2].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_yearmonthnum);
+	opParsed[4].push_back(op);
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -638,6 +931,61 @@ QueryOptimizer::parseQuery41() {
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_custkey);
+	op->supporting_columns.push_back(cm->c_custkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_partkey);
+	op->supporting_columns.push_back(cm->p_partkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->columns.push_back(cm->lo_supplycost);
+	op->supporting_columns.push_back(cm->c_nation);
+	op->supporting_columns.push_back(cm->d_year);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_region);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 2, Filter);
+	op->columns.push_back(cm->c_region);
+	opParsed[2].push_back(op);
+	op = new Operator(CPU, 0, 2, Build);
+	op->columns.push_back(cm->c_custkey);
+	op->supporting_columns.push_back(cm->lo_custkey);
+	opParsed[2].push_back(op);
+
+	op = new Operator(CPU, 0, 3, Filter);
+	op->columns.push_back(cm->p_mfgr);
+	opParsed[3].push_back(op);
+	op = new Operator(CPU, 0, 3, Build);
+	op->columns.push_back(cm->p_partkey);
+	op->supporting_columns.push_back(cm->lo_partkey);
+	opParsed[3].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -678,8 +1026,66 @@ QueryOptimizer::parseQuery42() {
 	groupby_build[cm->p_partkey].push_back(cm->p_category);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_custkey);
+	op->supporting_columns.push_back(cm->c_custkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_partkey);
+	op->supporting_columns.push_back(cm->p_partkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->columns.push_back(cm->lo_supplycost);
+	op->supporting_columns.push_back(cm->p_category);
+	op->supporting_columns.push_back(cm->s_nation);
+	op->supporting_columns.push_back(cm->d_year);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_region);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 2, Filter);
+	op->columns.push_back(cm->c_region);
+	opParsed[2].push_back(op);
+	op = new Operator(CPU, 0, 2, Build);
+	op->columns.push_back(cm->c_custkey);
+	op->supporting_columns.push_back(cm->lo_custkey);
+	opParsed[2].push_back(op);
+
+	op = new Operator(CPU, 0, 3, Filter);
+	op->columns.push_back(cm->p_mfgr);
+	opParsed[3].push_back(op);
+	op = new Operator(CPU, 0, 3, Build);
+	op->columns.push_back(cm->p_partkey);
+	op->supporting_columns.push_back(cm->lo_partkey);
+	opParsed[3].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_year);
+	opParsed[4].push_back(op);
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 void 
@@ -720,8 +1126,66 @@ QueryOptimizer::parseQuery43() {
 	groupby_build[cm->p_partkey].push_back(cm->p_brand1);
 	groupby_build[cm->d_datekey].push_back(cm->d_year);
 
-
 	// dataDrivenOperatorPlacement();
+
+	opParsed.resize(cm->TOT_TABLE);
+
+	Operator* op;
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_suppkey);
+	op->supporting_columns.push_back(cm->s_suppkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_custkey);
+	op->supporting_columns.push_back(cm->c_custkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_partkey);
+	op->supporting_columns.push_back(cm->p_partkey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, Probe);
+	op->columns.push_back(cm->lo_orderdate);
+	op->supporting_columns.push_back(cm->d_datekey);
+	opParsed[0].push_back(op);
+	op = new Operator(CPU, 0, 0, GroupBy);
+	op->columns.push_back(cm->lo_revenue);
+	op->columns.push_back(cm->lo_supplycost);
+	op->supporting_columns.push_back(cm->p_brand1);
+	op->supporting_columns.push_back(cm->s_city);
+	op->supporting_columns.push_back(cm->d_year);
+	opParsed[0].push_back(op);
+
+	op = new Operator(CPU, 0, 1, Filter);
+	op->columns.push_back(cm->s_nation);
+	opParsed[1].push_back(op);
+	op = new Operator(CPU, 0, 1, Build);
+	op->columns.push_back(cm->s_suppkey);
+	op->supporting_columns.push_back(cm->lo_suppkey);
+	opParsed[1].push_back(op);
+
+	op = new Operator(CPU, 0, 2, Filter);
+	op->columns.push_back(cm->c_region);
+	opParsed[2].push_back(op);
+	op = new Operator(CPU, 0, 2, Build);
+	op->columns.push_back(cm->c_custkey);
+	op->supporting_columns.push_back(cm->lo_custkey);
+	opParsed[2].push_back(op);
+
+	op = new Operator(CPU, 0, 3, Filter);
+	op->columns.push_back(cm->p_category);
+	opParsed[3].push_back(op);
+	op = new Operator(CPU, 0, 3, Build);
+	op->columns.push_back(cm->p_partkey);
+	op->supporting_columns.push_back(cm->lo_partkey);
+	opParsed[3].push_back(op);
+
+	op = new Operator(CPU, 0, 4, Filter);
+	op->columns.push_back(cm->d_year);
+	opParsed[4].push_back(op);
+	op = new Operator(CPU, 0, 4, Build);
+	op->columns.push_back(cm->d_datekey);
+	op->supporting_columns.push_back(cm->lo_orderdate);
+	opParsed[4].push_back(op);
 }
 
 // 
@@ -729,8 +1193,29 @@ QueryOptimizer::parseQuery43() {
 void
 QueryOptimizer::dataDrivenOperatorPlacement() {
 
-	opGPUPipeline.resize(MAX_GROUPS);
-	opCPUPipeline.resize(MAX_GROUPS);
+	opRoots.resize(cm->TOT_TABLE);
+	for (int i = 0; i < cm->TOT_TABLE; i++) opRoots[i].resize(MAX_GROUPS);
+	opCPUPipeline.resize(cm->TOT_TABLE);
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		opCPUPipeline[i].resize(MAX_GROUPS);
+		for (int j = 0; j < MAX_GROUPS; j++) {
+			opCPUPipeline[i][j].resize(1);
+		}
+	}
+	opGPUPipeline.resize(cm->TOT_TABLE);
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		opGPUPipeline[i].resize(MAX_GROUPS);
+		for (int j = 0; j < MAX_GROUPS; j++) {
+			opGPUPipeline[i][j].resize(1);
+		}
+	}
+
+	selectGPUPipelineCol.resize(MAX_GROUPS);
+	selectCPUPipelineCol.resize(MAX_GROUPS);
+	joinGPUPipelineCol.resize(MAX_GROUPS);
+	joinCPUPipelineCol.resize(MAX_GROUPS);
+	groupbyGPUPipelineCol.resize(MAX_GROUPS);
+	groupbyCPUPipelineCol.resize(MAX_GROUPS);
 
 	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
 	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
@@ -797,12 +1282,12 @@ QueryOptimizer::groupBitmap() {
 
 		for (int j = 0; j < opParsed[table_id].size(); j++) {
 			Operator* op = opParsed[table_id][j];
+			temp = temp << op->columns.size();
 			for (int k = 0; k < op->columns.size(); k++) {
 				ColumnInfo* column = op->columns[k];
 				bool isGPU = cm->segment_bitmap[column->column_id][i];
 				temp = temp | (isGPU << k);
 			}
-			temp = temp << op->columns.size();
 		}
 
 		segment_group[table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[table_id][temp]] = i;
@@ -810,8 +1295,37 @@ QueryOptimizer::groupBitmap() {
 
 		if (i == cm->lo_orderdate->total_segment - 1) {
 			if (cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) {
-				last_segment[0] = temp;
+				last_segment[table_id] = temp;
 			}
+		}
+	}
+
+	for (int i = 0; i < join.size(); i++) {
+
+		int table_id = join[i].second->table_id;
+		
+		for (int j = 0; j < join[i].second->total_segment; j++) {
+			unsigned short temp = 0;
+
+			for (int k = 0; k < opParsed[table_id].size(); k++) {
+				Operator* op = opParsed[table_id][k];
+				temp = temp << op->columns.size();
+				for (int l = 0; l < op->columns.size(); l++) {
+					ColumnInfo* column = op->columns[l];
+					bool isGPU = cm->segment_bitmap[column->column_id][j];
+					temp = temp | (isGPU << l);
+				}
+			}
+
+			segment_group[table_id][temp * join[i].second->total_segment + segment_group_count[table_id][temp]] = j;
+			segment_group_count[table_id][temp]++;
+
+			if (j == join[i].second->total_segment - 1) {
+				if (join[i].second->LEN % SEGMENT_SIZE != 0) {
+					last_segment[table_id] = temp;
+				}
+			}
+
 		}
 	}
 
@@ -821,7 +1335,7 @@ QueryOptimizer::groupBitmap() {
 
 			unsigned short sg = i;
 
-			for (int j = 0; j < opParsed[table_id].size(); j++) {
+			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
 
 				Operator* op = opParsed[table_id][j];
 				unsigned short  bit = 1;
@@ -831,6 +1345,7 @@ QueryOptimizer::groupBitmap() {
 				}
 
 				if (op->type == GroupBy) {
+					// cout << bit << " " << groupGPUcheck << endl;
 					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
 				} else if (op->type == Aggr) {
 					(bit) ? (op->device = GPU):(op->device = CPU); 		
@@ -849,19 +1364,23 @@ QueryOptimizer::groupBitmap() {
 
 			for (int j = 0; j < opParsed[table_id].size(); j++) {
 				Operator* op = opParsed[table_id][j];
-				if (op->type != GroupBy && op->type != Build) {
+				// cout << op->type << endl;
+				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
 					if (op->device == GPU) {
 						opGPUPipeline[table_id][i][0].push_back(op);
 					} else if (op->device == CPU) {
-						opCPUPipeline[table_id][i][0].push_back(op);	
+						opCPUPipeline[table_id][i][0].push_back(op);
 					}
-				} else if (op->type == GroupBy) {
-					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-					else {
+				} else if (op->type == GroupBy || op->type == Aggr) {
+					if (opCPUPipeline[table_id][i][0].size() > 0) {
+						// cout << "ho" << endl;
+						opCPUPipeline[table_id][i][0].push_back(op);
+					} else {
+						// cout << "hi" << endl;
 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
 					}
-				} else if (op->type == Build) {
+				} else if (op->type == Build) { //TODO!! FIX THIS
 					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
 					else {
 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
@@ -901,6 +1420,122 @@ QueryOptimizer::groupBitmap() {
 		}
 	}
 
+	for (int dim = 0; dim < join.size(); dim++) {
+		int table_id = join[dim].second->table_id;
+			for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+				if (segment_group_count[table_id][i] > 0) {
+
+					unsigned short sg = i;
+
+					for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
+
+						Operator* op = opParsed[table_id][j];
+						unsigned short  bit = 1;
+						for (int k = 0; k < op->columns.size(); k++) {
+							bit = (sg & (1 << k)) >> k;
+							if (!bit) break;
+						}
+
+						if (op->type == GroupBy) {
+							(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
+						} else if (op->type == Aggr) {
+							(bit) ? (op->device = GPU):(op->device = CPU); 		
+						} else if (op->type == Probe) {	
+							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
+						} else if (op->type == Filter) {
+							(bit) ? (op->device = GPU):(op->device = CPU);
+						} else if (op->type == Build) {
+							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
+						}
+
+						sg = sg >> op->columns.size();
+					}
+
+					for (int j = 0; j < opParsed[table_id].size(); j++) {
+						Operator* op = opParsed[table_id][j];
+						if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
+							if (op->device == GPU) {
+								opGPUPipeline[table_id][i][0].push_back(op);
+							} else if (op->device == CPU) {
+								opCPUPipeline[table_id][i][0].push_back(op);	
+							}
+						} else if (op->type == GroupBy || op->type == Aggr) {
+							if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+							else {
+								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+							}
+						} else if (op->type == Build) { //TODO!! FIX THIS
+							if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+							else {
+								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+							}					
+						}
+					}
+
+					Operator* op;
+
+					if (opGPUPipeline[table_id][i][0].size() > 0) {
+						opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+						op = opRoots[table_id][i];
+						for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+							op->addChild(opGPUPipeline[table_id][i][0][j]);
+							op = opGPUPipeline[table_id][i][0][j];
+						}
+						if (opCPUPipeline[table_id][i][0].size() > 0) {
+							Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
+							op->addChild(transferOp);
+							Operator* matOp = new Operator(CPU, i, table_id, Materialize);
+							transferOp->addChild(matOp);
+							op = matOp;
+							for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+								op->addChild(opCPUPipeline[table_id][i][0][j]);
+								op = opCPUPipeline[table_id][i][0][j];
+							}
+						}
+					} else {
+						opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
+						op = opRoots[table_id][i];
+						for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+							op->addChild(opCPUPipeline[table_id][i][0][j]);
+							op = opCPUPipeline[table_id][i][0][j];
+						}
+					}
+				}
+			}
+	}
+
+	for (int i = 0; i < MAX_GROUPS; i++) {
+		if (segment_group_count[0][i] > 0) {
+			// cout << i << endl;
+			for (int j = 0; j < opGPUPipeline[0][i][0].size(); j++) {
+				Operator* op = opGPUPipeline[0][i][0][j];
+				// for (int col = 0; col < op->columns.size(); col++)
+				// 	cout << "GPU " << op->columns[col]->column_name << endl;
+				if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
+				else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
+				else if (op->type == GroupBy || op->type == Aggr) {
+					for (int k = 0; k < op->columns.size(); k++)
+						groupbyGPUPipelineCol[i].push_back(op->columns[k]);
+				}
+			}
+			for (int j = 0; j < opCPUPipeline[0][i][0].size(); j++) {
+				Operator* op = opCPUPipeline[0][i][0][j];
+				// for (int col = 0; col < op->columns.size(); col++)
+				// 	cout << "CPU " << op->columns[col]->column_name << endl;
+				if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
+				else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
+				else if (op->type == GroupBy || op->type == Aggr) {
+					for (int k = 0; k < op->columns.size(); k++)
+						groupbyCPUPipelineCol[i].push_back(op->columns[k]);
+				}
+			}
+		}
+	}
+
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		bool checkGPU = false, checkCPU = false;
 		for (int j = 0; j < MAX_GROUPS; j++) {
@@ -909,34 +1544,46 @@ QueryOptimizer::groupBitmap() {
 		}
 		joinGPUcheck[i] = checkGPU;
 		joinCPUcheck[i] = checkCPU;
+		// cout << i << " check " << joinGPUcheck[i] << endl;
+		// cout << i << " check " << joinCPUcheck[i] << endl;
 	}
 
-	for (int i = 0; i < join.size(); i++) {
-		
-		for (int j = 0; j < join[i].second->total_segment; j++) {
-			unsigned short temp = 0;
 
-			for (int k = 0; k < opParsed[table_id].size(); k++) {
-				Operator* op = opParsed[table_id][k];
-				for (int l = 0; l < op->columns.size(); l++) {
-					ColumnInfo* column = op->columns[l];
-					bool isGPU = cm->segment_bitmap[column->column_id][i];
-					temp = temp | (isGPU << l);
-				}
-				temp = temp << (op->columns.size());
-			}
+	// cout << "joinGPUPipelineCol" << endl;
+	// for (int i = 0; i < MAX_GROUPS; i++) {
+	// 	for (int j = 0; j < joinGPUPipelineCol[i].size(); j++) {
+	// 		cout << joinGPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
 
-			segment_group[join[i].second->table_id][temp * join[i].second->total_segment + segment_group_count[join[i].second->table_id][temp]] = j;
-			segment_group_count[join[i].second->table_id][temp]++;
+	// cout << "joinCPUPipelineCol" << endl;
+	// for (int i = 0; i < MAX_GROUPS; i++) {
+	// 	for (int j = 0; j < joinCPUPipelineCol[i].size(); j++) {
+	// 		cout << joinCPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
 
-			if (j == join[i].second->total_segment - 1) {
-				if (join[i].second->LEN % SEGMENT_SIZE != 0) {
-					last_segment[join[i].second->table_id] = temp;
-				}
-			}
+	// cout << "groupbyGPUPipelineCol" << endl;
+	// for (int i = 0; i < MAX_GROUPS; i++) {
+	// 	for (int j = 0; j < groupbyGPUPipelineCol[i].size(); j++) {
+	// 		cout << groupbyGPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
 
-		}
-	}
+	// cout << "groupbyCPUPipelineCol" << endl;
+	// for (int i = 0; i < MAX_GROUPS; i++) {
+	// 	for (int j = 0; j < groupbyCPUPipelineCol[i].size(); j++) {
+	// 		cout << groupbyCPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
+
+	// for (int i = 0; i < cm->TOT_TABLE; i++) {
+	// 	for (int sg = 0; sg < MAX_GROUPS; sg++) {
+	// 		if (segment_group_count[i][sg] > 0) {
+	// 			cout << i << " " << sg << " " << segment_group_count[i][sg] << endl;
+	// 		}
+	// 	}
+	// }
 
 
 	for (int i = 0; i < cm->TOT_TABLE; i++) {

@@ -1,7 +1,7 @@
 #ifndef _CPUGPU_PROCESSING_H_
 #define _CPUGPU_PROCESSING_H_
 
-#include "QueryOptimizer.h"
+#include "QueryOptimizer2.h"
 #include "GPUProcessing.h"
 #include "CPUProcessing.h"
 
@@ -889,7 +889,7 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
 
     short* d_segment_group;
     // d_segment_group = reinterpret_cast<short*>(cm->customCudaMalloc(cm->lo_orderdate->total_segment));
-    d_segment_group = (short*) cm->customCudaMalloc<int>(cm->lo_orderdate->total_segment);
+    d_segment_group = (short*) cm->customCudaMalloc<short>(cm->lo_orderdate->total_segment);
     short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
     CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, qo->segment_group_count[0][sg] * sizeof(short), cudaMemcpyHostToDevice, stream));
 

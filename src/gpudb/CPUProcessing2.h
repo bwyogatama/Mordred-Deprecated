@@ -936,13 +936,15 @@ void probe_group_by_CPU2(struct offsetCPU offset,
 
 void filter_probe_group_by_CPU(
   struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct groupbyArgsCPU gargs,
-  int num_tuples, int* res, int start_offset = 0, short* segment_group = NULL) {
+  int num_tuples, int* res, int start_offset = 0, short* segment_group = NULL, struct statsCPU stats) {
 
 
   int grainsize = num_tuples/4096 + 4;
   assert(grainsize < 20000);
   assert(grainsize < SEGMENT_SIZE);
   assert(segment_group != NULL);
+
+  int task_count = num_tuples/TASK_SIZE;
 
   // Probe
   parallel_for(blocked_range<size_t>(0, num_tuples, grainsize), [&](auto range) {
@@ -958,6 +960,9 @@ void filter_probe_group_by_CPU(
     end_segment = segment_group[end / SEGMENT_SIZE];
     start_group = start / SEGMENT_SIZE;
 
+    int count_filter1[2] = {0}, count_filter2[2] = {0};
+    int count_probe1[2] = {0}, count_probe2[2] = {0}, count_probe3[2] = {0}, count_probe4[2] = {0};
+
     for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
       #pragma simd
       for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
@@ -970,14 +975,6 @@ void filter_probe_group_by_CPU(
         else segment_idx = end_segment;
 
         lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
-
-        // if (fargs.filter_col1 != NULL) {
-        //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-        // }
-
-        // if (fargs.filter_col2 != NULL) {
-        //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-        // }
 
         if (fargs.filter_col1 != NULL) {
           if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
@@ -1015,8 +1012,6 @@ void filter_probe_group_by_CPU(
           dim_val4 = slot;
         }
 
-        // if (!(pargs.key_col4[lo_offset] > 19930000 && pargs.key_col4[lo_offset] < 19940000)) continue;
-
         hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
         if (dim_val1 != 0) res[hash * 6] = dim_val1;
         if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
@@ -1027,16 +1022,6 @@ void filter_probe_group_by_CPU(
         if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
         if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
         int temp = (*(gargs.h_group_func))(aggr1, aggr2);
-        // if (gargs.mode == 0) {
-        //   assert(gargs.aggr_col1 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset];
-        // } else if (gargs.mode == 1) {
-        //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset] - gargs.aggr_col2[lo_offset];
-        // } else if  (gargs.mode == 2){ 
-        //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset] * gargs.aggr_col2[lo_offset];
-        // } else assert(0);
 
         __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
       }
@@ -1053,14 +1038,6 @@ void filter_probe_group_by_CPU(
       else segment_idx = end_segment;
 
       lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
-
-      // if (fargs.filter_col1 != NULL) {
-      //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-      // }
-
-      // if (fargs.filter_col2 != NULL) {
-      //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-      // }
 
       if (fargs.filter_col1 != NULL) {
         if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
@@ -1098,8 +1075,6 @@ void filter_probe_group_by_CPU(
         dim_val4 = slot;
       }
 
-      // if (!(pargs.key_col4[lo_offset] > 19930000 && pargs.key_col4[lo_offset] < 19940000)) continue;
-
       hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
       if (dim_val1 != 0) res[hash * 6] = dim_val1;
       if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
@@ -1110,219 +1085,248 @@ void filter_probe_group_by_CPU(
       if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
       if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
       int temp = (*(gargs.h_group_func))(aggr1, aggr2);
-      // if (gargs.mode == 0) {
-      //   assert(gargs.aggr_col1 != NULL);
-      //   temp = gargs.aggr_col1[lo_offset];
-      // } else if (gargs.mode == 1) {
-      //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-      //   temp = gargs.aggr_col1[lo_offset] - gargs.aggr_col2[lo_offset];
-      // } else if  (gargs.mode == 2){ 
-      //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-      //   temp = gargs.aggr_col1[lo_offset] * gargs.aggr_col2[lo_offset];
-      // } else assert(0);
 
       __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
     }
+
+    for  (int i = start_segment; i < end_segment; i++) {
+      __atomic_fetch_add(&(stats.count[fargs.filter_id1][i]), count_filter1[i-start_segment], __ATOMIC_RELAXED);
+      __atomic_fetch_add(&(stats.count[fargs.filter_id2][i]), count_filter2[i-start_segment], __ATOMIC_RELAXED);
+      __atomic_fetch_add(&(stats.count[pargs.probe_id1][i]), count_probe1[i-start_segment], __ATOMIC_RELAXED);
+      __atomic_fetch_add(&(stats.count[pargs.probe_id2][i]), count_probe2[i-start_segment], __ATOMIC_RELAXED);
+      __atomic_fetch_add(&(stats.count[pargs.probe_id3][i]), count_probe3[i-start_segment], __ATOMIC_RELAXED);
+      __atomic_fetch_add(&(stats.count[pargs.probe_id4][i]), count_probe4[i-start_segment], __ATOMIC_RELAXED);
+    }
+
   }, simple_partitioner());
 
 }
 
-void filter_probe_group_by_CPU2(struct offsetCPU offset,
+void filter_probe_group_by_CPU4(struct offsetCPU offset,
   struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct groupbyArgsCPU gargs,
-  int num_tuples, int* res, int start_offset = 0) {
+  int num_tuples, int* res, int start_offset = 0, struct statsCPU stats) {
 
-  int grainsize = num_tuples/4096 + 4;
-  assert(grainsize < 20000);
-  assert(grainsize < SEGMENT_SIZE);
   assert(offset.h_lo_off != NULL);
 
+  int task_count = (num_tuples + TASK_SIZE - 1)/TASK_SIZE;
+  int rem_task = (num_tuples % TASK_SIZE == 0) ? (TASK_SIZE):(num_tuples % TASK_SIZE)
+
   // Probe
-  parallel_for(blocked_range<size_t>(0, num_tuples, grainsize), [&](auto range) {
-    //int worker_index = tbb::task_arena::current_thread_index();
-    unsigned int start = range.begin();
-    unsigned int end = range.end();
-    unsigned int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
-    //printf("worker index = %d\n", worker_index);
+  parallel_for(blocked_range<size_t>(0, task_count), [&](auto range) {
+    unsigned int start_task = range.begin();
+    unsigned int end_task = range.end();
 
-    for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
-      #pragma simd
-      for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
-        int hash;
-        long long slot;
-        int dim_val1 = 0, dim_val2 = 0, dim_val3 = 0, dim_val4 = 0;
-        int lo_offset;
+    int count_filter1[TOT_SEGMENT] = {0}, count_filter2[TOT_SEGMENT] = {0};
+    int count_probe1[TOT_SEGMENT] = {0}, count_probe2[TOT_SEGMENT] = {0};
+    int count_probe3[TOT_SEGMENT] = {0}, count_probe4[TOT_SEGMENT] = {0};
+    int count_group1[TOT_SEGMENT] = {0}, count_group2[TOT_SEGMENT] = {0};
+    int count_group3[TOT_SEGMENT] = {0}, count_group4[TOT_SEGMENT] = {0};
+    int count_aggr1[TOT_SEGMENT] = {0}, count_aggr2[TOT_SEGMENT] = {0};
+    bool count_check[TOT_SEGMENT] = {0};
 
-        lo_offset = offset.h_lo_off[start_offset + i];
+    for (task = start_task; task < end_task; task++) {
+          unsigned int start = task * TASK_SIZE;
+          unsigned int end = (end_task == task_count - 1) ? (task * TASK_SIZE + rem_task):(task * TASK_SIZE + TASK_SIZE);
+          unsigned int end_batch = start + ((end - start)/BATCH_SIZE) * BATCH_SIZE;
 
-        // if (fargs.filter_col1 != NULL) {
-        //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-        // }
+          for (int batch_start = start; batch_start < end_batch; batch_start += BATCH_SIZE) {
+            #pragma simd
+            for (int i = batch_start; i < batch_start + BATCH_SIZE; i++) {
+              int hash;
+              long long slot;
+              int dim_val1 = 0, dim_val2 = 0, dim_val3 = 0, dim_val4 = 0;
+              int lo_offset;
 
-        // if (fargs.filter_col2 != NULL) {
-        //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-        // }
+              lo_offset = offset.h_lo_off[start_offset + i];
+              count_check[lo_offset / SEGMENT_SIZE] = 1;
 
-        if (fargs.filter_col1 != NULL) {
-          if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
-        }
+              if (fargs.filter_col1 != NULL) {
+                count_filter1[lo_offset / SEGMENT_SIZE]++;
+                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+              }
 
-        if (fargs.filter_col2 != NULL) {
-          if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
-        }
+              if (fargs.filter_col2 != NULL) {
+                count_filter2[lo_offset / SEGMENT_SIZE]++;
+                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              }
 
-        if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
-          hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
-          slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
-          if (slot == 0) continue;
-          dim_val1 = slot;
-        } else if (gargs.group_col1 != NULL) {
-          assert(offset.h_dim_off1 != NULL);
-          dim_val1 = gargs.group_col1[offset.h_dim_off1[start_offset + i]];
-        }
+              if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
+                count_probe1[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
+                slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
+                if (slot == 0) continue;
+                dim_val1 = slot;
+              } else if (gargs.group_col1 != NULL) {
+                assert(offset.h_dim_off1 != NULL);
+                count_group1[offset.h_dim_off1[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val1 = gargs.group_col1[offset.h_dim_off1[start_offset + i]];
+              }
 
-        if (pargs.key_col2 != NULL && pargs.ht2 != NULL) {
-          hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
-          slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
-          if (slot == 0) continue;
-          dim_val2 = slot;
-        } else if (gargs.group_col2 != NULL) {
-          assert(offset.h_dim_off2 != NULL);
-          dim_val2 = gargs.group_col2[offset.h_dim_off2[start_offset + i]];
-        }
+              if (pargs.key_col2 != NULL && pargs.ht2 != NULL) {
+                count_probe2[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
+                slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
+                if (slot == 0) continue;
+                dim_val2 = slot;
+              } else if (gargs.group_col2 != NULL) {
+                assert(offset.h_dim_off2 != NULL);
+                count_group2[offset.h_dim_off2[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val2 = gargs.group_col2[offset.h_dim_off2[start_offset + i]];
+              }
 
-        if (pargs.key_col3 != NULL && pargs.ht3 != NULL) {
-          hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
-          slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
-          if (slot == 0) continue;
-          dim_val3 = slot;
-        } else if (gargs.group_col3 != NULL) {
-          assert(offset.h_dim_off3 != NULL);
-          dim_val3 = gargs.group_col3[offset.h_dim_off3[start_offset + i]];
-        }
+              if (pargs.key_col3 != NULL && pargs.ht3 != NULL) {
+                count_probe3[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
+                slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
+                if (slot == 0) continue;
+                dim_val3 = slot;
+              } else if (gargs.group_col3 != NULL) {
+                assert(offset.h_dim_off3 != NULL);
+                count_group3[offset.h_dim_off3[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val3 = gargs.group_col3[offset.h_dim_off3[start_offset + i]];
+              }
 
-        if (pargs.key_col4 != NULL && pargs.ht4 != NULL) {
-          hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
-          slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
-          if (slot == 0) continue;
-          dim_val4 = slot;
-        } else if (gargs.group_col4 != NULL) {
-          assert(offset.h_dim_off4 != NULL);
-          dim_val4 = gargs.group_col4[offset.h_dim_off4[start_offset + i]];
-        }
+              if (pargs.key_col4 != NULL && pargs.ht4 != NULL) {
+                count_probe4[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+                slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+                if (slot == 0) continue;
+                dim_val4 = slot;
+              } else if (gargs.group_col4 != NULL) {
+                assert(offset.h_dim_off4 != NULL);
+                count_group4[offset.h_dim_off4[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val4 = gargs.group_col4[offset.h_dim_off4[start_offset + i]];
+              }
 
-        hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
-        if (dim_val1 != 0) res[hash * 6] = dim_val1;
-        if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
-        if (dim_val3 != 0) res[hash * 6 + 2] = dim_val3;
-        if (dim_val4 != 0) res[hash * 6 + 3] = dim_val4;
+              hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
+              if (dim_val1 != 0) res[hash * 6] = dim_val1;
+              if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
+              if (dim_val3 != 0) res[hash * 6 + 2] = dim_val3;
+              if (dim_val4 != 0) res[hash * 6 + 3] = dim_val4;
 
-        int aggr1 = 0; int aggr2 = 0;
-        if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
-        if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-        int temp = (*(gargs.h_group_func))(aggr1, aggr2);
-        // if (gargs.mode == 0) {
-        //   assert(gargs.aggr_col1 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset];
-        // } else if (gargs.mode == 1) {
-        //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset] - gargs.aggr_col2[lo_offset];
-        // } else if (gargs.mode == 2){ 
-        //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset] * gargs.aggr_col2[lo_offset];
-        // } else assert(0);
+              int aggr1 = 0; int aggr2 = 0;
+              if (gargs.aggr_col1 != NULL) {
+                count_aggr1[lo_offset / SEGMENT_SIZE]++;
+                aggr1 = gargs.aggr_col1[lo_offset];
+              }
+              if (gargs.aggr_col2 != NULL) {
+                count_aggr2[lo_offset / SEGMENT_SIZE]++;
+                aggr2 = gargs.aggr_col2[lo_offset];
+              }
+              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
 
-        __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
-      }
+              __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
+            }
+          }
+
+          for (int i = end_batch ; i < end; i++) {
+
+              int hash;
+              long long slot;
+              int dim_val1 = 0, dim_val2 = 0, dim_val3 = 0, dim_val4 = 0;
+              int lo_offset;
+
+              lo_offset = offset.h_lo_off[start_offset + i];
+              count_check[lo_offset / SEGMENT_SIZE] = 1;
+
+              if (fargs.filter_col1 != NULL) {
+                count_filter1[lo_offset / SEGMENT_SIZE]++;
+                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+              }
+
+              if (fargs.filter_col2 != NULL) {
+                count_filter2[lo_offset / SEGMENT_SIZE]++;
+                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              }
+
+              if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
+                count_probe1[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
+                slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
+                if (slot == 0) continue;
+                dim_val1 = slot;
+              } else if (gargs.group_col1 != NULL) {
+                assert(offset.h_dim_off1 != NULL);
+                count_group1[offset.h_dim_off1[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val1 = gargs.group_col1[offset.h_dim_off1[start_offset + i]];
+              }
+
+              if (pargs.key_col2 != NULL && pargs.ht2 != NULL) {
+                count_probe2[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
+                slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
+                if (slot == 0) continue;
+                dim_val2 = slot;
+              } else if (gargs.group_col2 != NULL) {
+                assert(offset.h_dim_off2 != NULL);
+                count_group2[offset.h_dim_off2[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val2 = gargs.group_col2[offset.h_dim_off2[start_offset + i]];
+              }
+
+              if (pargs.key_col3 != NULL && pargs.ht3 != NULL) {
+                count_probe3[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
+                slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
+                if (slot == 0) continue;
+                dim_val3 = slot;
+              } else if (gargs.group_col3 != NULL) {
+                assert(offset.h_dim_off3 != NULL);
+                count_group3[offset.h_dim_off3[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val3 = gargs.group_col3[offset.h_dim_off3[start_offset + i]];
+              }
+
+              if (pargs.key_col4 != NULL && pargs.ht4 != NULL) {
+                count_probe4[lo_offset / SEGMENT_SIZE]++;
+                hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+                slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+                if (slot == 0) continue;
+                dim_val4 = slot;
+              } else if (gargs.group_col4 != NULL) {
+                assert(offset.h_dim_off4 != NULL);
+                count_group4[offset.h_dim_off4[start_offset + i] / SEGMENT_SIZE]++;
+                dim_val4 = gargs.group_col4[offset.h_dim_off4[start_offset + i]];
+              }
+
+              hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
+              if (dim_val1 != 0) res[hash * 6] = dim_val1;
+              if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
+              if (dim_val3 != 0) res[hash * 6 + 2] = dim_val3;
+              if (dim_val4 != 0) res[hash * 6 + 3] = dim_val4;
+
+              int aggr1 = 0; int aggr2 = 0;
+              if (gargs.aggr_col1 != NULL) {
+                count_aggr1[lo_offset / SEGMENT_SIZE]++;
+                aggr1 = gargs.aggr_col1[lo_offset];
+              }
+              if (gargs.aggr_col2 != NULL) {
+                count_aggr2[lo_offset / SEGMENT_SIZE]++;
+                aggr2 = gargs.aggr_col2[lo_offset];
+              }
+              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+
+              __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
+          }
+
+          for  (int i = 0; i < TOT_SEGMENT; i++) {
+            if (count_check[i]) {
+              __atomic_fetch_add(&(stats.h_count[fargs.filter_id1][i]), count_filter1[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[fargs.filter_id2][i]), count_filter2[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.probe_id1][i]), count_probe1[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.probe_id2][i]), count_probe2[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.probe_id3][i]), count_probe3[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.probe_id4][i]), count_probe4[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.group_id1][i]), count_group1[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.group_id2][i]), count_group2[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.group_id3][i]), count_group3[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.group_id4][i]), count_group4[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.aggr_id1][i]), count_aggr1[i], __ATOMIC_RELAXED);
+              __atomic_fetch_add(&(stats.h_count[pargs.aggr_id2][i]), count_aggr2[i], __ATOMIC_RELAXED);
+            }
+          }
+
+
     }
 
-    for (int i = end_batch ; i < end; i++) {
-
-        int hash;
-        long long slot;
-        int dim_val1 = 0, dim_val2 = 0, dim_val3 = 0, dim_val4 = 0;
-        int lo_offset;
-
-        lo_offset = offset.h_lo_off[start_offset + i];
-
-        // if (fargs.filter_col1 != NULL) {
-        //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-        // }
-
-        // if (fargs.filter_col2 != NULL) {
-        //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-        // }
-
-        if (fargs.filter_col1 != NULL) {
-          if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
-        }
-
-        if (fargs.filter_col2 != NULL) {
-          if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
-        }
-
-        if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
-          hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
-          slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
-          if (slot == 0) continue;
-          dim_val1 = slot;
-        } else if (gargs.group_col1 != NULL) {
-          assert(offset.h_dim_off1 != NULL);
-          dim_val1 = gargs.group_col1[offset.h_dim_off1[start_offset + i]];
-        }
-
-        if (pargs.key_col2 != NULL && pargs.ht2 != NULL) {
-          hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
-          slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
-          if (slot == 0) continue;
-          dim_val2 = slot;
-        } else if (gargs.group_col2 != NULL) {
-          assert(offset.h_dim_off2 != NULL);
-          dim_val2 = gargs.group_col2[offset.h_dim_off2[start_offset + i]];
-        }
-
-        if (pargs.key_col3 != NULL && pargs.ht3 != NULL) {
-          hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
-          slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
-          if (slot == 0) continue;
-          dim_val3 = slot;
-        } else if (gargs.group_col3 != NULL) {
-          assert(offset.h_dim_off3 != NULL);
-          dim_val3 = gargs.group_col3[offset.h_dim_off3[start_offset + i]];
-        }
-
-        if (pargs.key_col4 != NULL && pargs.ht4 != NULL) {
-          hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
-          slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
-          if (slot == 0) continue;
-          dim_val4 = slot;
-        } else if (gargs.group_col4 != NULL) {
-          assert(offset.h_dim_off4 != NULL);
-          dim_val4 = gargs.group_col4[offset.h_dim_off4[start_offset + i]];
-        }
-
-        hash = ((dim_val1 - gargs.min_val1) * gargs.unique_val1 + (dim_val2 - gargs.min_val2) * gargs.unique_val2 +  (dim_val3 - gargs.min_val3) * gargs.unique_val3 + (dim_val4 - gargs.min_val4) * gargs.unique_val4) % gargs.total_val;
-        if (dim_val1 != 0) res[hash * 6] = dim_val1;
-        if (dim_val2 != 0) res[hash * 6 + 1] = dim_val2;
-        if (dim_val3 != 0) res[hash * 6 + 2] = dim_val3;
-        if (dim_val4 != 0) res[hash * 6 + 3] = dim_val4;
-
-        int aggr1 = 0; int aggr2 = 0;
-        if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
-        if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-        int temp = (*(gargs.h_group_func))(aggr1, aggr2);
-        // if (gargs.mode == 0) {
-        //   assert(gargs.aggr_col1 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset];
-        // } else if (gargs.mode == 1) {
-        //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset] - gargs.aggr_col2[lo_offset];
-        // } else if (gargs.mode == 2){ 
-        //   assert(gargs.aggr_col1 != NULL); assert(gargs.aggr_col2 != NULL);
-        //   temp = gargs.aggr_col1[lo_offset] * gargs.aggr_col2[lo_offset];
-        // } else assert(0);
-
-        __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
-    }
   }, simple_partitioner());
 
 }

@@ -1,4 +1,4 @@
-#include "QueryProcessing.h"
+#include "QueryProcessing2.h"
 
 #include <chrono>
 #include <atomic>
@@ -8,11 +8,11 @@
 
 int main() {
 
-	bool verbose = 0;
+	bool verbose = 1;
 
 	srand(123);
 	
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 209715200, 536870912, 536870912, verbose);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200, 536870912, 536870912, verbose);
 
 	cout << "Profiling" << endl;
 	QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
@@ -24,9 +24,9 @@ int main() {
 
 	// CacheManager* cm = cgp->cm;
 
-	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 58);
+	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 58);
 	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);

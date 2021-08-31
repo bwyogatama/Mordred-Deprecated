@@ -8,65 +8,6 @@
 class CacheManager;
 class ColumnInfo;
 
-class Operator {
-public:
-	string type;
-	int device;
-	vector<Operator*> children;
-	vector<Operator*> parents;
-	Operator(int _device) {
-		device = _device;
-	};
-	void appendChild(Operator* child) {
-		children.push_back(child);
-	};
-	void appendParent(Operator* parent) {
-		parents.push_back(parent);
-	};
-};
-
-class Filter : public Operator {
-public:
-	short* sg_filter;
-	ColumnInfo* filter_col;
-};
-
-class Join : public Operator {
-public:
-	short* segment_group_foreign;
-	short* segment_group_primary;
-	ColumnInfo* foreign_key;
-	ColumnInfo* primary_key;
-};
-
-class GroupBy : public Operator {
-public:
-	short* segment_group_groupby;
-	vector<ColumnInfo*> group_key;
-	vector<ColumnInfo*> aggregation_col;
-};
-
-class CPUtoGPU : public Operator {
-public:
-	short* segment_group_copy;
-};
-
-class GPUtoCPU : public Operator {
-public:
-	short* segment_group_copy;
-};
-
-class Materialize : public Operator {
-public:
-	short* segment_group_mat;
-	ColumnInfo* mat_col;
-};
-
-class Merge : public Operator {
-public:
-	vector<short*> segment_group_merge;
-};
-
 class QueryOptimizer {
 public:
 	CacheManager* cm;
@@ -798,6 +739,8 @@ QueryOptimizer::groupBitmap() {
 		}
 		joinGPUcheck[i] = checkGPU;
 		joinCPUcheck[i] = checkCPU;
+		// cout << i << " check " << joinGPUcheck[i] << endl;
+		// cout << i << " check " << joinCPUcheck[i] << endl;
 	}
 
 	for (int i = 0; i < join.size(); i++) {
@@ -828,6 +771,33 @@ QueryOptimizer::groupBitmap() {
 		}
 	}
 
+	// cout << "joinGPUPipelineCol" << endl;
+	// for (int i = 0; i < 64; i++) {
+	// 	for (int j = 0; j < joinGPUPipelineCol[i].size(); j++) {
+	// 		cout << joinGPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
+
+	// cout << "joinCPUPipelineCol" << endl;
+	// for (int i = 0; i < 64; i++) {
+	// 	for (int j = 0; j < joinCPUPipelineCol[i].size(); j++) {
+	// 		cout << joinCPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
+
+	// cout << "groupbyGPUPipelineCol" << endl;
+	// for (int i = 0; i < 64; i++) {
+	// 	for (int j = 0; j < groupbyGPUPipelineCol[i].size(); j++) {
+	// 		cout << groupbyGPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
+
+	// cout << "groupbyCPUPipelineCol" << endl;
+	// for (int i = 0; i < 64; i++) {
+	// 	for (int j = 0; j < groupbyCPUPipelineCol[i].size(); j++) {
+	// 		cout << groupbyCPUPipelineCol[i][j]->column_name << endl;
+	// 	}
+	// }
 
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		short count = 0;
