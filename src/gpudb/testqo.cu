@@ -8,17 +8,17 @@
 
 int main() {
 
-	bool verbose = 1;
+	bool verbose = 0;
 
 	srand(123);
 	
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200, 536870912, 536870912, verbose);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200, 536870912, 536870912, 0);
 
 	cout << "Profiling" << endl;
-	QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
+	QueryProcessing* qp = new QueryProcessing(cgp, 11, 0);
 	qp->profile();
 
-	cgp->cm->resetCache(209715200 / 2, 209715200 / 2, 536870912, 536870912);
+	cgp->cm->resetCache(209715200, 209715200 / 2, 536870912, 536870912);
 
 	cout << endl;
 
@@ -109,7 +109,7 @@ int main() {
 			delete qp;
 		} else if (input.compare("3") == 0) {
 			cout << "LFU Replacement" << endl;
-			cgp->cm->runReplacement(0);
+			cgp->cm->runReplacement(LFU);
 			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			qp->percentageData();
 			delete qp;
@@ -117,7 +117,7 @@ int main() {
 			srand(123);
 		} else if (input.compare("4") == 0) {
 			cout << "LRU Replacement" << endl;
-			cgp->cm->runReplacement(1);
+			cgp->cm->runReplacement(LRU);
 			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			qp->percentageData();
 			delete qp;
@@ -125,7 +125,7 @@ int main() {
 			srand(123);
 		} else if (input.compare("5") == 0) {
 			cout << "New Replacement" << endl;
-			cgp->cm->runReplacement(2);
+			cgp->cm->runReplacement(New);
 			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			qp->percentageData();
 			delete qp;
@@ -133,7 +133,7 @@ int main() {
 			srand(123);
 		} else if (input.compare("6") == 0) {
 			cout << "New+ Replacement" << endl;
-			cgp->cm->runReplacement(3);
+			cgp->cm->runReplacement(New_v2);
 			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			qp->percentageData();
 			delete qp;

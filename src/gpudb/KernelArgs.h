@@ -299,19 +299,6 @@ typedef struct filterArgsCPU {
 	// mode1(0), mode2(0) {}
 } filterArgsCPU;
 
-
-typedef struct statArgsCPU {
-	int** h_count;
-
-} statArgsCPU;
-
-
-typedef struct statArgsGPU {
-	int** h_d_count;
-	int** d_count;
-
-} statArgsGPU;
-
 typedef struct offsetGPU {
 	int* lo_off;
 	int* dim_off1;

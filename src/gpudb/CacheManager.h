@@ -33,22 +33,20 @@ class ColumnInfo;
 class priority_stack;
 class custom_priority_queue;
 
-enum GPUBufferManagementStrategy {
-    LEAST_RECENTLY_USED, LEAST_FREQUENTLY_USED, ON_DEMAND, DISABLED_GPU_BUFFER
+enum ReplacementPolicy {
+    LRU, LFU, LRU_v2, LFU_v2, New, New_v2
 };
 
 class Statistics{
 public:
 	Statistics() {
 		col_freq = 0;
-		query_freq = 0;
 		timestamp = 0;
-		temp = 0;
+		speedup = 0;
 	};
-	uint64_t col_freq;
-	uint64_t query_freq;
-	double temp;
-	uint64_t timestamp;
+	double col_freq;
+	double timestamp;
+	double speedup;
 };
 
 class Segment {
@@ -208,19 +206,25 @@ public:
 
 	void updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity);
 
-	void updateColumnWeightDirect(ColumnInfo* column, double cost);
+	void updateColumnWeightDirect(ColumnInfo* column, double speedup);
 
 	void updateColumnTimestamp(ColumnInfo* column, double timestamp);
 
 	void weightAdjustment();
 
-	void runReplacement(int strategy);
+	void runReplacement(ReplacementPolicy strategy);
 
-	void runReplacement2(int strategy);
+	void LFUReplacement();
 
-	void runReplacementNew();
+	void LFU2Replacement();
 
-	void runReplacementNewNew();
+	void LRUReplacement();
+
+	void LRU2Replacement();
+
+	void NewReplacement();
+
+	void New2Replacement();
 
 	void loadColumnToCPU();
 
@@ -664,37 +668,27 @@ CacheManager::updateSegmentInColumn(ColumnInfo* column) {
 
 void
 CacheManager::updateColumnFrequency(ColumnInfo* column) {
-	column->stats->col_freq+=(1000 / column->total_segment);
+	column->stats->col_freq+=(1.0 / column->total_segment);
+	// cout << column->column_name << " " << column->stats->col_freq << " " << (1 / column->total_segment) << endl;
 }
-
-// void
-// CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity) {
-// 	if (freq > column->stats->query_freq) {
-// 		column->stats->query_freq = freq;
-// 		// column->weight = (freq * speedup) / (selectivity * column->total_segment);
-// 		column->weight = (freq * speedup) / (column->total_segment);
-// 	}
-// }
 
 void
 CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity) {
-	// if ((freq * 1.0 / selectivity) > column->stats->temp) {
-	// 	column->stats->query_freq = freq;
-	// 	column->weight = (freq * speedup) / (selectivity * column->total_segment);
-	// 	column->stats->temp = (freq * 1.0 / selectivity);
-	// }
+	column->stats->speedup += speedup/column->total_segment;
 	column->weight += speedup / (selectivity * column->total_segment);
-	// cout << column->column_name << " " << speedup << " " << column->weight << endl;
 }
 
 void
-CacheManager::updateColumnWeightDirect(ColumnInfo* column, double cost) {
-	column->weight += cost/column->total_segment;
+CacheManager::updateColumnWeightDirect(ColumnInfo* column, double speedup) {
+	column->stats->speedup += speedup/column->total_segment;
+	column->weight += speedup/column->total_segment;
 }
 
 void
 CacheManager::updateColumnTimestamp(ColumnInfo* column, double timestamp) {
-	column->stats->timestamp = (timestamp / column->total_segment) * 1000;
+	// cout << column->column_name << " " << timestamp << endl;
+	column->stats->timestamp = (timestamp/ column->total_segment);
+	// cout << column->column_name << " " << column->stats->timestamp << endl;
 }
 
 void
@@ -765,31 +759,37 @@ CacheManager::weightAdjustment() {
 }
 
 void
-CacheManager::runReplacement(int strategy) {
-	std::multimap<uint64_t, ColumnInfo*> access_frequency_map;
-	std::map<ColumnInfo*, uint64_t>::const_iterator it;
+CacheManager::runReplacement(ReplacementPolicy strategy) {
 
-	if (strategy == 0) { //LEAST FREQUENTLY USED
-		for (int i = TOT_COLUMN-1; i >= 0; i--) {
-			access_frequency_map.insert({allColumn[i]->stats->col_freq, allColumn[i]});
-		}
-	} else if (strategy == 1) { //LEAST RECENTLY USED
-		for (int i = TOT_COLUMN-1; i >= 0; i--) {
-			access_frequency_map.insert({allColumn[i]->stats->timestamp, allColumn[i]});
-		}
-	} else if (strategy == 2) {
-		runReplacementNew();
-		return;
-	} else if (strategy == 3) {
-		runReplacementNewNew();
-		return;
+	if (strategy == LFU) { //LEAST FREQUENTLY USED
+		LFUReplacement();
+	} else if (strategy == LRU) { //LEAST RECENTLY USED
+		LRUReplacement();
+	} else if (strategy == LFU_v2) { //LEAST RECENTLY USED
+		LFU2Replacement();
+	} else if (strategy == LRU_v2) { //LEAST RECENTLY USED
+		LRU2Replacement();
+	} else if (strategy == New) {
+		NewReplacement();
+	} else if (strategy == New_v2) {
+		New2Replacement();
+	}
+
+};
+
+void
+CacheManager::LRUReplacement() {
+	multimap<double, ColumnInfo*> access_timestamp_map;
+
+	for (int i = TOT_COLUMN-1; i >= 0; i--) {
+		access_timestamp_map.insert({allColumn[i]->stats->timestamp, allColumn[i]});
 	}
 
 	int temp_buffer_size = 0; // in segment
-	std::set<ColumnInfo*> columns_to_place;
-	std::multimap<uint64_t, ColumnInfo*>::reverse_iterator cit;
+	set<ColumnInfo*> columns_to_place;
+	multimap<double, ColumnInfo*>::reverse_iterator cit;
 
-    for(cit=access_frequency_map.rbegin(); cit!=access_frequency_map.rend(); ++cit){
+    for(cit=access_timestamp_map.rbegin(); cit!=access_timestamp_map.rend(); ++cit){
         if(temp_buffer_size + cit->second->total_segment < cache_total_seg && cit->first>0){
             temp_buffer_size+=cit->second->total_segment;
             columns_to_place.insert(cit->second);
@@ -809,7 +809,7 @@ CacheManager::runReplacement(int strategy) {
 		}
     }
 
-    std::set<ColumnInfo*>::const_iterator cit2;
+    set<ColumnInfo*>::const_iterator cit2;
     for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
     	if ((*cit2)->tot_seg_in_GPU == 0) {
 			cout << "Caching column ";
@@ -818,71 +818,262 @@ CacheManager::runReplacement(int strategy) {
     		cout << "Successfully cached" << endl;
     	}
     }
-
-};
+}
 
 void
-CacheManager::runReplacement2(int strategy) {
-	std::map<uint64_t, vector<ColumnInfo*>> access_frequency_map;
-	std::map<ColumnInfo*, uint64_t>::const_iterator it;
+CacheManager::LFUReplacement() {
+	multimap<double, ColumnInfo*> access_frequency_map;
 
-	if (strategy == 0) { //LEAST FREQUENTLY USED
-		for (int i = 0; i < TOT_COLUMN; i++) {
-			cout << allColumn[i]->column_name << endl;
-			access_frequency_map[allColumn[i]->stats->col_freq].push_back(allColumn[i]);
-		}
-	} else if (strategy == 1) { //LEAST RECENTLY USED
-		for (int i = 0; i < TOT_COLUMN; i++) {
-			access_frequency_map[allColumn[i]->stats->timestamp].push_back(allColumn[i]);
-		}
-	} else if (strategy == 2) {
-		runReplacementNew();
-		return;
-	} else if (strategy == 3) {
-		runReplacementNewNew();
-		return;
+	for (int i = TOT_COLUMN-1; i >= 0; i--) {
+		access_frequency_map.insert({allColumn[i]->stats->col_freq, allColumn[i]});
 	}
 
 	int temp_buffer_size = 0; // in segment
-	// vector<ColumnInfo*> columns_to_place;
-	ColumnInfo* columns_to_place[TOT_COLUMN] = {};
-	std::map<uint64_t, vector<ColumnInfo*>>::reverse_iterator cit;
+	set<ColumnInfo*> columns_to_place;
+	multimap<double, ColumnInfo*>::reverse_iterator cit;
+	set<double> access;
+	set<double>::reverse_iterator acc_it;
+
 
     for(cit=access_frequency_map.rbegin(); cit!=access_frequency_map.rend(); ++cit){
-    	vector<ColumnInfo*> vec = cit->second;
-    	for (int i = 0; i < vec.size(); i++) {
-	        if(temp_buffer_size + vec[i]->total_segment < cache_total_seg && cit->first>0){
-	            temp_buffer_size += vec[i]->total_segment;
-	            columns_to_place[vec[i]->column_id] = vec[i];
+    	// cout << cit->second->column_name << endl;
+    	access.insert(cit->first);
+    }
+
+    for(acc_it = access.rbegin();acc_it != access.rend(); ++acc_it){
+    	size_t count = access_frequency_map.count(*acc_it);
+
+    	multimap<double, ColumnInfo*> access_timestamp_map;
+		multimap<double, ColumnInfo*>::iterator it;
+	 	for (it=access_frequency_map.equal_range(*acc_it).first; it!=access_frequency_map.equal_range(*acc_it).second; ++it) {
+	 		// cout << it->second->column_name << " " << it->first << endl;
+	 		if ((*acc_it) > 0) access_timestamp_map.insert({it->second->stats->timestamp, it->second});
+	 	}
+
+	 	multimap<double, ColumnInfo*>::reverse_iterator cit_time;
+
+	 	for(cit_time=access_timestamp_map.rbegin(); cit_time!=access_timestamp_map.rend(); ++cit_time){
+	        if(temp_buffer_size + cit_time->second->total_segment < cache_total_seg){
+	            temp_buffer_size+=cit_time->second->total_segment;
+	            columns_to_place.insert(cit_time->second);
 	            cout << "Should place ";
-	            cout << vec[i]->column_name << endl;
+	            cout << cit_time->second->column_name << endl;
 	        }
-    	}
+	 	}
+
     }
 
     cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
-		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place[i] == NULL) {
+		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
 			cout << "Deleting column ";
 			cout << allColumn[i]->column_name << endl;
 			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
 		}
     }
 
-    for(int i = 0; i < TOT_COLUMN; i++){
-    	if (allColumn[i]->tot_seg_in_GPU == 0 && columns_to_place[i] != NULL) {
+    set<ColumnInfo*>::const_iterator cit2;
+    for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
+    	if ((*cit2)->tot_seg_in_GPU == 0) {
 			cout << "Caching column ";
-			cout << columns_to_place[i]->column_name << endl;
-    		cacheColumnSegmentInGPU(columns_to_place[i], columns_to_place[i]->total_segment);
+			cout << (*cit2)->column_name << endl;
+    		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
+    		cout << "Successfully cached" << endl;
     	}
     }
-
-};
+}
 
 void
-CacheManager::runReplacementNew() {
+CacheManager::LRU2Replacement() {
+	multimap<double, ColumnInfo*> access_timestamp_map;
+
+	for (int i = TOT_COLUMN-1; i >= 0; i--) {
+		access_timestamp_map.insert({allColumn[i]->stats->timestamp, allColumn[i]});
+	}
+
+	int temp_buffer_size = 0; // in segment
+	set<ColumnInfo*> columns_to_place;
+	multimap<double, ColumnInfo*>::reverse_iterator cit;
+
+	set<double> access;
+	set<double>::reverse_iterator acc_it;
+
+
+    for(cit=access_timestamp_map.rbegin(); cit!=access_timestamp_map.rend(); ++cit){
+    	// cout << cit->second->column_name << endl;
+    	access.insert(cit->first);
+    }
+
+    for(acc_it = access.rbegin();acc_it != access.rend(); ++acc_it){
+    	size_t count = access_timestamp_map.count(*acc_it);
+
+    	multimap<double, ColumnInfo*> weight_map;
+		multimap<double, ColumnInfo*>::iterator it;
+	 	for (it=access_timestamp_map.equal_range(*acc_it).first; it!=access_timestamp_map.equal_range(*acc_it).second; ++it) {
+	 		if ((*acc_it) > 0) weight_map.insert({it->second->weight, it->second});
+	 	}
+
+	 	multimap<double, ColumnInfo*>::reverse_iterator cit_time;
+
+	 	for(cit_time=weight_map.rbegin(); cit_time!=weight_map.rend(); ++cit_time){
+	        if(temp_buffer_size + cit_time->second->total_segment < cache_total_seg){
+	            temp_buffer_size+=cit_time->second->total_segment;
+	            columns_to_place.insert(cit_time->second);
+	            cout << "Should place ";
+	            cout << cit_time->second->column_name << endl;
+	        }
+	 	}
+    }
+
+    cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
+    assert(temp_buffer_size <= cache_total_seg);
+
+    for (int i = 0; i < TOT_COLUMN; i++) {
+		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
+			cout << "Deleting column ";
+			cout << allColumn[i]->column_name << endl;
+			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
+		}
+    }
+
+    set<ColumnInfo*>::const_iterator cit2;
+    for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
+    	if ((*cit2)->tot_seg_in_GPU == 0) {
+			cout << "Caching column ";
+			cout << (*cit2)->column_name << endl;
+    		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
+    		cout << "Successfully cached" << endl;
+    	}
+    }
+}
+
+void
+CacheManager::LFU2Replacement() {
+	multimap<double, ColumnInfo*> access_frequency_map;
+
+	for (int i = TOT_COLUMN-1; i >= 0; i--) {
+		access_frequency_map.insert({allColumn[i]->stats->col_freq, allColumn[i]});
+	}
+
+	int temp_buffer_size = 0; // in segment
+	set<ColumnInfo*> columns_to_place;
+	multimap<double, ColumnInfo*>::reverse_iterator cit;
+
+	set<double> access;
+	set<double>::reverse_iterator acc_it;
+
+    for(cit=access_frequency_map.rbegin(); cit!=access_frequency_map.rend(); ++cit){
+    	// cout << cit->second->column_name << endl;
+    	access.insert(cit->first);
+    }
+
+    for(acc_it = access.rbegin();acc_it != access.rend(); ++acc_it){
+    	size_t count = access_frequency_map.count(*acc_it);
+
+    	multimap<double, ColumnInfo*> weight_map;
+		multimap<double, ColumnInfo*>::iterator it;
+	 	for (it=access_frequency_map.equal_range(*acc_it).first; it!=access_frequency_map.equal_range(*acc_it).second; ++it) {
+	 		if ((*acc_it) > 0) weight_map.insert({it->second->weight, it->second});
+	 	}
+
+	 	multimap<double, ColumnInfo*>::reverse_iterator cit_time;
+
+	 	for(cit_time=weight_map.rbegin(); cit_time!=weight_map.rend(); ++cit_time){
+	        if(temp_buffer_size + cit_time->second->total_segment < cache_total_seg){
+	            temp_buffer_size+=cit_time->second->total_segment;
+	            columns_to_place.insert(cit_time->second);
+	            cout << "Should place ";
+	            cout << cit_time->second->column_name << endl;
+	        }
+	 	}
+    }
+
+    cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
+    assert(temp_buffer_size <= cache_total_seg);
+
+    for (int i = 0; i < TOT_COLUMN; i++) {
+		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
+			cout << "Deleting column ";
+			cout << allColumn[i]->column_name << endl;
+			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
+		}
+    }
+
+    set<ColumnInfo*>::const_iterator cit2;
+    for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
+    	if ((*cit2)->tot_seg_in_GPU == 0) {
+			cout << "Caching column ";
+			cout << (*cit2)->column_name << endl;
+    		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
+    		cout << "Successfully cached" << endl;
+    	}
+    }
+}
+
+// void
+// CacheManager::runReplacement2(int strategy) {
+// 	std::map<uint64_t, vector<ColumnInfo*>> access_frequency_map;
+// 	std::map<ColumnInfo*, uint64_t>::const_iterator it;
+
+// 	if (strategy == LFU) { //LEAST FREQUENTLY USED
+// 		for (int i = 0; i < TOT_COLUMN; i++) {
+// 			cout << allColumn[i]->column_name << endl;
+// 			access_frequency_map[allColumn[i]->stats->col_freq].push_back(allColumn[i]);
+// 		}
+// 	} else if (strategy == LRU) { //LEAST RECENTLY USED
+// 		for (int i = 0; i < TOT_COLUMN; i++) {
+// 			access_frequency_map[allColumn[i]->stats->timestamp].push_back(allColumn[i]);
+// 		}
+// 	} else if (strategy == New) {
+// 		runReplacementNew();
+// 		return;
+// 	} else if (strategy == New+) {
+// 		runReplacementNewNew();
+// 		return;
+// 	}
+
+// 	int temp_buffer_size = 0; // in segment
+// 	// vector<ColumnInfo*> columns_to_place;
+// 	ColumnInfo* columns_to_place[TOT_COLUMN] = {};
+// 	std::map<uint64_t, vector<ColumnInfo*>>::reverse_iterator cit;
+
+//     for(cit=access_frequency_map.rbegin(); cit!=access_frequency_map.rend(); ++cit){
+//     	vector<ColumnInfo*> vec = cit->second;
+//     	for (int i = 0; i < vec.size(); i++) {
+// 	        if(temp_buffer_size + vec[i]->total_segment < cache_total_seg && cit->first>0){
+// 	            temp_buffer_size += vec[i]->total_segment;
+// 	            columns_to_place[vec[i]->column_id] = vec[i];
+// 	            cout << "Should place ";
+// 	            cout << vec[i]->column_name << endl;
+// 	        }
+//     	}
+//     }
+
+//     cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
+//     assert(temp_buffer_size <= cache_total_seg);
+
+//     for (int i = 0; i < TOT_COLUMN; i++) {
+// 		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place[i] == NULL) {
+// 			cout << "Deleting column ";
+// 			cout << allColumn[i]->column_name << endl;
+// 			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
+// 		}
+//     }
+
+//     for(int i = 0; i < TOT_COLUMN; i++){
+//     	if (allColumn[i]->tot_seg_in_GPU == 0 && columns_to_place[i] != NULL) {
+// 			cout << "Caching column ";
+// 			cout << columns_to_place[i]->column_name << endl;
+//     		cacheColumnSegmentInGPU(columns_to_place[i], columns_to_place[i]->total_segment);
+//     	}
+//     }
+
+// };
+
+void
+CacheManager::NewReplacement() {
 	std::map<ColumnInfo*, int> column_portion;
 	int moved_segment = 0;
 	int erased_segment = 0;
@@ -939,10 +1130,14 @@ CacheManager::runReplacementNew() {
     cout << "Cached segment: " << filled_cache << " Cache total: " << cache_total_seg << endl;
     assert(filled_cache <= cache_total_seg);
 
+   	for (int i = 0; i < TOT_COLUMN; i++) {
+		allColumn[i]->weight = allColumn[i]->stats->speedup;
+   	}
+
 };
 
 void
-CacheManager::runReplacementNewNew() {
+CacheManager::New2Replacement() {
 	std::multimap<double, ColumnInfo*> weight_map;
 	std::map<ColumnInfo*, int> should_cached;
 	int moved_segment = 0;

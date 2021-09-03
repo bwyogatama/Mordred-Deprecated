@@ -1,0 +1,13 @@
+make -B bin/cpu/ssb/q11
+make -B bin/cpu/ssb/q12
+make -B bin/cpu/ssb/q13
+make -B bin/cpu/ssb/q21
+make -B bin/cpu/ssb/q22
+make -B bin/cpu/ssb/q23
+make -B bin/cpu/ssb/q31
+make -B bin/cpu/ssb/q32
+make -B bin/cpu/ssb/q33
+make -B bin/cpu/ssb/q34
+make -B bin/cpu/ssb/q41
+make -B bin/cpu/ssb/q42
+make -B bin/cpu/ssb/q43

@@ -111,8 +111,8 @@ public:
 	void clearParsing();
 	void clearPlacement();
 
-	void dataDrivenOperatorPlacement();
-	void groupBitmap();
+	void dataDrivenOperatorPlacement(bool isprofile = 0);
+	void groupBitmap(bool isprofile = 0);
 
 };
 
@@ -1191,7 +1191,7 @@ QueryOptimizer::parseQuery43() {
 // 
 
 void
-QueryOptimizer::dataDrivenOperatorPlacement() {
+QueryOptimizer::dataDrivenOperatorPlacement(bool isprofile) {
 
 	opRoots.resize(cm->TOT_TABLE);
 	for (int i = 0; i < cm->TOT_TABLE; i++) opRoots[i].resize(MAX_GROUPS);
@@ -1270,11 +1270,11 @@ QueryOptimizer::dataDrivenOperatorPlacement() {
 	// 	printf("%x\n", cm->segment_bitmap[cm->lo_partkey->column_id][i]);
 	// }
 
-	groupBitmap();
+	groupBitmap(isprofile);
 }
 
 void
-QueryOptimizer::groupBitmap() {
+QueryOptimizer::groupBitmap(bool isprofile) {
 
 	for (int i = 0; i < cm->lo_orderdate->total_segment; i++) {
 		unsigned short temp = 0;
@@ -1372,7 +1372,7 @@ QueryOptimizer::groupBitmap() {
 						opCPUPipeline[table_id][i][0].push_back(op);
 					}
 				} else if (op->type == GroupBy || op->type == Aggr) {
-					if (opCPUPipeline[table_id][i][0].size() > 0) {
+					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
 						// cout << "ho" << endl;
 						opCPUPipeline[table_id][i][0].push_back(op);
 					} else {
@@ -1391,6 +1391,7 @@ QueryOptimizer::groupBitmap() {
 
 			Operator* op;
 
+			//TODO!! FIX THIS
 			if (opGPUPipeline[table_id][i][0].size() > 0) {
 				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
 				op = opRoots[table_id][i];
@@ -1462,8 +1463,9 @@ QueryOptimizer::groupBitmap() {
 								opCPUPipeline[table_id][i][0].push_back(op);	
 							}
 						} else if (op->type == GroupBy || op->type == Aggr) {
-							if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-							else {
+							if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
+								opCPUPipeline[table_id][i][0].push_back(op);
+							} else {
 								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
 								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
 							}
@@ -1478,6 +1480,7 @@ QueryOptimizer::groupBitmap() {
 
 					Operator* op;
 
+					//TODO!! FIX THIS
 					if (opGPUPipeline[table_id][i][0].size() > 0) {
 						opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
 						op = opRoots[table_id][i];
@@ -1549,12 +1552,16 @@ QueryOptimizer::groupBitmap() {
 	}
 
 
+	// cout << endl;
+
 	// cout << "joinGPUPipelineCol" << endl;
 	// for (int i = 0; i < MAX_GROUPS; i++) {
 	// 	for (int j = 0; j < joinGPUPipelineCol[i].size(); j++) {
 	// 		cout << joinGPUPipelineCol[i][j]->column_name << endl;
 	// 	}
 	// }
+
+	// cout << endl;
 
 	// cout << "joinCPUPipelineCol" << endl;
 	// for (int i = 0; i < MAX_GROUPS; i++) {
@@ -1563,12 +1570,16 @@ QueryOptimizer::groupBitmap() {
 	// 	}
 	// }
 
+	// cout << endl;
+
 	// cout << "groupbyGPUPipelineCol" << endl;
 	// for (int i = 0; i < MAX_GROUPS; i++) {
 	// 	for (int j = 0; j < groupbyGPUPipelineCol[i].size(); j++) {
 	// 		cout << groupbyGPUPipelineCol[i][j]->column_name << endl;
 	// 	}
 	// }
+
+	// cout << endl;
 
 	// cout << "groupbyCPUPipelineCol" << endl;
 	// for (int i = 0; i < MAX_GROUPS; i++) {
@@ -1577,13 +1588,7 @@ QueryOptimizer::groupBitmap() {
 	// 	}
 	// }
 
-	// for (int i = 0; i < cm->TOT_TABLE; i++) {
-	// 	for (int sg = 0; sg < MAX_GROUPS; sg++) {
-	// 		if (segment_group_count[i][sg] > 0) {
-	// 			cout << i << " " << sg << " " << segment_group_count[i][sg] << endl;
-	// 		}
-	// 	}
-	// }
+	// cout << endl;
 
 
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
