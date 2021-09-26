@@ -47,6 +47,9 @@ $(BIN)/cpu/%: $(OBJ)/cpu/%.o
 	
 #$(CXX) -ltbb $^ -o $@
 
+$(OBJ)/%.o: $(SRC)/%.cpp
+	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+
 NVCC_VER=11.2
 CUB_VER=1.8.0
 

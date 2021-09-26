@@ -1,5 +1,37 @@
 #pragma once
 
+#define CUB_STDERR
+
+#define CHECK_ERROR() { \
+  cudaDeviceSynchronize(); \
+  cudaError_t error = cudaGetLastError(); \
+  if(error != cudaSuccess) \
+  { \
+    gpuErrchk(error); \
+    exit(-1); \
+  } \
+}
+
+#define CHECK_ERROR_STREAM(stream) { \
+  cudaStreamSynchronize(stream); \
+  cudaError_t error = cudaGetLastError(); \
+  if(error != cudaSuccess) \
+  { \
+    gpuErrchk(error); \
+    exit(-1); \
+  } \
+}
+
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 #define SETUP_TIMING() cudaEvent_t start, stop; cudaEventCreate(&start); cudaEventCreate(&stop);
 
 #define TIME_FUNC(f,t) { \
@@ -23,13 +55,3 @@ T* loadToGPU(T* src, int numEntries, cub::CachingDeviceAllocator& g_allocator) {
 }
 
 #define TILE_SIZE (BLOCK_THREADS * ITEMS_PER_THREAD)
-
-#define CHECK_ERROR() { \
-  cudaDeviceSynchronize(); \
-  cudaError_t error = cudaGetLastError(); \
-  if(error != cudaSuccess) \
-  { \
-    printf("CUDA error: %s\n", cudaGetErrorString(error)); \
-    exit(-1); \
-  } \
-}

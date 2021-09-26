@@ -4,6 +4,7 @@ SF=20
 mkdir -p $LOG_DIR/ssb/$SF/
 
 bin/cpu/ssb/q11 --t=3 > $LOG_DIR/ssb/$SF/q11cpu
+bin/cpu/ssb/q11 --t=3 > $LOG_DIR/ssb/$SF/q11cpu
 bin/cpu/ssb/q12 --t=3 > $LOG_DIR/ssb/$SF/q12cpu
 bin/cpu/ssb/q13 --t=3 > $LOG_DIR/ssb/$SF/q13cpu
 bin/cpu/ssb/q21 --t=3 > $LOG_DIR/ssb/$SF/q21cpu

@@ -4,9 +4,6 @@
 
 /*#include <cuda.h>*/
 /*#include <cub/util_allocator.cuh>*/
-#include <cuda.h>
-#include <curand.h>
-#include <cub/util_allocator.cuh>
 
 using namespace std;
 
