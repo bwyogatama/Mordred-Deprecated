@@ -1,0 +1,1180 @@
+===========================
+=======  CACHE INFO  ======
+===========================
+
+Segment size: 1048576
+Cache size: 100
+Data size: 537
+Cached data: 99
+
+lo_suppkey: 53/58 segments cached
+lo_custkey: 10/58 segments cached
+lo_partkey: 27/58 segments cached
+lo_orderdate: 0/58 segments cached
+lo_revenue: 0/58 segments cached
+lo_discount: 0/58 segments cached
+lo_quantity: 0/58 segments cached
+lo_extendedprice: 0/58 segments cached
+lo_supplycost: 0/58 segments cached
+c_custkey: 1/1 segments cached
+c_nation: 1/1 segments cached
+c_region: 0/1 segments cached
+c_city: 1/1 segments cached
+s_suppkey: 1/1 segments cached
+s_nation: 0/1 segments cached
+s_region: 0/1 segments cached
+s_city: 1/1 segments cached
+p_partkey: 1/1 segments cached
+p_brand1: 1/1 segments cached
+p_category: 0/1 segments cached
+p_mfgr: 0/1 segments cached
+d_datekey: 1/1 segments cached
+d_year: 1/1 segments cached
+d_yearmonthnum: 0/1 segments cached
+
+
+
+===========================
+========  QUERY 11 ========
+===========================
+
+Segment cached: 99
+Segment touched: 52
+Segment cached and touched: 2
+
+
+lo_orderdate
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 10
+Segment cached and touched: 0
+
+
+lo_discount
+Speedup: 0.332
+Segment cached: 0
+Segment touched: 20
+Segment cached and touched: 0
+
+
+lo_quantity
+Speedup: 1.300
+Segment cached: 0
+Segment touched: 10
+Segment cached and touched: 0
+
+
+lo_extendedprice
+Speedup: 0.332
+Segment cached: 0
+Segment touched: 10
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 0.437
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 12 ========
+===========================
+
+Segment cached: 99
+Segment touched: 12
+Segment cached and touched: 1
+
+
+lo_orderdate
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 2
+Segment cached and touched: 0
+
+
+lo_discount
+Speedup: 0.110
+Segment cached: 0
+Segment touched: 4
+Segment cached and touched: 0
+
+
+lo_quantity
+Speedup: 0.429
+Segment cached: 0
+Segment touched: 2
+Segment cached and touched: 0
+
+
+lo_extendedprice
+Speedup: 0.110
+Segment cached: 0
+Segment touched: 2
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_yearmonthnum
+Speedup: 0.054
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+
+
+===========================
+========  QUERY 13 ========
+===========================
+
+Segment cached: 99
+Segment touched: 6
+Segment cached and touched: 1
+
+
+lo_orderdate
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+lo_discount
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 2
+Segment cached and touched: 0
+
+
+lo_quantity
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+lo_extendedprice
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 21 ========
+===========================
+
+Segment cached: 99
+Segment touched: 239
+Segment cached and touched: 85
+
+
+lo_suppkey
+Speedup: 33.589
+Segment cached: 53
+Segment touched: 58
+Segment cached and touched: 53
+
+
+lo_partkey
+Speedup: 65.070
+Segment cached: 27
+Segment touched: 58
+Segment cached and touched: 27
+
+
+lo_orderdate
+Speedup: 2.332
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 3.062
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+s_suppkey
+Speedup: 33.589
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_region
+Speedup: 0.165
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+p_partkey
+Speedup: 65.070
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_brand1
+Speedup: 3.062
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_category
+Speedup: 0.175
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 2.332
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 3.062
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 22 ========
+===========================
+
+Segment cached: 99
+Segment touched: 238
+Segment cached and touched: 85
+
+
+lo_suppkey
+Speedup: 33.572
+Segment cached: 53
+Segment touched: 58
+Segment cached and touched: 53
+
+
+lo_partkey
+Speedup: 69.637
+Segment cached: 27
+Segment touched: 58
+Segment cached and touched: 27
+
+
+lo_orderdate
+Speedup: 2.215
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 2.607
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+s_suppkey
+Speedup: 33.572
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_region
+Speedup: 0.090
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+p_partkey
+Speedup: 69.637
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_brand1
+Speedup: 2.607
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_datekey
+Speedup: 2.215
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 2.607
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 23 ========
+===========================
+
+Segment cached: 99
+Segment touched: 238
+Segment cached and touched: 85
+
+
+lo_suppkey
+Speedup: 33.526
+Segment cached: 53
+Segment touched: 58
+Segment cached and touched: 53
+
+
+lo_partkey
+Speedup: 70.897
+Segment cached: 27
+Segment touched: 58
+Segment cached and touched: 27
+
+
+lo_orderdate
+Speedup: 2.589
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 2.709
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+s_suppkey
+Speedup: 33.526
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_region
+Speedup: 0.062
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+p_partkey
+Speedup: 70.897
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_brand1
+Speedup: 2.709
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_datekey
+Speedup: 2.589
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 2.709
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 31 ========
+===========================
+
+Segment cached: 99
+Segment touched: 220
+Segment cached and touched: 68
+
+
+lo_suppkey
+Speedup: 28.129
+Segment cached: 53
+Segment touched: 53
+Segment cached and touched: 53
+
+
+lo_custkey
+Speedup: 35.625
+Segment cached: 10
+Segment touched: 53
+Segment cached and touched: 10
+
+
+lo_orderdate
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 53
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 2.459
+Segment cached: 0
+Segment touched: 53
+Segment cached and touched: 0
+
+
+c_custkey
+Speedup: 35.625
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_nation
+Speedup: 2.459
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_region
+Speedup: 0.207
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_suppkey
+Speedup: 28.129
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_nation
+Speedup: 2.459
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_region
+Speedup: 0.269
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 2.459
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 32 ========
+===========================
+
+Segment cached: 99
+Segment touched: 220
+Segment cached and touched: 70
+
+
+lo_suppkey
+Speedup: 29.580
+Segment cached: 53
+Segment touched: 53
+Segment cached and touched: 53
+
+
+lo_custkey
+Speedup: 33.133
+Segment cached: 10
+Segment touched: 53
+Segment cached and touched: 10
+
+
+lo_orderdate
+Speedup: 1.504
+Segment cached: 0
+Segment touched: 53
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 1.459
+Segment cached: 0
+Segment touched: 53
+Segment cached and touched: 0
+
+
+c_custkey
+Speedup: 33.133
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_nation
+Speedup: 0.161
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_city
+Speedup: 1.459
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_suppkey
+Speedup: 29.580
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_nation
+Speedup: 0.123
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_city
+Speedup: 1.459
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_datekey
+Speedup: 1.504
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 1.459
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 33 ========
+===========================
+
+Segment cached: 99
+Segment touched: 220
+Segment cached and touched: 70
+
+
+lo_suppkey
+Speedup: 28.254
+Segment cached: 53
+Segment touched: 53
+Segment cached and touched: 53
+
+
+lo_custkey
+Speedup: 29.601
+Segment cached: 10
+Segment touched: 53
+Segment cached and touched: 10
+
+
+lo_orderdate
+Speedup: 1.569
+Segment cached: 0
+Segment touched: 53
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 1.348
+Segment cached: 0
+Segment touched: 53
+Segment cached and touched: 0
+
+
+c_custkey
+Speedup: 29.601
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_nation
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_city
+Speedup: 1.348
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_suppkey
+Speedup: 28.254
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_nation
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_city
+Speedup: 1.348
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_datekey
+Speedup: 1.569
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 1.348
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 34 ========
+===========================
+
+Segment cached: 99
+Segment touched: 16
+Segment cached and touched: 10
+
+
+lo_suppkey
+Speedup: 0.275
+Segment cached: 53
+Segment touched: 2
+Segment cached and touched: 2
+
+
+lo_custkey
+Speedup: 0.393
+Segment cached: 10
+Segment touched: 2
+Segment cached and touched: 2
+
+
+lo_orderdate
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 2
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 2
+Segment cached and touched: 0
+
+
+c_custkey
+Speedup: 0.393
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_nation
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_city
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_suppkey
+Speedup: 0.275
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_nation
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_city
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_datekey
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_yearmonthnum
+Speedup: 0.007
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+
+
+===========================
+========  QUERY 41 ========
+===========================
+
+Segment cached: 99
+Segment touched: 357
+Segment cached and touched: 96
+
+
+lo_suppkey
+Speedup: 41.014
+Segment cached: 53
+Segment touched: 58
+Segment cached and touched: 53
+
+
+lo_custkey
+Speedup: 47.912
+Segment cached: 10
+Segment touched: 58
+Segment cached and touched: 10
+
+
+lo_partkey
+Speedup: 22.675
+Segment cached: 27
+Segment touched: 58
+Segment cached and touched: 27
+
+
+lo_orderdate
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 2.977
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+lo_supplycost
+Speedup: 2.977
+Segment cached: 0
+Segment touched: 58
+Segment cached and touched: 0
+
+
+c_custkey
+Speedup: 47.912
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_nation
+Speedup: 2.977
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_region
+Speedup: 0.003
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_suppkey
+Speedup: 41.014
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_region
+Speedup: 0.202
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+p_partkey
+Speedup: 22.675
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_mfgr
+Speedup: 0.111
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 2.977
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 42 ========
+===========================
+
+Segment cached: 99
+Segment touched: 100
+Segment cached and touched: 40
+
+
+lo_suppkey
+Speedup: 9.048
+Segment cached: 53
+Segment touched: 15
+Segment cached and touched: 10
+
+
+lo_custkey
+Speedup: 11.985
+Segment cached: 10
+Segment touched: 15
+Segment cached and touched: 10
+
+
+lo_partkey
+Speedup: 4.426
+Segment cached: 27
+Segment touched: 15
+Segment cached and touched: 15
+
+
+lo_orderdate
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 15
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 0.460
+Segment cached: 0
+Segment touched: 15
+Segment cached and touched: 0
+
+
+lo_supplycost
+Speedup: 0.460
+Segment cached: 0
+Segment touched: 15
+Segment cached and touched: 0
+
+
+c_custkey
+Speedup: 11.985
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_region
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_suppkey
+Speedup: 9.048
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_nation
+Speedup: 0.460
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_region
+Speedup: 0.194
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+p_partkey
+Speedup: 4.426
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_category
+Speedup: 0.460
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+p_mfgr
+Speedup: 0.100
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 0.000
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 0.460
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+
+===========================
+========  QUERY 43 ========
+===========================
+
+Segment cached: 99
+Segment touched: 100
+Segment cached and touched: 42
+
+
+lo_suppkey
+Speedup: 8.872
+Segment cached: 53
+Segment touched: 15
+Segment cached and touched: 10
+
+
+lo_custkey
+Speedup: 5.811
+Segment cached: 10
+Segment touched: 15
+Segment cached and touched: 10
+
+
+lo_partkey
+Speedup: 10.053
+Segment cached: 27
+Segment touched: 15
+Segment cached and touched: 15
+
+
+lo_orderdate
+Speedup: 0.874
+Segment cached: 0
+Segment touched: 15
+Segment cached and touched: 0
+
+
+lo_revenue
+Speedup: 0.495
+Segment cached: 0
+Segment touched: 15
+Segment cached and touched: 0
+
+
+lo_supplycost
+Speedup: 0.495
+Segment cached: 0
+Segment touched: 15
+Segment cached and touched: 0
+
+
+c_custkey
+Speedup: 5.811
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+c_region
+Speedup: 0.024
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_suppkey
+Speedup: 8.872
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+s_nation
+Speedup: 0.000
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+s_city
+Speedup: 0.495
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_partkey
+Speedup: 10.053
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_brand1
+Speedup: 0.495
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+p_category
+Speedup: 0.157
+Segment cached: 0
+Segment touched: 1
+Segment cached and touched: 0
+
+
+d_datekey
+Speedup: 0.874
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+d_year
+Speedup: 0.495
+Segment cached: 1
+Segment touched: 1
+Segment cached and touched: 1
+
+
+
+

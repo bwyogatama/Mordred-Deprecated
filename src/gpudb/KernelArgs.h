@@ -104,6 +104,7 @@ public:
   int query;
   
   map<ColumnInfo*, int> min_key;
+  map<ColumnInfo*, int> max_key;
   map<ColumnInfo*, int> min_val;
   map<ColumnInfo*, int> unique_val;
   map<ColumnInfo*, int> dim_len;
@@ -195,6 +196,7 @@ typedef struct buildArgsGPU {
 	int *val_idx;
 	int num_slots;
 	int val_min;
+	int val_max;
 
 	// buildArgsGPU()
 	// : key_idx(NULL), val_idx(NULL), num_slots(0), val_min(0) {}
@@ -205,6 +207,7 @@ typedef struct buildArgsCPU {
 	int *val_col;
 	int num_slots;
 	int val_min;
+	int val_max;
 
 	// buildArgsCPU()
 	// : key_col(NULL), val_col(NULL), num_slots(0), val_min(0) {}

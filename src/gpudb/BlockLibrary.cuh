@@ -889,4 +889,130 @@ __device__ __forceinline__ void BlockBuildOffsetGPU2(
   }
 }
 
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockMinMaxGPUDirect(
+    int tid,
+    int  (&keys)[ITEMS_PER_THREAD], //equal to items
+    int  (&selection_flags)[ITEMS_PER_THREAD],
+    int &min,
+    int &max,
+    int num_items
+    ) {
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+  {
+    if (tid + (ITEM * BLOCK_THREADS) < num_items) {
+      if (selection_flags[ITEM]) {
+        if (keys[ITEM] < min) min = keys[ITEM];
+        if (keys[ITEM] > max) max = keys[ITEM];
+      }
+    }
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockMinMaxGPUDirect(
+    int tid,
+    int  (&keys)[ITEMS_PER_THREAD], //equal to items
+    int  (&selection_flags)[ITEMS_PER_THREAD],
+    int &min,
+    int &max
+    ) {
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+  {
+    if (selection_flags[ITEM]) {
+      if (keys[ITEM] < min) min = keys[ITEM];
+      if (keys[ITEM] > max) max = keys[ITEM];
+    }
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockMinMaxGPU(
+    int tid,
+    int  (&keys)[ITEMS_PER_THREAD], //equal to items
+    int  (&selection_flags)[ITEMS_PER_THREAD],
+    int &min,
+    int &max,
+    int num_items
+    ) {
+
+  if ((BLOCK_THREADS * ITEMS_PER_THREAD) == num_items) {
+    BlockMinMaxGPUDirect<BLOCK_THREADS, ITEMS_PER_THREAD>(tid, keys, selection_flags, min, max);
+  } else {
+    BlockMinMaxGPUDirect<BLOCK_THREADS, ITEMS_PER_THREAD>(tid, keys, selection_flags, min, max, num_items);
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockMinMaxGPU2Direct(
+    int tid,
+    int  (&items_off)[ITEMS_PER_THREAD], //equal to items
+    int  (&selection_flags)[ITEMS_PER_THREAD],
+    int* gpuCache,
+    int* key_idx,
+    int &min,
+    int &max,
+    int num_items
+    ) {
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+  {
+    if (tid + (ITEM * BLOCK_THREADS) < num_items) {
+      if (selection_flags[ITEM]) {
+        int dimkey_seg = key_idx[items_off[ITEM] / SEGMENT_SIZE];
+        int key = gpuCache[dimkey_seg * SEGMENT_SIZE + (items_off[ITEM] % SEGMENT_SIZE)];
+        if (key < min) min = key;
+        if (key > max) max = key;
+      }
+    }
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockMinMaxGPU2Direct(
+    int tid,
+    int  (&items_off)[ITEMS_PER_THREAD], //equal to items
+    int  (&selection_flags)[ITEMS_PER_THREAD],
+    int* gpuCache,
+    int* key_idx,
+    int &min,
+    int &max
+    ) {
+
+  #pragma unroll
+  for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM)
+  {
+    if (selection_flags[ITEM]) {
+      int dimkey_seg = key_idx[items_off[ITEM] / SEGMENT_SIZE];
+      int key = gpuCache[dimkey_seg * SEGMENT_SIZE + (items_off[ITEM] % SEGMENT_SIZE)];
+      if (key < min) min = key;
+      if (key > max) max = key;
+    }
+  }
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__device__ __forceinline__ void BlockMinMaxGPU2(
+    int tid,
+    int  (&items_off)[ITEMS_PER_THREAD], //equal to items
+    int  (&selection_flags)[ITEMS_PER_THREAD],
+    int* gpuCache,
+    int* key_idx,
+    int &min,
+    int &max,
+    int num_items
+    ) {
+
+  if ((BLOCK_THREADS * ITEMS_PER_THREAD) == num_items) {
+    BlockMinMaxGPU2Direct<BLOCK_THREADS, ITEMS_PER_THREAD>(tid, items_off, selection_flags, min, max);
+  } else {
+    BlockMinMaxGPU2Direct<BLOCK_THREADS, ITEMS_PER_THREAD>(tid, items_off, selection_flags, min, max, num_items);
+  }
+}
+
 #endif

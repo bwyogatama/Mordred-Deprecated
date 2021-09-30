@@ -44,10 +44,13 @@ QueryOptimizer::clearPlacement() {
 	for (int i = 0; i < cm->TOT_TABLE; i++) {
 		CubDebugExit(cudaFreeHost(segment_group[i]));
 		free(segment_group_count[i]);
+		free(par_segment[i]);
 		free(joinGPU[i]);
 		free(joinCPU[i]);
 	}
 
+	free(par_segment);
+	free(par_segment_count);
 	free(segment_group);
 	free(segment_group_count);
 	free(joinGPUcheck);
@@ -82,11 +85,22 @@ QueryOptimizer::clearParsing() {
 	queryGroupByColumn.clear();
 	queryAggrColumn.clear();
 
+  queryColumn.clear();
+
 	opParsed.clear();
 }
 
 void 
 QueryOptimizer::parseQuery11() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_discount);
+  queryColumn[0].push_back(cm->lo_quantity);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_extendedprice);
+  queryColumn[0].push_back(cm->lo_discount);
+  queryColumn[4].push_back(cm->d_year);
+  queryColumn[4].push_back(cm->d_datekey);
 
 	querySelectColumn.push_back(cm->lo_discount);
 	querySelectColumn.push_back(cm->lo_quantity);
@@ -140,6 +154,15 @@ QueryOptimizer::parseQuery11() {
 
 void 
 QueryOptimizer::parseQuery12() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_discount);
+  queryColumn[0].push_back(cm->lo_quantity);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_extendedprice);
+  queryColumn[0].push_back(cm->lo_discount);
+  queryColumn[4].push_back(cm->d_yearmonthnum);
+  queryColumn[4].push_back(cm->d_datekey);
 
 	querySelectColumn.push_back(cm->lo_discount);
 	querySelectColumn.push_back(cm->lo_quantity);
@@ -195,6 +218,14 @@ QueryOptimizer::parseQuery12() {
 void 
 QueryOptimizer::parseQuery13() {
 
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_discount);
+  queryColumn[0].push_back(cm->lo_quantity);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_extendedprice);
+  queryColumn[0].push_back(cm->lo_discount);
+  queryColumn[4].push_back(cm->d_datekey);
+
 	querySelectColumn.push_back(cm->lo_discount);
 	querySelectColumn.push_back(cm->lo_quantity);
 	querySelectColumn.push_back(cm->d_datekey);
@@ -247,6 +278,19 @@ QueryOptimizer::parseQuery13() {
 
 void 
 QueryOptimizer::parseQuery21() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_partkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_region);
+  queryColumn[3].push_back(cm->p_partkey);
+  queryColumn[3].push_back(cm->p_category);
+  queryColumn[3].push_back(cm->p_brand1);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->p_category);
 	querySelectColumn.push_back(cm->s_region);
@@ -320,6 +364,18 @@ QueryOptimizer::parseQuery21() {
 void 
 QueryOptimizer::parseQuery22() {
 
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_partkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_region);
+  queryColumn[3].push_back(cm->p_partkey);
+  queryColumn[3].push_back(cm->p_brand1);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->p_brand1);
 	querySelectColumn.push_back(cm->s_region);
 	queryBuildColumn.push_back(cm->s_suppkey);
@@ -392,6 +448,18 @@ QueryOptimizer::parseQuery22() {
 void 
 QueryOptimizer::parseQuery23() {
 
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_partkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_region);
+  queryColumn[3].push_back(cm->p_partkey);
+  queryColumn[3].push_back(cm->p_brand1);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->p_brand1);
 	querySelectColumn.push_back(cm->s_region);
 	queryBuildColumn.push_back(cm->s_suppkey);
@@ -463,6 +531,21 @@ QueryOptimizer::parseQuery23() {
 
 void 
 QueryOptimizer::parseQuery31() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_custkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_region);
+  queryColumn[1].push_back(cm->s_nation);
+  queryColumn[2].push_back(cm->c_custkey);
+  queryColumn[2].push_back(cm->c_region);
+  queryColumn[2].push_back(cm->c_nation);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->d_year);
 	querySelectColumn.push_back(cm->c_region);
 	querySelectColumn.push_back(cm->s_region);
@@ -543,6 +626,21 @@ QueryOptimizer::parseQuery31() {
 
 void 
 QueryOptimizer::parseQuery32() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_custkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_city);
+  queryColumn[1].push_back(cm->s_nation);
+  queryColumn[2].push_back(cm->c_custkey);
+  queryColumn[2].push_back(cm->c_city);
+  queryColumn[2].push_back(cm->c_nation);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->d_year);
 	querySelectColumn.push_back(cm->c_nation);
 	querySelectColumn.push_back(cm->s_nation);
@@ -623,6 +721,21 @@ QueryOptimizer::parseQuery32() {
 
 void 
 QueryOptimizer::parseQuery33() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_custkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_city);
+  queryColumn[1].push_back(cm->s_nation);
+  queryColumn[2].push_back(cm->c_custkey);
+  queryColumn[2].push_back(cm->c_city);
+  queryColumn[2].push_back(cm->c_nation);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->d_year);
 	querySelectColumn.push_back(cm->c_city);
 	querySelectColumn.push_back(cm->s_city);
@@ -703,6 +816,21 @@ QueryOptimizer::parseQuery33() {
 
 void 
 QueryOptimizer::parseQuery34() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_custkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_city);
+  queryColumn[1].push_back(cm->s_nation);
+  queryColumn[2].push_back(cm->c_custkey);
+  queryColumn[2].push_back(cm->c_city);
+  queryColumn[2].push_back(cm->c_nation);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_yearmonthnum);
+
 	querySelectColumn.push_back(cm->d_yearmonthnum);
 	querySelectColumn.push_back(cm->c_city);
 	querySelectColumn.push_back(cm->s_city);
@@ -783,6 +911,24 @@ QueryOptimizer::parseQuery34() {
 
 void 
 QueryOptimizer::parseQuery41() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_custkey);
+  queryColumn[0].push_back(cm->lo_partkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_supplycost);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_region);
+  queryColumn[2].push_back(cm->c_custkey);
+  queryColumn[2].push_back(cm->c_region);
+  queryColumn[2].push_back(cm->c_nation);
+  queryColumn[3].push_back(cm->p_partkey);
+  queryColumn[3].push_back(cm->p_mfgr);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->p_mfgr);
 	querySelectColumn.push_back(cm->c_region);
 	querySelectColumn.push_back(cm->s_region);
@@ -875,6 +1021,25 @@ QueryOptimizer::parseQuery41() {
 
 void 
 QueryOptimizer::parseQuery42() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_custkey);
+  queryColumn[0].push_back(cm->lo_partkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_supplycost);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_region);
+  queryColumn[1].push_back(cm->s_nation);
+  queryColumn[2].push_back(cm->c_custkey);
+  queryColumn[2].push_back(cm->c_region);
+  queryColumn[3].push_back(cm->p_partkey);
+  queryColumn[3].push_back(cm->p_mfgr);
+  queryColumn[3].push_back(cm->p_category);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->p_mfgr);
 	querySelectColumn.push_back(cm->c_region);
 	querySelectColumn.push_back(cm->s_region);
@@ -975,6 +1140,25 @@ QueryOptimizer::parseQuery42() {
 
 void 
 QueryOptimizer::parseQuery43() {
+
+  queryColumn.resize(cm->TOT_TABLE);
+  queryColumn[0].push_back(cm->lo_suppkey);
+  queryColumn[0].push_back(cm->lo_custkey);
+  queryColumn[0].push_back(cm->lo_partkey);
+  queryColumn[0].push_back(cm->lo_orderdate);
+  queryColumn[0].push_back(cm->lo_supplycost);
+  queryColumn[0].push_back(cm->lo_revenue);
+  queryColumn[1].push_back(cm->s_suppkey);
+  queryColumn[1].push_back(cm->s_city);
+  queryColumn[1].push_back(cm->s_nation);
+  queryColumn[2].push_back(cm->c_custkey);
+  queryColumn[2].push_back(cm->c_region);
+  queryColumn[3].push_back(cm->p_partkey);
+  queryColumn[3].push_back(cm->p_brand1);
+  queryColumn[3].push_back(cm->p_category);
+  queryColumn[4].push_back(cm->d_datekey);
+  queryColumn[4].push_back(cm->d_year);
+
 	querySelectColumn.push_back(cm->p_category);
 	querySelectColumn.push_back(cm->c_region);
 	querySelectColumn.push_back(cm->s_nation);
@@ -1074,6 +1258,88 @@ QueryOptimizer::parseQuery43() {
 }
 
 // 
+
+void
+QueryOptimizer::prepareOperatorPlacement() {
+
+	opRoots.resize(cm->TOT_TABLE);
+	for (int i = 0; i < cm->TOT_TABLE; i++) opRoots[i].resize(MAX_GROUPS);
+	opCPUPipeline.resize(cm->TOT_TABLE);
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		opCPUPipeline[i].resize(MAX_GROUPS);
+		for (int j = 0; j < MAX_GROUPS; j++) {
+			opCPUPipeline[i][j].resize(1);
+		}
+	}
+	opGPUPipeline.resize(cm->TOT_TABLE);
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		opGPUPipeline[i].resize(MAX_GROUPS);
+		for (int j = 0; j < MAX_GROUPS; j++) {
+			opGPUPipeline[i][j].resize(1);
+		}
+	}
+
+	selectGPUPipelineCol.resize(MAX_GROUPS);
+	selectCPUPipelineCol.resize(MAX_GROUPS);
+	joinGPUPipelineCol.resize(MAX_GROUPS);
+	joinCPUPipelineCol.resize(MAX_GROUPS);
+	groupbyGPUPipelineCol.resize(MAX_GROUPS);
+	groupbyCPUPipelineCol.resize(MAX_GROUPS);
+
+	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+
+	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
+	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+	for (int i = 0; i < cm->TOT_TABLE; i++) {
+		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), MAX_GROUPS * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
+		segment_group_count[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
+		par_segment[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
+		joinGPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
+		joinCPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
+		memset(joinGPU[i], 0, MAX_GROUPS * sizeof(bool));
+		memset(joinCPU[i], 0, MAX_GROUPS * sizeof(bool));
+		memset(segment_group_count[i], 0, MAX_GROUPS * sizeof(short));
+		memset(par_segment[i], 0, MAX_GROUPS * sizeof(short));
+	}
+
+	last_segment = new int[cm->TOT_TABLE];
+	par_segment_count = new short[cm->TOT_TABLE];
+	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
+
+	groupGPUcheck = true;
+
+	for (int i = 0; i < join.size(); i++) {
+		if (groupby_build.size() > 0) {
+			for (int j = 0; j < groupby_build[join[i].second].size(); j++) {
+				int tot_seg_in_GPU = groupby_build[join[i].second][j]->tot_seg_in_GPU;
+				int total_segment = groupby_build[join[i].second][j]->total_segment;
+				if (tot_seg_in_GPU < total_segment) {
+					groupGPUcheck = false;
+					break;
+				}
+			}
+		}
+	}
+
+	for (int i = 0; i < join.size(); i++) {
+		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
+			joinCPUcheck[join[i].second->table_id] = true;
+			joinGPUcheck[join[i].second->table_id] = false;
+		} else {
+			if (pkey_fkey[join[i].second]->tot_seg_in_GPU == pkey_fkey[join[i].second]->total_segment) {
+				joinCPUcheck[join[i].second->table_id] = false;
+				joinGPUcheck[join[i].second->table_id] = true;
+			} else {
+				joinCPUcheck[join[i].second->table_id] = true;
+				joinGPUcheck[join[i].second->table_id] = true;
+			}
+		}
+	}
+}
 
 void
 QueryOptimizer::dataDrivenOperatorPlacement(int query, bool isprofile) {
@@ -1491,8 +1757,8 @@ QueryOptimizer::groupBitmap(bool isprofile) {
 bool
 QueryOptimizer::checkPredicate(int table_id, int segment_idx) {
 	assert(table_id <= cm->TOT_TABLE);
-	for (int i = 0; i < cm->columns_in_table[table_id].size(); i++) {
-		int column = cm->columns_in_table[table_id][i];
+	for (int i = 0; i < queryColumn[table_id].size(); i++) {
+		int column = queryColumn[table_id][i]->column_id;
 
 		if (params->compare1.find(cm->allColumn[column]) != params->compare1.end()) {
 			int compare1 = params->compare1[cm->allColumn[column]];
@@ -1514,8 +1780,8 @@ QueryOptimizer::checkPredicate(int table_id, int segment_idx) {
 
 void
 QueryOptimizer::updateSegmentStats(int table_id, int segment_idx, int query) {
- 	for (int i = 0; i < cm->columns_in_table[table_id].size(); i++) {
-	    int column = cm->columns_in_table[table_id][i];
+ 	for (int i = 0; i < queryColumn[table_id].size(); i++) {
+	    int column = queryColumn[table_id][i]->column_id;
 	    Segment* segment = cm->index_to_segment[column][segment_idx];
 	    cm->updateSegmentWeightDirect(cm->allColumn[column], segment, speedup[query][cm->allColumn[column]]);
 	}
@@ -1821,6 +2087,172 @@ QueryOptimizer::groupBitmapSegment(int query, bool isprofile) {
 		}
 		par_segment_count[i] = count;
 	}
+}
+
+void
+QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile) {
+
+	int LEN = cm->allColumn[cm->columns_in_table[table_id][0]]->LEN;
+	int total_segment = cm->allColumn[cm->columns_in_table[table_id][0]]->total_segment;
+	// cout << "Table id " << table_id << endl;
+	for (int i = 0; i < total_segment; i++) {
+		unsigned short temp = 0;
+
+		for (int j = 0; j < opParsed[table_id].size(); j++) {
+			Operator* op = opParsed[table_id][j];
+			temp = temp << op->columns.size();
+			for (int k = 0; k < op->columns.size(); k++) {
+				ColumnInfo* column = op->columns[k];
+				bool isGPU = cm->segment_bitmap[column->column_id][i];
+				temp = temp | (isGPU << k);
+			}
+		}
+
+		int count = segment_group_count[table_id][temp];
+
+		if (checkPredicate(table_id, i)) {
+			// cout << i << endl;
+			segment_group[table_id][temp * total_segment + count] = i;
+			segment_group_count[table_id][temp]++;
+			if (!isprofile) updateSegmentStats(table_id, i, query);
+		}
+
+		if (i == total_segment - 1) {
+			if (LEN % SEGMENT_SIZE != 0) {
+				last_segment[table_id] = temp;
+			}
+		}
+	}
+
+	for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+		if (segment_group_count[table_id][i] > 0) {
+
+			unsigned short sg = i;
+
+			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
+
+				Operator* op = opParsed[table_id][j];
+				unsigned short  bit = 1;
+				for (int k = 0; k < op->columns.size(); k++) {
+					bit = (sg & (1 << k)) >> k;
+					if (!bit) break;
+				}
+
+				if (op->type == GroupBy) {
+					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
+				} else if (op->type == Aggr) {
+					(bit) ? (op->device = GPU):(op->device = CPU); 		
+				} else if (op->type == Probe) {	
+					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+					// (bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
+				} else if (op->type == Filter) {
+					(bit) ? (op->device = GPU):(op->device = CPU);
+				} else if (op->type == Build) {
+					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);				
+				}
+
+				sg = sg >> op->columns.size();
+			}
+
+			for (int j = 0; j < opParsed[table_id].size(); j++) {
+				Operator* op = opParsed[table_id][j];
+				// cout << op->type << endl;
+				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
+					if (op->device == GPU) {
+						opGPUPipeline[table_id][i][0].push_back(op);
+					} else if (op->device == CPU) {
+						opCPUPipeline[table_id][i][0].push_back(op);
+					}
+				} else if (op->type == GroupBy || op->type == Aggr) {
+					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
+						opCPUPipeline[table_id][i][0].push_back(op);
+					} else {
+						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+					}
+				} else if (op->type == Build) { //TODO!! FIX THIS
+					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+					else {
+						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+					}					
+				}
+			}
+
+			Operator* op;
+
+			//TODO!! FIX THIS
+			if (opGPUPipeline[table_id][i][0].size() > 0) {
+				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+				op = opRoots[table_id][i];
+				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+					op->addChild(opGPUPipeline[table_id][i][0][j]);
+					op = opGPUPipeline[table_id][i][0][j];
+				}
+				if (opCPUPipeline[table_id][i][0].size() > 0) {
+					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
+					op->addChild(transferOp);
+					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
+					transferOp->addChild(matOp);
+					op = matOp;
+					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+						op->addChild(opCPUPipeline[table_id][i][0][j]);
+						op = opCPUPipeline[table_id][i][0][j];
+					}
+				}
+			} else {
+				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
+				op = opRoots[table_id][i];
+				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+					op->addChild(opCPUPipeline[table_id][i][0][j]);
+					op = opCPUPipeline[table_id][i][0][j];
+				}
+			}
+		}
+	}
+
+	if (table_id == 0) {
+		for (int i = 0; i < MAX_GROUPS; i++) {
+			if (segment_group_count[table_id][i] > 0) {
+				for (int j = 0; j < opGPUPipeline[table_id][i][0].size(); j++) {
+					Operator* op = opGPUPipeline[table_id][i][0][j];
+					if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
+					else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
+					else if (op->type == GroupBy || op->type == Aggr) {
+						for (int k = 0; k < op->columns.size(); k++)
+							groupbyGPUPipelineCol[i].push_back(op->columns[k]);
+					}
+				}
+				for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
+					Operator* op = opCPUPipeline[table_id][i][0][j];
+					if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
+					else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
+					else if (op->type == GroupBy || op->type == Aggr) {
+						for (int k = 0; k < op->columns.size(); k++)
+							groupbyCPUPipelineCol[i].push_back(op->columns[k]);
+					}
+				}
+			}
+		}
+	}
+
+	// bool checkGPU = false, checkCPU = false;
+	// for (int j = 0; j < MAX_GROUPS; j++) {
+	// 	if (joinGPU[table_id][j] && joinGPUcheck[table_id]) checkGPU = true;
+	// 	if (joinCPU[table_id][j]) checkCPU = true;
+	// }
+	// joinGPUcheck[table_id] = checkGPU;
+	// joinCPUcheck[table_id] = checkCPU;
+
+
+	short count = 0;
+	for (int sg = 0; sg < MAX_GROUPS; sg++) {
+		if (segment_group_count[table_id][sg] > 0) {
+			par_segment[table_id][count] = sg;
+			count++;
+		}
+	}
+	par_segment_count[table_id] = count;
 }
 
 void
@@ -2329,6 +2761,11 @@ QueryOptimizer::prepareQuery(int query) {
 	params->min_key[cm->c_custkey] = 0;
 	params->min_key[cm->s_suppkey] = 0;
 	params->min_key[cm->d_datekey] = 19920101;
+
+	params->max_key[cm->p_partkey] = P_LEN-1;
+	params->max_key[cm->c_custkey] = C_LEN-1;
+	params->max_key[cm->s_suppkey] = S_LEN-1;
+	params->max_key[cm->d_datekey] = 19981231;
 
 	params->min_val[cm->p_partkey] = 0;
 	params->min_val[cm->c_custkey] = 0;

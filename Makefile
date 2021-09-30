@@ -50,6 +50,9 @@ $(BIN)/cpu/%: $(OBJ)/cpu/%.o
 $(OBJ)/%.o: $(SRC)/%.cpp
 	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
+sort: test/ssb/sort.c
+	gcc -o sort $< -std=c99 
+
 NVCC_VER=11.2
 CUB_VER=1.8.0
 

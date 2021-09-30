@@ -1,4 +1,4 @@
-#include "QueryProcessing.h"
+#include "QueryProcessing.cuh"
 
 #include <chrono>
 #include <atomic>
@@ -10,6 +10,7 @@ int main() {
 	srand(123);
 
 	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200, 209715200, 536870912, 536870912, verbose);
+	QueryProcessing* qp = new QueryProcessing(cgp, verbose);
 
 	bool exit = 0;
 	float time = 0;
@@ -27,17 +28,15 @@ int main() {
 		if (input.compare("1") == 0) {
 			cout << "Input Query: ";
 			cin >> query;
-			QueryProcessing* qp = new QueryProcessing(cgp, stoi(query), verbose);
+			qp->setQuery(stoi(query));
 			time += qp->processOnDemand();
 		} else if (input.compare("2") == 0) {
 			time = 0;
 			cout << "Executing Random Query" << endl;
-			QueryProcessing* qp = new QueryProcessing(cgp, 11, verbose);
 			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
 				time += qp->processOnDemand();
 			}
-			delete qp;
 			srand(123);
 		} else {
 			exit = true;

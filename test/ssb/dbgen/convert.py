@@ -90,4 +90,3 @@ f = open('part.tbl.p','w')
 for line in o:
   f.write(line)
 f.close()
-

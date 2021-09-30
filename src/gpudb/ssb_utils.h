@@ -75,6 +75,33 @@ string lookup(string col_name) {
   return "";
 }
 
+string lookupSort(string col_name) {
+  string lineorder[] = { "lo_orderkey", "lo_linenumber", "lo_custkey", "lo_partkey", "lo_suppkey", "lo_orderdate", "lo_orderpriority", "lo_shippriority", "lo_quantity", "lo_extendedprice", "lo_ordtotalprice", "lo_discount", "lo_revenue", "lo_supplycost", "lo_tax", "lo_commitdate", "lo_shipmode"};
+  string part[] = {"p_partkey", "p_name", "p_mfgr", "p_category", "p_brand1", "p_color", "p_type", "p_size", "p_container"};
+  string supplier[] = {"s_suppkey", "s_name", "s_address", "s_city", "s_nation", "s_region", "s_phone"};
+  string customer[] = {"c_custkey", "c_name", "c_address", "c_city", "c_nation", "c_region", "c_phone", "c_mktsegment"};
+  string date[] = {"d_datekey", "d_date", "d_dayofweek", "d_month", "d_year", "d_yearmonthnum", "d_yearmonth", "d_daynuminweek", "d_daynuminmonth", "d_daynuminyear", "d_sellingseason", "d_lastdayinweekfl", "d_lastdayinmonthfl", "d_holidayfl", "d_weekdayfl"};
+
+  if (col_name[0] == 'l') {
+    int index = index_of(lineorder, 17, col_name);
+    return "LINEORDERSORT" + to_string(index);
+  } else if (col_name[0] == 's') {
+    int index = index_of(supplier, 7, col_name);
+    return "SUPPLIERSORT" + to_string(index);
+  } else if (col_name[0] == 'c') {
+    int index = index_of(customer, 8, col_name);
+    return "CUSTOMERSORT" + to_string(index);
+  } else if (col_name[0] == 'p') {
+    int index = index_of(part, 9, col_name);
+    return "PARTSORT" + to_string(index);
+  } else if (col_name[0] == 'd') {
+    int index = index_of(date, 15, col_name);
+    return "DDATESORT" + to_string(index);
+  }
+
+  return "";
+}
+
 template<typename T>
 T* loadColumn(string col_name, int num_entries) {
   T* h_col = new T[((num_entries + SEGMENT_SIZE - 1)/SEGMENT_SIZE) * SEGMENT_SIZE];
@@ -93,6 +120,33 @@ T* loadColumnPinned(string col_name, int num_entries) {
   T* h_col;
   CubDebugExit(cudaHostAlloc((void**) &h_col, ((num_entries + SEGMENT_SIZE - 1)/SEGMENT_SIZE) * SEGMENT_SIZE * sizeof(T), cudaHostAllocDefault));
   string filename = DATA_DIR + lookup(col_name);
+  ifstream colData (filename.c_str(), ios::in | ios::binary);
+  if (!colData) {
+    return NULL;
+  }
+
+  colData.read((char*)h_col, num_entries * sizeof(T));
+  return h_col;
+}
+
+template<typename T>
+T* loadColumnSort(string col_name, int num_entries) {
+  T* h_col = new T[((num_entries + SEGMENT_SIZE - 1)/SEGMENT_SIZE) * SEGMENT_SIZE];
+  string filename = DATA_DIR + lookupSort(col_name);
+  ifstream colData (filename.c_str(), ios::in | ios::binary);
+  if (!colData) {
+    return NULL;
+  }
+
+  colData.read((char*)h_col, num_entries * sizeof(T));
+  return h_col;
+}
+
+template<typename T>
+T* loadColumnPinnedSort(string col_name, int num_entries) {
+  T* h_col;
+  CubDebugExit(cudaHostAlloc((void**) &h_col, ((num_entries + SEGMENT_SIZE - 1)/SEGMENT_SIZE) * SEGMENT_SIZE * sizeof(T), cudaHostAllocDefault));
+  string filename = DATA_DIR + lookupSort(col_name);
   ifstream colData (filename.c_str(), ios::in | ios::binary);
   if (!colData) {
     return NULL;

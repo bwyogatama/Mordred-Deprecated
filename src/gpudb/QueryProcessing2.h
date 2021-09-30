@@ -62,6 +62,10 @@ public:
 
   void percentageData();
 
+  void dumpTrace(string filename);
+
+  void countTouchedSegment(int table_id, int* t_segment, int* t_c_segment);
+
 };
 
 #endif

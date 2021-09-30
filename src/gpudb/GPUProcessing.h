@@ -1154,6 +1154,156 @@ __global__ void build_GPU3(
 }
 
 template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void build_GPU_minmax(
+  int* gpuCache, struct filterArgsGPU fargs,
+  struct buildArgsGPU bargs, int num_tuples, int* hash_table, int* min_global, int* max_global,
+  int start_offset = 0, short* segment_group = NULL) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+
+  int items[ITEMS_PER_THREAD];
+  int vals[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+  int tiles_per_segment = SEGMENT_SIZE/tile_size;
+
+  int tile_idx = blockIdx.x % tiles_per_segment;
+  int segment_tile_offset = (blockIdx.x % tiles_per_segment) * tile_size; //tile offset inside a segment
+
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  int min = bargs.val_max, max = bargs.val_min;
+
+  __shared__ int segment_index;
+  __shared__ int val_segment;
+  __shared__ int key_segment;
+  __shared__ int filter_segment;
+  __shared__ int min_shared;
+  __shared__ int max_shared;
+
+  if (threadIdx.x == 0) {
+    if (segment_group != NULL) segment_index = segment_group[tile_offset / SEGMENT_SIZE];
+    else segment_index = ( start_offset + tile_offset ) / SEGMENT_SIZE;
+    if (bargs.val_idx != NULL) val_segment = bargs.val_idx[segment_index];
+    if (bargs.key_idx != NULL) key_segment = bargs.key_idx[segment_index];
+    if (fargs.filter_idx1 != NULL) filter_segment = fargs.filter_idx1[segment_index];
+    min_shared = bargs.val_max;
+    max_shared = bargs.val_min;
+  }
+
+  __syncthreads();
+
+  start_offset = segment_index * SEGMENT_SIZE;
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+  if (fargs.filter_idx1 != NULL) {
+    int* ptr = gpuCache + filter_segment * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
+    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+  }
+
+  cudaAssert(bargs.key_idx != NULL);
+  int* ptr_key = gpuCache + key_segment * SEGMENT_SIZE;
+  BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr_key + segment_tile_offset, items, num_tile_items);
+  BlockMinMaxGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, selection_flags, min, max, num_tile_items);
+
+  if (bargs.val_idx != NULL) {
+    int* ptr = gpuCache + val_segment * SEGMENT_SIZE;
+    BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, vals, num_tile_items);
+    BlockBuildValueGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, tile_idx, start_offset,
+      items, vals, selection_flags, hash_table, bargs.num_slots, bargs.val_min, num_tile_items);
+  } else {
+    BlockBuildOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, tile_idx, start_offset,
+      items, selection_flags, hash_table, bargs.num_slots, bargs.val_min, num_tile_items);
+  }
+
+  __syncthreads();
+
+  atomicMin(&min_shared, min);
+  atomicMax(&max_shared, max);
+
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicMin(min_global, min_shared);
+    atomicMax(max_global, max_shared);    
+  }
+
+  __syncthreads();
+
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
+__global__ void build_GPU_minmax2(
+  int* gpuCache, int* dim_off, struct filterArgsGPU fargs,
+  struct buildArgsGPU bargs, int num_tuples, int* hash_table, int* min_global, int* max_global) {
+
+  //assume start_offset always in the beginning of a segment (ga mungkin start di tengah2 segment)
+  //assume tile_size is a factor of SEGMENT_SIZE (SEGMENT SIZE kelipatan tile_size)
+
+  int items[ITEMS_PER_THREAD];
+  int selection_flags[ITEMS_PER_THREAD];
+
+  int tile_size = BLOCK_THREADS * ITEMS_PER_THREAD;
+  int tile_offset = blockIdx.x * tile_size;
+  int num_tiles = (num_tuples + tile_size - 1) / tile_size;
+  int num_tile_items = tile_size;
+
+  if (blockIdx.x == num_tiles - 1) {
+    num_tile_items = num_tuples - tile_offset;
+  }
+
+  int min = bargs.val_max, max = bargs.val_min;
+
+  __shared__ int min_shared;
+  __shared__ int max_shared;
+
+  if (threadIdx.x == 0) {
+    min_shared = bargs.val_max;
+    max_shared = bargs.val_min;
+  }
+
+  __syncthreads();
+
+  InitFlags<BLOCK_THREADS, ITEMS_PER_THREAD>(selection_flags);
+
+  cudaAssert(fargs.filter_idx1 == NULL);
+  BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(dim_off + tile_offset, items, num_tile_items);
+  BlockMinMaxGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, selection_flags, gpuCache, bargs.key_idx, min, max, num_tile_items);
+
+  if (bargs.val_idx != NULL) {
+    BlockBuildValueGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, selection_flags, gpuCache, bargs.key_idx, bargs.val_idx, 
+        hash_table, bargs.num_slots, bargs.val_min, num_tile_items);
+  } else {
+    BlockBuildOffsetGPU2<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items, selection_flags, gpuCache, bargs.key_idx, 
+        hash_table, bargs.num_slots, bargs.val_min, num_tile_items); 
+  }
+
+  __syncthreads();
+
+  atomicMin(&min_shared, min);
+  atomicMax(&max_shared, max);
+
+  __syncthreads();
+
+  if (threadIdx.x == 0) {
+    atomicMin(min_global, min_shared);
+    atomicMax(max_global, max_shared);    
+  }
+
+  __syncthreads();
+
+}
+
+template<int BLOCK_THREADS, int ITEMS_PER_THREAD>
 __global__ void filter_GPU2(
   int* gpuCache, struct filterArgsGPU fargs,
   int* out_off, int num_tuples, int* total, int start_offset = 0, short* segment_group = NULL) {

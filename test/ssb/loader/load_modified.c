@@ -814,7 +814,9 @@ void lineorder (FILE *fp, char *outName){
         tupleUnit = tupleRemain;
       header.tupleNum = tupleUnit;
       header.blockId ++;
-      writeHeader = 1;
+      writeHeader = 0;
+      // writeHeader = 1;
+      // printf("writeHeader\n");
     }
     for(i = 0, prev = 0,count=0; buf[i] !='\n';i++){
       if (buf[i] == delimiter){

@@ -650,9 +650,11 @@ CacheManager::SegmentReplacement() {
 
     set<Segment*>::const_iterator cit2;
     for(cit2 = segments_to_place.cbegin();cit2 != segments_to_place.cend(); ++cit2){
-			cout << "Caching segment ";
-			cout << (*cit2)->column->column_name << endl;
-			cacheSegmentInGPU(*cit2);
+    	if (segment_bitmap[(*cit2)->column->column_id][(*cit2)->segment_id] == 0) {
+				cout << "Caching segment ";
+				cout << (*cit2)->column->column_name << " " << (*cit2)->segment_id << endl;
+				cacheSegmentInGPU(*cit2);
+    	}
     }
     cout << "Successfully cached" << endl;
 }
@@ -1097,16 +1099,16 @@ CacheManager::loadColumnToCPU() {
 	// h_d_year = loadColumn<int>("d_year", D_LEN);
 	// h_d_yearmonthnum = loadColumn<int>("d_yearmonthnum", D_LEN);
 
-	h_lo_orderkey = loadColumnPinned<int>("lo_orderkey", LO_LEN);
-	h_lo_suppkey = loadColumnPinned<int>("lo_suppkey", LO_LEN);
-	h_lo_custkey = loadColumnPinned<int>("lo_custkey", LO_LEN);
-	h_lo_partkey = loadColumnPinned<int>("lo_partkey", LO_LEN);
-	h_lo_orderdate = loadColumnPinned<int>("lo_orderdate", LO_LEN);
-	h_lo_revenue = loadColumnPinned<int>("lo_revenue", LO_LEN);
-	h_lo_discount = loadColumnPinned<int>("lo_discount", LO_LEN);
-	h_lo_quantity = loadColumnPinned<int>("lo_quantity", LO_LEN);
-	h_lo_extendedprice = loadColumnPinned<int>("lo_extendedprice", LO_LEN);
-	h_lo_supplycost = loadColumnPinned<int>("lo_supplycost", LO_LEN);
+	h_lo_orderkey = loadColumnPinnedSort<int>("lo_orderkey", LO_LEN);
+	h_lo_suppkey = loadColumnPinnedSort<int>("lo_suppkey", LO_LEN);
+	h_lo_custkey = loadColumnPinnedSort<int>("lo_custkey", LO_LEN);
+	h_lo_partkey = loadColumnPinnedSort<int>("lo_partkey", LO_LEN);
+	h_lo_orderdate = loadColumnPinnedSort<int>("lo_orderdate", LO_LEN);
+	h_lo_revenue = loadColumnPinnedSort<int>("lo_revenue", LO_LEN);
+	h_lo_discount = loadColumnPinnedSort<int>("lo_discount", LO_LEN);
+	h_lo_quantity = loadColumnPinnedSort<int>("lo_quantity", LO_LEN);
+	h_lo_extendedprice = loadColumnPinnedSort<int>("lo_extendedprice", LO_LEN);
+	h_lo_supplycost = loadColumnPinnedSort<int>("lo_supplycost", LO_LEN);
 
 	h_c_custkey = loadColumnPinned<int>("c_custkey", C_LEN);
 	h_c_nation = loadColumnPinned<int>("c_nation", C_LEN);

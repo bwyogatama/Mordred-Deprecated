@@ -3,6 +3,10 @@
 void
 QueryProcessing::runQuery() {
 
+  SETUP_TIMING();
+  float time;
+  cudaEventRecord(start, 0);
+
   for (int i = 0; i < qo->join.size(); i++) {
     int table_id = qo->join[i].second->table_id;
 
@@ -69,6 +73,13 @@ QueryProcessing::runQuery() {
 
     CubDebugExit(cudaDeviceSynchronize());
   }
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Build time " << time << endl;
+
+  cudaEventRecord(start, 0);
 
   parallel_for(short(0), qo->par_segment_count[0], [=](short i){
 
@@ -323,10 +334,22 @@ QueryProcessing::runQuery() {
   });
 
   CubDebugExit(cudaDeviceSynchronize());
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Probe time " << time << endl;
   
-  int* resGPU = (int*) cm->customMalloc<int>(params->total_val * 6);
+  cudaEventRecord(start, 0);
+
+  int* resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Merge time " << time << endl;
 }
 
 
@@ -334,6 +357,10 @@ QueryProcessing::runQuery() {
 void
 QueryProcessing::runQuery2() {
 
+  SETUP_TIMING();
+  float time;
+  cudaEventRecord(start, 0);
+  
   for (int i = 0; i < qo->join.size(); i++) {
     int table_id = qo->join[i].second->table_id;
 
@@ -401,6 +428,13 @@ QueryProcessing::runQuery2() {
 
     CubDebugExit(cudaDeviceSynchronize());
   }
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Build time " << time << endl;
+
+  cudaEventRecord(start, 0);
 
   parallel_for(short(0), qo->par_segment_count[0], [=](short i){
 
@@ -656,11 +690,21 @@ QueryProcessing::runQuery2() {
 
   });
 
-  CubDebugExit(cudaDeviceSynchronize());
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Probe time " << time << endl;
   
-  int* resGPU = (int*) cm->customMalloc<int>(params->total_val * 6);
+  cudaEventRecord(start, 0);
+
+  int* resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Merge time " << time << endl;
 }
 
 void
@@ -901,7 +945,9 @@ void
 QueryProcessing::profile() {
   for (int i = 0; i < NUM_QUERIES; i++) {
 
-    cudaEvent_t start, stop; 
+    // cudaEvent_t start, stop;
+    SETUP_TIMING();
+
     float default_time = 0, time1 = 0, time2 = 0;
 
     query = queries[i];
@@ -914,18 +960,22 @@ QueryProcessing::profile() {
     for (int trials = 0; trials < 2; trials++) {
 
       qo->prepareQuery(query);
-      qo->dataDrivenOperatorPlacement(query, 1);
+      qo->prepareOperatorPlacement();
+      qo->groupBitmapSegmentTable(0, query, 1);
+      for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+        qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query, 1);
+      }
       params = qo->params;
 
-      cudaEventCreate(&start);
-      cudaEventCreate(&stop);
-      cudaEventRecord(start, 0);
+      // cudaEventCreate(&start);
+      // cudaEventCreate(&stop);
+      // cudaEventRecord(start, 0);
 
-      runQuery();
+      TIME_FUNC(runQuery(), default_time);
 
-      cudaEventRecord(stop, 0);
-      cudaEventSynchronize(stop);
-      cudaEventElapsedTime(&default_time, start, stop);
+      // cudaEventRecord(stop, 0);
+      // cudaEventSynchronize(stop);
+      // cudaEventElapsedTime(&default_time, start, stop);
 
       cout << "Default time " << default_time << endl;
 
@@ -939,19 +989,21 @@ QueryProcessing::profile() {
 
     for (int j = 0; j < qo->querySelectColumn.size(); j++) {
       cm->cacheColumnSegmentInGPU(qo->querySelectColumn[j], qo->querySelectColumn[j]->total_segment);
-      qo->prepareQuery(query);
-      qo->dataDrivenOperatorPlacement(query, 1);
-      params = qo->params;
 
-      cudaEventCreate(&start);
-      cudaEventCreate(&stop);
-      cudaEventRecord(start, 0);
+      for (int trials = 0; trials < 2; trials++) {
+        qo->prepareQuery(query);
+        qo->prepareOperatorPlacement();
+        qo->groupBitmapSegmentTable(0, query, 1);
+        for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+          qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query, 1);
+        }
+        params = qo->params;
 
-      runQuery2();
+        TIME_FUNC(runQuery2(), time1);
 
-      cudaEventRecord(stop, 0);
-      cudaEventSynchronize(stop);
-      cudaEventElapsedTime(&time1, start, stop);
+        qo->clearPlacement();
+        endQuery();
+      }
 
       cout << qo->querySelectColumn[j]->column_name << " " << time1 << endl;
 
@@ -959,37 +1011,38 @@ QueryProcessing::profile() {
       else qo->speedup[query][qo->querySelectColumn[j]] = 0;
 
       cm->deleteColumnSegmentInGPU(qo->querySelectColumn[j], qo->querySelectColumn[j]->total_segment);
-
-      qo->clearPlacement();
-      endQuery();
     }
 
     for (int j = 0; j < qo->join.size(); j++) {
       cm->cacheColumnSegmentInGPU(qo->join[j].first, qo->join[j].first->total_segment);
       cm->cacheColumnSegmentInGPU(qo->join[j].second, qo->join[j].second->total_segment);
       qo->prepareQuery(query);
-      qo->dataDrivenOperatorPlacement(query, 1);
+      qo->prepareOperatorPlacement();
+      qo->groupBitmapSegmentTable(0, query, 1);
+      for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+        qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query, 1);
+      }
       params = qo->params;
 
-      cudaEventCreate(&start);
-      cudaEventCreate(&stop);
-      cudaEventRecord(start, 0);
+      // cudaEventCreate(&start);
+      // cudaEventCreate(&stop);
+      // cudaEventRecord(start, 0);
 
-      runQuery();
+      TIME_FUNC(runQuery(), time1);
 
-      cudaEventRecord(stop, 0);
-      cudaEventSynchronize(stop);
-      cudaEventElapsedTime(&time1, start, stop);
+      // cudaEventRecord(stop, 0);
+      // cudaEventSynchronize(stop);
+      // cudaEventElapsedTime(&time1, start, stop);
 
-      cudaEventCreate(&start);
-      cudaEventCreate(&stop);
-      cudaEventRecord(start, 0);
+      // cudaEventCreate(&start);
+      // cudaEventCreate(&stop);
+      // cudaEventRecord(start, 0);
 
-      runQuery2();
+      TIME_FUNC(runQuery2(), time2);
 
-      cudaEventRecord(stop, 0);
-      cudaEventSynchronize(stop);
-      cudaEventElapsedTime(&time2, start, stop);
+      // cudaEventRecord(stop, 0);
+      // cudaEventSynchronize(stop);
+      // cudaEventElapsedTime(&time2, start, stop);
 
       cout << time1 << " " << time2 << endl;
 
@@ -1028,18 +1081,22 @@ QueryProcessing::profile() {
     }
     
     qo->prepareQuery(query);
-    qo->dataDrivenOperatorPlacement(query, 1);
+    qo->prepareOperatorPlacement();
+    qo->groupBitmapSegmentTable(0, query, 1);
+      for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+        qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query, 1);
+    }
     params = qo->params;
 
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start, 0);
+    // cudaEventCreate(&start);
+    // cudaEventCreate(&stop);
+    // cudaEventRecord(start, 0);
 
-    runQuery2();
+    TIME_FUNC(runQuery2(), time1);
 
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&time1, start, stop);
+    // cudaEventRecord(stop, 0);
+    // cudaEventSynchronize(stop);
+    // cudaEventElapsedTime(&time1, start, stop);
 
     cout << "groupby aggregation " << time1 << endl;
     cout << endl;
@@ -1067,22 +1124,26 @@ double
 QueryProcessing::processOnDemand() {
   qo->parseQuery(query);
   qo->prepareQuery(query);
-  qo->dataDrivenOperatorPlacement(query);
+  qo->prepareOperatorPlacement();
+  qo->groupBitmapSegmentTable(0, query);
+    for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+      qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query);
+  }
   params = qo->params;
 
-  cudaEvent_t start, stop;   // variables that holds 2 events 
+  // cudaEvent_t start, stop;
+  SETUP_TIMING();
   float time;
 
-  cudaEventCreate(&start);   // creating the event 1
-  cudaEventCreate(&stop);    // creating the event 2
-  cudaEventRecord(start, 0); // start measuring  the time
+  // cudaEventCreate(&start);
+  // cudaEventCreate(&stop);
+  // cudaEventRecord(start, 0);
 
-  runOnDemand();
+  TIME_FUNC(runOnDemand(), time);
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  // cudaEventRecord(stop, 0);
+  // cudaEventSynchronize(stop);
+  // cudaEventElapsedTime(&time, start, stop);
 
   if (verbose) {
     cout << "Result:" << endl;
@@ -1111,54 +1172,56 @@ QueryProcessing::processOnDemand() {
 double
 QueryProcessing::processQuery() {
 
-  cudaEvent_t start, stop;   // variables that holds 2 events 
+  // cudaEvent_t start, stop;
+  SETUP_TIMING();
   float time;
 
-  cudaEventCreate(&start);   // creating the event 1
-  cudaEventCreate(&stop);    // creating the event 2
-  cudaEventRecord(start, 0); // start measuring  the time
+  // cudaEventCreate(&start);
+  // cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
 
   qo->parseQuery(query);
   qo->prepareQuery(query);
   params = qo->params;
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
 
   if (verbose) {
     cout << "Query Prepare Time: " << time << endl;
     cout << endl;
   }
 
-  cudaEventCreate(&start);   // creating the event 1
-  cudaEventCreate(&stop);    // creating the event 2
-  cudaEventRecord(start, 0); // start measuring  the time
+  // cudaEventCreate(&start);
+  // cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
 
-  qo->dataDrivenOperatorPlacement(query);
+  qo->prepareOperatorPlacement();
+  qo->groupBitmapSegmentTable(0, query);
+    for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+      qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query);
+  }
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
 
   if (verbose) {
     cout << "Query Optimization Time: " << time << endl;
     cout << endl;    
   }
 
-  // st = chrono::high_resolution_clock::now();
-  cudaEventCreate(&start);   // creating the event 1
-  cudaEventCreate(&stop);    // creating the event 2
-  cudaEventRecord(start, 0); // start measuring  the time
+  // cudaEventCreate(&start);   // creating the event 1
+  // cudaEventCreate(&stop);    // creating the event 2
+  // cudaEventRecord(start, 0); // start measuring  the time
 
-  runQuery();
+  TIME_FUNC(runQuery(), time);
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  // cudaEventRecord(stop, 0);                  // Stop time measuring
+  // cudaEventSynchronize(stop);               // Wait until the completion of all device 
+  //                                           // work preceding the most recent call to cudaEventRecord()
+  // cudaEventElapsedTime(&time, start, stop); // Saving the time measured
 
   if (verbose) {
     cout << "Result:" << endl;
@@ -1187,54 +1250,56 @@ QueryProcessing::processQuery() {
 double
 QueryProcessing::processQuery2() {
 
-  cudaEvent_t start, stop;   // variables that holds 2 events 
+  // cudaEvent_t start, stop;   // variables that holds 2 events 
+  SETUP_TIMING();
   float time;
 
-  cudaEventCreate(&start);   // creating the event 1
-  cudaEventCreate(&stop);    // creating the event 2
-  cudaEventRecord(start, 0); // start measuring  the time
+  // cudaEventCreate(&start);
+  // cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
 
   qo->parseQuery(query);
   qo->prepareQuery(query);
   params = qo->params;
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
 
   if (verbose) {
     cout << "Query Prepare Time: " << time << endl;
     cout << endl;
   }
 
-  cudaEventCreate(&start);   // creating the event 1
-  cudaEventCreate(&stop);    // creating the event 2
-  cudaEventRecord(start, 0); // start measuring  the time
+  // cudaEventCreate(&start);
+  // cudaEventCreate(&stop);
+  cudaEventRecord(start, 0);
 
-  qo->dataDrivenOperatorPlacement(query);
+  qo->prepareOperatorPlacement();
+  qo->groupBitmapSegmentTable(0, query);
+    for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+      qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query);
+  }
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
 
   if (verbose) {
     cout << "Query Optimization Time: " << time << endl;
     cout << endl;    
   }
 
-  // st = chrono::high_resolution_clock::now();
-  cudaEventCreate(&start);   // creating the event 1
-  cudaEventCreate(&stop);    // creating the event 2
-  cudaEventRecord(start, 0); // start measuring  the time
+  // cudaEventCreate(&start);   // creating the event 1
+  // cudaEventCreate(&stop);    // creating the event 2
+  // cudaEventRecord(start, 0); // start measuring  the time
 
-  runQuery2();
+  TIME_FUNC(runQuery2(), time);
 
-  cudaEventRecord(stop, 0);                  // Stop time measuring
-  cudaEventSynchronize(stop);               // Wait until the completion of all device 
-                                            // work preceding the most recent call to cudaEventRecord()
-  cudaEventElapsedTime(&time, start, stop); // Saving the time measured
+  // cudaEventRecord(stop, 0);                  // Stop time measuring
+  // cudaEventSynchronize(stop);               // Wait until the completion of all device 
+  //                                           // work preceding the most recent call to cudaEventRecord()
+  // cudaEventElapsedTime(&time, start, stop); // Saving the time measured
 
   if (verbose) {
     cout << "Result:" << endl;
@@ -1422,602 +1487,112 @@ QueryProcessing::updateStatsQuery() {
   }
 }
 
-
-
-// void 
-// QueryProcessing::prepareQuery() {
-
-
-//   if (query == 11 || query == 12 || query == 13) {
-
-//     if (query == 11) {
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_orderdate] = 1;
-//       params->selectivity[cm->lo_discount] = 3.0/11 * 2;
-//       params->selectivity[cm->lo_quantity] = 0.5 * 2;
-
-//       // params->mode[cm->d_year] = 0;
-//       // params->compare1[cm->d_year] = 1993;
-//       params->mode[cm->d_year] = 1;
-//       params->compare1[cm->d_year] = 1993;
-//       params->compare2[cm->d_year] = 1993;
-//       params->mode[cm->lo_discount] = 1;
-//       params->compare1[cm->lo_discount] = 1;
-//       params->compare2[cm->lo_discount] = 3;
-//       params->mode[cm->lo_quantity] = 1;
-//       params->compare1[cm->lo_quantity] = 0;
-//       params->compare2[cm->lo_quantity] = 24;
-//       params->mode_group = 2;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_quantity]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->d_year] = &host_pred_between;
-//       params->map_filter_func_host[cm->lo_discount] = &host_pred_between;
-//       params->map_filter_func_host[cm->lo_quantity] = &host_pred_between;
-
-//     } else if (query == 12) {
-
-//       params->selectivity[cm->d_yearmonthnum] = 1;
-//       params->selectivity[cm->lo_orderdate] = 1;
-//       params->selectivity[cm->lo_discount] = 3.0/11 * 2;
-//       params->selectivity[cm->lo_quantity] = 0.2 * 2;
-
-//       params->mode[cm->d_yearmonthnum] = 1;
-//       params->compare1[cm->d_yearmonthnum] = 199401;
-//       params->compare2[cm->d_yearmonthnum] = 199401;
-//       params->mode[cm->lo_discount] = 1;
-//       params->compare1[cm->lo_discount] = 4;
-//       params->compare2[cm->lo_discount] = 6;
-//       params->mode[cm->lo_quantity] = 1;
-//       params->compare1[cm->lo_quantity] = 26;
-//       params->compare2[cm->lo_quantity] = 35;
-//       params->mode_group = 2;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_yearmonthnum]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_quantity]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->d_yearmonthnum] = &host_pred_between;
-//       params->map_filter_func_host[cm->lo_discount] = &host_pred_between;
-//       params->map_filter_func_host[cm->lo_quantity] = &host_pred_between;
-
-//     } else if (query == 13) {
-
-//       params->selectivity[cm->d_datekey] = 1;
-//       params->selectivity[cm->lo_orderdate] = 1;
-//       params->selectivity[cm->lo_discount] = 3.0/11 * 2;
-//       params->selectivity[cm->lo_quantity] = 0.2 * 2;
-
-//       params->mode[cm->d_datekey] = 1;
-//       params->compare1[cm->d_datekey] = 19940204;
-//       params->compare2[cm->d_datekey] = 19940210;
-//       params->mode[cm->lo_discount] = 1;
-//       params->compare1[cm->lo_discount] = 5;
-//       params->compare2[cm->lo_discount] = 7;
-//       params->mode[cm->lo_quantity] = 1;
-//       params->compare1[cm->lo_quantity] = 26;
-//       params->compare2[cm->lo_quantity] = 35;
-//       params->mode_group = 2;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_datekey]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_quantity]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->d_datekey] = &host_pred_between;
-//       params->map_filter_func_host[cm->lo_discount] = &host_pred_between;
-//       params->map_filter_func_host[cm->lo_quantity] = &host_pred_between;
-//     }
-
-//     CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_mul_func<int>, sizeof(group_func_t<int>)));
-//     params->h_group_func = &host_mul_func;
-
-//     params->min_key[cm->p_partkey] = 0;
-//     params->min_key[cm->c_custkey] = 0;
-//     params->min_key[cm->s_suppkey] = 0;
-//     params->min_key[cm->d_datekey] = 19920101;
-
-//     params->min_val[cm->p_partkey] = 0;
-//     params->min_val[cm->c_custkey] = 0;
-//     params->min_val[cm->s_suppkey] = 0;
-//     params->min_val[cm->d_datekey] = 1992;
-
-//     params->unique_val[cm->p_partkey] = 0;
-//     params->unique_val[cm->c_custkey] = 0;
-//     params->unique_val[cm->s_suppkey] = 0;
-//     params->unique_val[cm->d_datekey] = 1;
-
-//     params->dim_len[cm->p_partkey] = 0;
-//     params->dim_len[cm->c_custkey] = 0;
-//     params->dim_len[cm->s_suppkey] = 0;
-//     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
-
-//     params->total_val = 1;
-
-//     params->ht_CPU[cm->p_partkey] = NULL;
-//     params->ht_CPU[cm->s_suppkey] = NULL;
-//     params->ht_CPU[cm->c_custkey] = NULL;
-//     params->ht_CPU[cm->d_datekey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-
-//     memset(params->ht_CPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
-
-//     params->ht_GPU[cm->d_datekey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-//     params->ht_GPU[cm->p_partkey] = NULL;
-//     params->ht_GPU[cm->s_suppkey] = NULL;
-//     params->ht_GPU[cm->c_custkey] = NULL;
-
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int)));
-
-//   } else if (query == 21 || query == 22 || query == 23) {
-
-//     if (query == 21) {
-//       params->selectivity[cm->p_category] = 1.0/25 * 2;
-//       params->selectivity[cm->s_region] = 0.2 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_partkey] = 1.0/25 * 2;
-//       params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->s_region] = 1;
-//       params->compare1[cm->s_region] = 1;
-//       params->compare2[cm->s_region] = 1;
-//       params->mode[cm->p_category] = 1;
-//       params->compare1[cm->p_category] = 1;
-//       params->compare2[cm->p_category] = 1;
-//       params->mode_group = 0;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_category]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->s_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->p_category] = &host_pred_between;
-
-//     } else if (query == 22) {
-//       params->selectivity[cm->p_brand1] = 1.0/125 * 2;
-//       params->selectivity[cm->s_region] = 0.2 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_partkey] = 1.0/125 * 2;
-//       params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->s_region] = 1;
-//       params->compare1[cm->s_region] = 2;
-//       params->compare2[cm->s_region] = 2;
-//       params->mode[cm->p_brand1] = 1;
-//       params->compare1[cm->p_brand1] = 260;
-//       params->compare2[cm->p_brand1] = 267;
-//       params->mode_group = 0;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_brand1]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->s_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->p_brand1] = &host_pred_between;
-
-//     } else if (query == 23) {
-//       params->selectivity[cm->p_brand1] = 1.0/1000 * 2;
-//       params->selectivity[cm->s_region] = 0.2 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_partkey] = 1.0/1000 * 2;
-//       params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->s_region] = 1;
-//       params->compare1[cm->s_region] = 3;
-//       params->compare2[cm->s_region] = 3;
-//       params->mode[cm->p_brand1] = 1;
-//       params->compare1[cm->p_brand1] = 260;
-//       params->compare2[cm->p_brand1] = 260;
-//       params->mode_group = 0;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_brand1]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->s_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->p_brand1] = &host_pred_between;
-//     }
-
-//     CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_sub_func<int>, sizeof(group_func_t<int>)));
-//     params->h_group_func = &host_sub_func;
-
-//     params->min_key[cm->p_partkey] = 0;
-//     params->min_key[cm->c_custkey] = 0;
-//     params->min_key[cm->s_suppkey] = 0;
-//     params->min_key[cm->d_datekey] = 19920101;
-
-//     params->min_val[cm->p_partkey] = 0;
-//     params->min_val[cm->c_custkey] = 0;
-//     params->min_val[cm->s_suppkey] = 0;
-//     params->min_val[cm->d_datekey] = 1992;
-
-//     params->unique_val[cm->p_partkey] = 7;
-//     params->unique_val[cm->c_custkey] = 0;
-//     params->unique_val[cm->s_suppkey] = 0;
-//     params->unique_val[cm->d_datekey] = 1;
-
-//     params->dim_len[cm->p_partkey] = P_LEN;
-//     params->dim_len[cm->c_custkey] = 0;
-//     params->dim_len[cm->s_suppkey] = S_LEN;
-//     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
-
-//     params->total_val = ((1998-1992+1) * (5 * 5 * 40));
-
-//     params->ht_CPU[cm->p_partkey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->p_partkey]);
-//     params->ht_CPU[cm->c_custkey] = NULL;
-//     params->ht_CPU[cm->s_suppkey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
-//     params->ht_CPU[cm->d_datekey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-
-//     memset(params->ht_CPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
-//     memset(params->ht_CPU[cm->p_partkey], 0, 2 * params->dim_len[cm->p_partkey] * sizeof(int));
-//     memset(params->ht_CPU[cm->s_suppkey], 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int));
-
-//     params->ht_GPU[cm->p_partkey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->p_partkey]);
-//     params->ht_GPU[cm->s_suppkey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
-//     params->ht_GPU[cm->d_datekey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-//     params->ht_GPU[cm->c_custkey] = NULL;
-
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->p_partkey], 0, 2 * params->dim_len[cm->p_partkey] * sizeof(int)));
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->s_suppkey], 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int)));
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int)));
-
-//   } else if (query == 31 || query == 32 || query == 33 || query == 34) {
-
-//     if (query == 31) {
-//       params->selectivity[cm->c_region] = 0.2 * 2;
-//       params->selectivity[cm->s_region] = 0.2 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_custkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->c_region] = 1;
-//       params->compare1[cm->c_region] = 2;
-//       params->compare2[cm->c_region] = 2;
-//       params->mode[cm->s_region] = 1;
-//       params->compare1[cm->s_region] = 2;
-//       params->compare2[cm->s_region] = 2;
-//       params->mode[cm->d_year] = 1;
-//       params->compare1[cm->d_year] = 1992;
-//       params->compare2[cm->d_year] = 1997;
-//       params->mode_group = 0;
-
-//       params->unique_val[cm->p_partkey] = 0;
-//       params->unique_val[cm->c_custkey] = 7;
-//       params->unique_val[cm->s_suppkey] = 25 * 7;
-//       params->unique_val[cm->d_datekey] = 1;
-
-//       params->total_val = ((1998-1992+1) * 25 * 25);
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->c_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->s_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->d_year] = &host_pred_between;
-
-//     } else if (query == 32) {
-//       params->selectivity[cm->c_nation] = 1.0/25 * 2;
-//       params->selectivity[cm->s_nation] = 1.0/25 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_custkey] = 1.0/25 * 2;
-//       params->selectivity[cm->lo_suppkey] = 1.0/25 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->c_nation] = 1;
-//       params->compare1[cm->c_nation] = 24;
-//       params->compare2[cm->c_nation] = 24;
-//       params->mode[cm->s_nation] = 1;
-//       params->compare1[cm->s_nation] = 24;
-//       params->compare2[cm->s_nation] = 24;
-//       params->mode[cm->d_year] = 1;
-//       params->compare1[cm->d_year] = 1992;
-//       params->compare2[cm->d_year] = 1997;
-//       params->mode_group = 0;
-
-//       params->unique_val[cm->p_partkey] = 0;
-//       params->unique_val[cm->c_custkey] = 7;
-//       params->unique_val[cm->s_suppkey] = 250 * 7;
-//       params->unique_val[cm->d_datekey] = 1;
-
-//       params->total_val = ((1998-1992+1) * 250 * 250);
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_nation]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_nation]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->c_nation] = &host_pred_between;
-//       params->map_filter_func_host[cm->s_nation] = &host_pred_between;
-//       params->map_filter_func_host[cm->d_year] = &host_pred_between;
-
-//     } else if (query == 33) {
-//       params->selectivity[cm->c_city] = 1.0/125 * 2;
-//       params->selectivity[cm->s_city] = 1.0/125 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_custkey] = 1.0/125 * 2;
-//       params->selectivity[cm->lo_suppkey] = 1.0/125 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->c_city] = 2;
-//       params->compare1[cm->c_city] = 231;
-//       params->compare2[cm->c_city] = 235;
-//       params->mode[cm->s_city] = 2;
-//       params->compare1[cm->s_city] = 231;
-//       params->compare2[cm->s_city] = 235;
-//       params->mode[cm->d_year] = 1;
-//       params->compare1[cm->d_year] = 1992;
-//       params->compare2[cm->d_year] = 1997;
-//       params->mode_group = 0;
-
-//       params->unique_val[cm->p_partkey] = 0;
-//       params->unique_val[cm->c_custkey] = 7;
-//       params->unique_val[cm->s_suppkey] = 250 * 7;
-//       params->unique_val[cm->d_datekey] = 1;
-
-//       params->total_val = ((1998-1992+1) * 250 * 250);
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->c_city] = &host_pred_eq_or_eq;
-//       params->map_filter_func_host[cm->s_city] = &host_pred_eq_or_eq;
-//       params->map_filter_func_host[cm->d_year] = &host_pred_between;
-
-//     } else if (query == 34) {
-//       params->selectivity[cm->c_city] = 1.0/125 * 2;
-//       params->selectivity[cm->s_city] = 1.0/125 * 2;
-//       params->selectivity[cm->d_yearmonthnum] = 1;
-//       params->selectivity[cm->lo_custkey] = 1.0/125 * 2;
-//       params->selectivity[cm->lo_suppkey] = 1.0/125 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->c_city] = 2;
-//       params->compare1[cm->c_city] = 231;
-//       params->compare2[cm->c_city] = 235;
-//       params->mode[cm->s_city] = 2;
-//       params->compare1[cm->s_city] = 231;
-//       params->compare2[cm->s_city] = 235;
-//       params->mode[cm->d_yearmonthnum] = 1;
-//       params->compare1[cm->d_yearmonthnum] = 199712;
-//       params->compare2[cm->d_yearmonthnum] = 199712;
-//       params->mode_group = 0;
-
-//       params->unique_val[cm->p_partkey] = 0;
-//       params->unique_val[cm->c_custkey] = 7;
-//       params->unique_val[cm->s_suppkey] = 250 * 7;
-//       params->unique_val[cm->d_datekey] = 1;
-
-//       params->total_val = ((1998-1992+1) * 250 * 250);
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_city]), p_pred_eq_or_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_yearmonthnum]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->c_city] = &host_pred_eq_or_eq;
-//       params->map_filter_func_host[cm->s_city] = &host_pred_eq_or_eq;
-//       params->map_filter_func_host[cm->d_yearmonthnum] = &host_pred_between;
-//     }
-
-//     CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_sub_func<int>, sizeof(group_func_t<int>)));
-//     params->h_group_func = &host_sub_func;
-
-//     params->min_key[cm->p_partkey] = 0;
-//     params->min_key[cm->c_custkey] = 0;
-//     params->min_key[cm->s_suppkey] = 0;
-//     params->min_key[cm->d_datekey] = 19920101;
-
-//     params->min_val[cm->p_partkey] = 0;
-//     params->min_val[cm->c_custkey] = 0;
-//     params->min_val[cm->s_suppkey] = 0;
-//     params->min_val[cm->d_datekey] = 1992;
-
-//     params->dim_len[cm->p_partkey] = 0;
-//     params->dim_len[cm->c_custkey] = C_LEN;
-//     params->dim_len[cm->s_suppkey] = S_LEN;
-//     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
-
-//     params->ht_CPU[cm->p_partkey] = NULL;
-//     params->ht_CPU[cm->c_custkey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->c_custkey]);
-//     params->ht_CPU[cm->s_suppkey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
-//     params->ht_CPU[cm->d_datekey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-
-//     memset(params->ht_CPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
-//     memset(params->ht_CPU[cm->s_suppkey], 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int));
-//     memset(params->ht_CPU[cm->c_custkey], 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int));
-
-//     params->ht_GPU[cm->p_partkey] = NULL;
-//     params->ht_GPU[cm->s_suppkey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
-//     params->ht_GPU[cm->d_datekey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-//     params->ht_GPU[cm->c_custkey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->c_custkey]);
-
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->s_suppkey], 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int)));
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int)));
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->c_custkey], 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int)));
-
-//   } else if (query == 41 || query == 42 || query == 43) {
-
-//     if (query == 41) {
-//       params->selectivity[cm->p_mfgr] = 0.4 * 2;
-//       params->selectivity[cm->c_region] = 0.2 * 2;
-//       params->selectivity[cm->s_region] = 0.2 * 2;
-//       params->selectivity[cm->d_year] =  1;
-//       params->selectivity[cm->lo_partkey] = 0.4 * 2;
-//       params->selectivity[cm->lo_custkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_orderdate] =  1;
-
-//       params->mode[cm->c_region] = 1;
-//       params->compare1[cm->c_region] = 1;
-//       params->compare2[cm->c_region] = 1;
-//       params->mode[cm->s_region] = 1;
-//       params->compare1[cm->s_region] = 1;
-//       params->compare2[cm->s_region] = 1;
-//       params->mode[cm->p_mfgr] = 1;
-//       params->compare1[cm->p_mfgr] = 0;
-//       params->compare2[cm->p_mfgr] = 1;
-//       params->mode_group = 1;
-
-//       params->unique_val[cm->p_partkey] = 0;
-//       params->unique_val[cm->c_custkey] = 7;
-//       params->unique_val[cm->s_suppkey] = 0;
-//       params->unique_val[cm->d_datekey] = 1;
-
-//       params->total_val = ((1998-1992+1) * 25);
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_mfgr]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->c_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->s_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->p_mfgr] = &host_pred_between;
-
-//     } else if (query == 42) {
-//       params->selectivity[cm->p_mfgr] = 0.4 * 2;
-//       params->selectivity[cm->c_region] = 0.2 * 2;
-//       params->selectivity[cm->s_region] = 0.2 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_partkey] = 0.4 * 2;
-//       params->selectivity[cm->lo_custkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_suppkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->c_region] = 1;
-//       params->compare1[cm->c_region] = 1;
-//       params->compare2[cm->c_region] = 1;
-//       params->mode[cm->s_region] = 1;
-//       params->compare1[cm->s_region] = 1;
-//       params->compare2[cm->s_region] = 1;
-//       params->mode[cm->p_mfgr] = 1;
-//       params->compare1[cm->p_mfgr] = 0;
-//       params->compare2[cm->p_mfgr] = 1;
-//       params->mode[cm->d_year] = 1;
-//       params->compare1[cm->d_year] = 1997;
-//       params->compare2[cm->d_year] = 1998;
-//       params->mode_group = 1;
-
-//       params->unique_val[cm->p_partkey] = 1;
-//       params->unique_val[cm->c_custkey] = 0;
-//       params->unique_val[cm->s_suppkey] = 25;
-//       params->unique_val[cm->d_datekey] = 25 * 25;
-
-//       params->total_val = (1998-1992+1) * 25 * 25;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_mfgr]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->c_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->s_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->p_mfgr] = &host_pred_between;
-//       params->map_filter_func_host[cm->d_year] = &host_pred_between;
-
-//     } else if (query == 43) {
-//       params->selectivity[cm->p_category] = 1.0/25 * 2;
-//       params->selectivity[cm->c_region] = 0.2 * 2;
-//       params->selectivity[cm->s_nation] = 1.0/25 * 2;
-//       params->selectivity[cm->d_year] = 1;
-//       params->selectivity[cm->lo_partkey] = 1.0/25 * 2;
-//       params->selectivity[cm->lo_custkey] = 0.2 * 2;
-//       params->selectivity[cm->lo_suppkey] = 1.0/25 * 2;
-//       params->selectivity[cm->lo_orderdate] = 1;
-
-//       params->mode[cm->c_region] = 1;
-//       params->compare1[cm->c_region] = 1;
-//       params->compare2[cm->c_region] = 1;
-//       params->mode[cm->s_nation] = 1;
-//       params->compare1[cm->s_nation] = 24;
-//       params->compare2[cm->s_nation] = 24;
-//       params->mode[cm->p_category] = 1;
-//       params->compare1[cm->p_category] = 3;
-//       params->compare2[cm->p_category] = 3;
-//       params->mode[cm->d_year] = 1;
-//       params->compare1[cm->d_year] = 1997;
-//       params->compare2[cm->d_year] = 1998;
-//       params->mode_group = 1;
-
-//       params->unique_val[cm->p_partkey] = 1;
-//       params->unique_val[cm->c_custkey] = 0;
-//       params->unique_val[cm->s_suppkey] = 1000;
-//       params->unique_val[cm->d_datekey] = 250 * 1000;
-
-//       params->total_val = (1998-1992+1) * 250 * 1000;
-
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->c_region]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_nation]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_category]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-//       CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
-
-//       params->map_filter_func_host[cm->c_region] = &host_pred_between;
-//       params->map_filter_func_host[cm->s_nation] = &host_pred_between;
-//       params->map_filter_func_host[cm->p_category] = &host_pred_between;
-//       params->map_filter_func_host[cm->d_year] = &host_pred_between;
-//     }
-
-//     CubDebugExit(cudaMemcpyFromSymbol(&(params->d_group_func), p_sub_func<int>, sizeof(group_func_t<int>)));
-//     params->h_group_func = &host_sub_func;
-
-//     params->min_key[cm->p_partkey] = 0;
-//     params->min_key[cm->c_custkey] = 0;
-//     params->min_key[cm->s_suppkey] = 0;
-//     params->min_key[cm->d_datekey] = 19920101;
-
-//     params->min_val[cm->p_partkey] = 0;
-//     params->min_val[cm->c_custkey] = 0;
-//     params->min_val[cm->s_suppkey] = 0;
-//     params->min_val[cm->d_datekey] = 1992;
-
-//     params->dim_len[cm->p_partkey] = P_LEN;
-//     params->dim_len[cm->c_custkey] = C_LEN;
-//     params->dim_len[cm->s_suppkey] = S_LEN;
-//     params->dim_len[cm->d_datekey] = 19981230 - 19920101 + 1;
-
-//     // cudaEvent_t start, stop;   // variables that holds 2 events 
-//     // float time;
-
-//     // cudaEventCreate(&start);
-//     // cudaEventCreate(&stop);
-//     // cudaEventRecord(start, 0);
-
-//     params->ht_CPU[cm->p_partkey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->p_partkey]);
-//     params->ht_CPU[cm->c_custkey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->c_custkey]);
-//     params->ht_CPU[cm->s_suppkey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
-//     params->ht_CPU[cm->d_datekey] = (int*) cm->customMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-
-//     memset(params->ht_CPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
-//     memset(params->ht_CPU[cm->p_partkey], 0, 2 * params->dim_len[cm->p_partkey] * sizeof(int));
-//     memset(params->ht_CPU[cm->s_suppkey], 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int));
-//     memset(params->ht_CPU[cm->c_custkey], 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int));
-
-//     params->ht_GPU[cm->p_partkey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->p_partkey]);
-//     params->ht_GPU[cm->s_suppkey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->s_suppkey]);
-//     params->ht_GPU[cm->d_datekey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->d_datekey]);
-//     params->ht_GPU[cm->c_custkey] = (int*) cm->customCudaMalloc<int>(2 * params->dim_len[cm->c_custkey]);
-
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->p_partkey], 0, 2 * params->dim_len[cm->p_partkey] * sizeof(int)));
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->s_suppkey], 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int)));
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int)));
-//     CubDebugExit(cudaMemset(params->ht_GPU[cm->c_custkey], 0, 2 * params->dim_len[cm->c_custkey] * sizeof(int)));
-
-//     // cudaEventRecord(stop, 0);
-//     // cudaEventSynchronize(stop);
-//     // cudaEventElapsedTime(&time, start, stop);
-
-//     // cout << time << endl;
-
-
-//   } else {
-//     assert(0);
-//   }
-
-//   int res_array_size = params->total_val * 6;
-//   params->res = (int*) cm->customMalloc<int>(res_array_size);
-//   memset(params->res, 0, res_array_size * sizeof(int));
-     
-//   params->d_res = (int*) cm->customCudaMalloc<int>(res_array_size);
-//   CubDebugExit(cudaMemset(params->d_res, 0, res_array_size * sizeof(int)));
-
-// };
+void
+QueryProcessing::dumpTrace(string filename) {
+
+    int data_size = 0;
+    int cached_data = 0;
+
+    for (int i = 1; i < cm->TOT_COLUMN; i++) {
+      data_size += cm->allColumn[i]->total_segment;
+      cached_data += cm->allColumn[i]->tot_seg_in_GPU;
+    }
+
+    FILE *fptr = fopen(filename.c_str(), "w");
+    if (fptr == NULL)
+    {
+        printf("Could not open file\n");
+        assert(0);
+    }
+   
+    fprintf(fptr, "===========================\n");
+    fprintf(fptr, "=======  CACHE INFO  ======\n");
+    fprintf(fptr, "===========================\n");
+
+    fprintf(fptr, "\n");
+    fprintf(fptr, "Segment size: %d\n", SEGMENT_SIZE);
+    fprintf(fptr, "Cache size: %d\n", cm->cache_total_seg);
+    fprintf(fptr, "Data size: %d\n", data_size);
+    fprintf(fptr, "Cached data: %d\n", cached_data);
+    fprintf(fptr, "\n");
+
+    for (int i = 1; i < cm->TOT_COLUMN; i++) {
+        fprintf(fptr,"%s: %d/%d segments cached\n", cm->allColumn[i]->column_name.c_str(), cm->allColumn[i]->tot_seg_in_GPU, cm->allColumn[i]->total_segment);
+    }
+
+    fprintf(fptr, "\n");
+    fprintf(fptr, "\n");
+    fprintf(fptr, "\n");
+
+    for (int i = 0; i < NUM_QUERIES; i++) {
+
+        fprintf(fptr, "===========================\n");
+        fprintf(fptr, "========  QUERY %d ========\n", queries[i]);
+        fprintf(fptr, "===========================\n");
+
+        qo->parseQuery(queries[i]);
+        qo->prepareQuery(queries[i]);
+
+        int* t_segment = new int[cm->TOT_COLUMN]();
+        int* t_c_segment = new int[cm->TOT_COLUMN]();
+        int total_cached = 0, total_touched = 0, total_cached_touched = 0;
+
+        countTouchedSegment(0, t_segment, t_c_segment);
+        for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+          countTouchedSegment(qo->join[tbl].second->table_id, t_segment, t_c_segment);
+        }
+
+        for (int col = 0; col < cm->TOT_COLUMN; col++)
+        {
+          total_cached+=cm->allColumn[col]->tot_seg_in_GPU;
+          total_touched+=t_segment[col];
+          total_cached_touched+=t_c_segment[col];
+        }
+
+        fprintf(fptr, "\n");
+        fprintf(fptr,"Segment cached: %d\n", total_cached);
+        fprintf(fptr,"Segment touched: %d\n", total_touched);
+        fprintf(fptr,"Segment cached and touched: %d\n", total_cached_touched);
+        fprintf(fptr, "\n");
+
+        for (int col = 0; col < cm->TOT_COLUMN; col++)
+        {
+          if (t_segment[col] > 0) {
+            fprintf(fptr, "\n");
+            fprintf(fptr,"%s\n", cm->allColumn[col]->column_name.c_str());
+            fprintf(fptr,"Speedup: %.3f\n", qo->speedup[queries[i]][cm->allColumn[col]]);
+            fprintf(fptr,"Segment cached: %d\n", cm->allColumn[col]->tot_seg_in_GPU);
+            fprintf(fptr,"Segment touched: %d\n", t_segment[col]);
+            fprintf(fptr,"Segment cached and touched: %d\n", t_c_segment[col]);
+            fprintf(fptr, "\n");
+          }
+        }
+
+        fprintf(fptr, "\n");
+        fprintf(fptr, "\n");
+        fprintf(fptr, "\n");
+
+        delete[] t_segment;
+        delete[] t_c_segment;
+
+        endQuery();
+        qo->clearParsing();
+    }
+
+    fclose(fptr);
+}
+
+
+void
+QueryProcessing::countTouchedSegment(int table_id, int* t_segment, int* t_c_segment) {
+  int total_segment = cm->allColumn[cm->columns_in_table[table_id][0]]->total_segment;
+  for (int i = 0; i < total_segment; i++) {
+    if (qo->checkPredicate(table_id, i)) {
+      for (int j = 0; j < qo->queryColumn[table_id].size(); j++) {
+        ColumnInfo* column = qo->queryColumn[table_id][j];
+        t_segment[column->column_id]++;
+        if (cm->segment_bitmap[column->column_id][i]) t_c_segment[column->column_id]++;
+      }
+    }
+  }
+}

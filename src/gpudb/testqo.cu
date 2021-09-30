@@ -13,25 +13,28 @@ int main() {
 	srand(123);
 	
 	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200, 536870912, 536870912, 0);
+	QueryProcessing* qp;
 
 	cout << "Profiling" << endl;
-	QueryProcessing* qp = new QueryProcessing(cgp, 0);
+	qp = new QueryProcessing(cgp, 0);
 	qp->profile();
 	delete qp;
 
-	cgp->cm->resetCache(209715200, 209715200 / 2, 536870912, 536870912);
+	// cgp->cm->resetCache(209715200, 209715200 / 2, 536870912, 536870912);
+	// cgp->cm->resetCache(314572800, 209715200 / 2, 536870912, 536870912);
+	cgp->cm->resetCache(629145600, 209715200 / 2, 536870912, 536870912);
 
 	cout << endl;
 
 	// CacheManager* cm = cgp->cm;
 
-	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 58);
 	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 58);
 	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 58);
 	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 0);
 	// cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
@@ -83,7 +86,8 @@ int main() {
 		cout << "5. Update Cache (New)" << endl;
 		cout << "6. Update Cache (New+)" << endl;
 		cout << "7. Update Cache (Segmented)" << endl;
-		cout << "8. Exit" << endl;
+		cout << "8. Dump Trace" << endl;
+		cout << "9. Exit" << endl;
 		cout << "Your Input: ";
 		cin >> input;
 
@@ -137,7 +141,13 @@ int main() {
 			qp->percentageData();
 			time = 0;
 			srand(123);
-		} else {
+		} else if (input.compare("8") == 0) {
+			string filename;
+			cout << "File name: ";
+			cin >> filename;
+			qp->dumpTrace("logs/"+filename);
+			cout << "Dumped Trace" << endl;
+		} else if (input.compare("9") == 0) {
 			exit = true;
 		}
 

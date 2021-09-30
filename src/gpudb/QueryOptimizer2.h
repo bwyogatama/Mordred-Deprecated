@@ -80,6 +80,8 @@ public:
 	vector<vector<ColumnInfo*>> groupbyGPUPipelineCol;
 	vector<vector<ColumnInfo*>> groupbyCPUPipelineCol;
 
+	vector<vector<ColumnInfo*>> queryColumn;
+
 	bool groupGPUcheck;
 	bool* joinGPUcheck, *joinCPUcheck, **joinGPU, **joinCPU;
 
@@ -118,8 +120,10 @@ public:
 	void clearPrepare();
 
 	void dataDrivenOperatorPlacement(int query, bool isprofile = 0);
+	void prepareOperatorPlacement();
 	void groupBitmap(bool isprofile = 0);
 	void groupBitmapSegment(int query, bool isprofile = 0);
+	void groupBitmapSegmentTable(int table_id, int query, bool isprofile = 0);
 
 	bool checkPredicate(int table_id, int segment_idx);
 	void updateSegmentStats(int table_id, int segment_idx, int query);
