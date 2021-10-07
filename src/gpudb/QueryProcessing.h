@@ -12,7 +12,7 @@ public:
   CPUGPUProcessing* cgp;
   QueryParams* params;
 
-  cudaStream_t streams[128];
+  cudaStream_t streams[MAX_GROUPS];
 
   // map<int, int> query_freq;
   int query;
@@ -46,6 +46,8 @@ public:
 
   void runOnDemand();
 
+  void runOnDemand2();
+
   // void prepareQuery();
 
   void endQuery();
@@ -58,6 +60,8 @@ public:
 
   double processOnDemand();
 
+  double processOnDemand2();
+
   void profile();
 
   void percentageData();
@@ -65,6 +69,18 @@ public:
   void dumpTrace(string filename);
 
   void countTouchedSegment(int table_id, int* t_segment, int* t_c_segment);
+
+  void executeTableDim(int table_id, int sg);
+
+  void executeTableFact_v1(int sg);
+
+  void executeTableFact_v2(int sg);
+
+  void executeTableDimOD(int table_id, int sg);
+
+  void executeTableFactOD(int sg);
+
+  void executeTableFactOD2(int sg);
 
 };
 

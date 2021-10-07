@@ -5,7 +5,7 @@
 #include "KernelArgs.h"
 
 #define NUM_QUERIES 13
-#define MAX_GROUPS 64
+#define MAX_GROUPS 128
 
 class CacheManager;
 class ColumnInfo;
@@ -83,10 +83,11 @@ public:
 	vector<vector<ColumnInfo*>> queryColumn;
 
 	bool groupGPUcheck;
+	bool joinGPUall;
 	bool* joinGPUcheck, *joinCPUcheck, **joinGPU, **joinCPU;
 
-	short** segment_group;
-	short** segment_group_count;
+	short** segment_group, **segment_group_temp;
+	short** segment_group_count, **segment_group_temp_count;
 	short** par_segment;
 	short* par_segment_count;
 	int* last_segment;
@@ -124,6 +125,7 @@ public:
 	void groupBitmap(bool isprofile = 0);
 	void groupBitmapSegment(int query, bool isprofile = 0);
 	void groupBitmapSegmentTable(int table_id, int query, bool isprofile = 0);
+	void groupBitmapSegmentTableOD(int table_id, int query, bool isprofile = 0);
 
 	bool checkPredicate(int table_id, int segment_idx);
 	void updateSegmentStats(int table_id, int segment_idx, int query);

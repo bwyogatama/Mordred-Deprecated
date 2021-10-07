@@ -161,6 +161,7 @@ public:
 	queue<int> empty_gpu_segment; //free list
 	vector<priority_stack> cached_seg_in_GPU; //track segments that are already cached in GPU
 	int** segment_list; //segment list in GPU for each column
+	int** od_segment_list;
 	unordered_map<Segment*, int> cache_mapper; //map segment to index in GPU
 	// vector<custom_priority_queue> next_seg_to_cache; //a priority queue to store the special segment to be cached to GPU
 	vector<vector<Segment*>> index_to_segment; //track which segment has been created from a particular segment id
@@ -267,6 +268,12 @@ public:
 	void resetOnDemand();
 
 	void readSegmentMinMax();
+
+	void copySegmentList();
+
+	void onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, cudaStream_t stream);
+
+	void indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream);
 };
 
 #endif

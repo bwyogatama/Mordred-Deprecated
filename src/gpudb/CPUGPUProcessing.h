@@ -5,12 +5,15 @@
 #include "GPUProcessing.h"
 #include "CPUProcessing.h"
 
+#define OD_BATCH_SIZE 4
+
 class CPUGPUProcessing {
 public:
   CacheManager* cm;
   QueryOptimizer* qo;
 
   int** col_idx;
+  // int** od_col_idx;
   chrono::high_resolution_clock::time_point begin_time;
   bool verbose;
 
@@ -19,11 +22,13 @@ public:
     cm = qo->cm;
     begin_time = chrono::high_resolution_clock::now();
     col_idx = new int*[cm->TOT_COLUMN]();
+    // od_col_idx = new int*[cm->TOT_COLUMN]();
     verbose = _verbose;
   }
 
   ~CPUGPUProcessing() {
     delete[] col_idx;
+    // delete[] od_col_idx;
     delete qo;
   }
 
@@ -31,6 +36,9 @@ public:
     for (int i = 0; i < cm->TOT_COLUMN; i++) {
       col_idx[i] = NULL;
     }
+    // for (int i = 0; i < cm->TOT_COLUMN; i++) {
+    //   od_col_idx[i] = NULL;
+    // }
   }
 
   void switch_device_fact(int** &off_col, int** &h_off_col, int* &d_total, int* h_total, int sg, int mode, int table, cudaStream_t stream);
@@ -88,6 +96,17 @@ public:
   void call_pfilter_probe_aggr_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, int select_so_far, cudaStream_t stream);
 
   void call_pfilter_probe_aggr_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
+
+  void copyColIdx();
+
+  void call_pfilter_probe_aggr_OD(QueryParams* params, 
+      ColumnInfo** filter, ColumnInfo** pkey, ColumnInfo** fkey, ColumnInfo** aggr,
+      int sg, int batch, int batch_size, int total_batch,
+      cudaStream_t stream, int** od_col_idx);
+
+  void call_probe_group_by_OD(QueryParams* params, ColumnInfo** pkey, ColumnInfo** fkey, ColumnInfo** aggr,
+    int sg, int batch, int batch_size, int total_batch,
+    cudaStream_t stream, int** od_col_idx);
 
 };
 

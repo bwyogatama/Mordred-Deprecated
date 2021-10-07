@@ -67,6 +67,7 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 
 	segment_bitmap = (char**) malloc (TOT_COLUMN * sizeof(char*));
 	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
+	od_segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
 	segment_min = (int**) malloc (TOT_COLUMN * sizeof(int*));
 	segment_max = (int**) malloc (TOT_COLUMN * sizeof(int*));
 
@@ -75,6 +76,7 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
 		//segment_list[i] = (int*) malloc(n * sizeof(int));
 		CubDebugExit(cudaHostAlloc((void**) &(segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
+		CubDebugExit(cudaHostAlloc((void**) &(od_segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
 
 		segment_min[i] = (int*) malloc(n * sizeof(int));
 		segment_max[i] = (int*) malloc(n * sizeof(int));
@@ -142,10 +144,12 @@ CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _proc
 
 	segment_bitmap = (char**) malloc (TOT_COLUMN * sizeof(char*));
 	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
+	od_segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		int n = allColumn[i]->total_segment;
 		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
 		CubDebugExit(cudaHostAlloc((void**) &(segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
+		CubDebugExit(cudaHostAlloc((void**) &(od_segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
 		memset(segment_bitmap[i], 0, n * sizeof(char));
 		memset(segment_list[i], -1, n * sizeof(int));
 	}
@@ -244,17 +248,36 @@ CacheManager::customCudaHostAlloc(int size) {
 //   return reinterpret_cast<T*>(pinnedMemory + start);
 // };
 
+void
+CacheManager::copySegmentList() {
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		memcpy(od_segment_list[allColumn[i]->column_id], segment_list[allColumn[i]->column_id], allColumn[i]->total_segment);
+	}
+}
 
 int*
 CacheManager::onDemandTransfer(int* data_ptr, int size, cudaStream_t stream) {
 	assert(data_ptr != NULL);
 	if (data_ptr != NULL) {
-		int start = __atomic_fetch_add(&onDemandPointer, size, __ATOMIC_RELAXED);
+		int start = __atomic_fetch_add(&onDemandPointer, SEGMENT_SIZE, __ATOMIC_RELAXED);
 		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
-		CubDebugExit(cudaStreamSynchronize(stream));
+		// CubDebugExit(cudaStreamSynchronize(stream));
 		return gpuCache + start;
 	} else {
 		return NULL;
+	}
+};
+
+void
+CacheManager::onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, cudaStream_t stream) {
+	if (segment_bitmap[column->column_id][segment_idx] == 0) {
+		int* data_ptr = column->col_ptr + segment_idx * SEGMENT_SIZE;
+		int start = __atomic_fetch_add(&onDemandPointer, SEGMENT_SIZE, __ATOMIC_RELAXED);
+		// cout << "cur pointer = " << onDemandPointer << endl;
+		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
+		// CubDebugExit(cudaStreamSynchronize(stream));
+		od_segment_list[column->column_id][segment_idx] = start / SEGMENT_SIZE;
+		// cout << start / SEGMENT_SIZE << endl;
 	}
 };
 
@@ -267,6 +290,17 @@ CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stre
       __atomic_compare_exchange_n(&(col_idx[column->column_id]), &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
     }
 };
+
+void
+CacheManager::indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream) {
+    if (od_col_idx[column->column_id] == NULL) {
+      int* desired = (int*) customCudaMalloc<int>(column->total_segment); int* expected = NULL;
+      CubDebugExit(cudaMemcpyAsync(desired, od_segment_list[column->column_id], column->total_segment * sizeof(int), cudaMemcpyHostToDevice, stream));
+      CubDebugExit(cudaStreamSynchronize(stream));
+      __atomic_compare_exchange_n(&(od_col_idx[column->column_id]), &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
+    }
+};
+
 
 void
 CacheManager::resetPointer() {
