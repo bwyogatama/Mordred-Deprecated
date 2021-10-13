@@ -2374,10 +2374,10 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 			if (segment_group_count[table_id][i] > 0) {
 				if (groupGPUcheck && joinGPUall) {
 					if ((segment_group_count[table_id][i] > 8) && opCPUPipeline[table_id][i][0].size() > 0) {
-						// int OD = segment_group_count[table_id][i] / 3;
-						int OD = segment_group_count[table_id][i];
-						cout << segment_group_count[table_id][i] << endl;
-						cout << i << " " << OD << endl;
+						int OD = segment_group_count[table_id][i] / 3;
+						// int OD = segment_group_count[table_id][i];
+						// cout << segment_group_count[table_id][i] << endl;
+						// cout << i << " " << OD << endl;
 						segment_group_count[table_id][i] -= OD;
 						int start = segment_group_count[table_id][i];
 						short OD_sg = i | 0x40;

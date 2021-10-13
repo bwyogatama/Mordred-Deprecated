@@ -48,8 +48,6 @@ public:
 
   void runHybridOnDemand(int options = 1);
 
-  // void prepareQuery();
-
   void endQuery();
 
   void updateStatsQuery();

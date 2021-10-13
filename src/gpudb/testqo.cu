@@ -8,19 +8,19 @@
 
 int main() {
 
-	bool verbose = 1;
+	bool verbose = 0;
 
 	srand(123);
 	
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200 * 2, 536870912, 536870912, verbose);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200 / 2, 536870912, 536870912, verbose);
 	QueryProcessing* qp;
 
-	// cout << "Profiling" << endl;
-	// qp = new QueryProcessing(cgp, 0);
-	// qp->profile();
-	// delete qp;
+	cout << "Profiling" << endl;
+	qp = new QueryProcessing(cgp, 0);
+	qp->profile();
+	delete qp;
 
-	// cgp->cm->resetCache(52428800 * 2, 209715200 / 2, 536870912, 536870912);
+	cgp->cm->resetCache(52428800 * 2, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(314572800, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(629145600, 209715200 / 2, 536870912, 536870912);
 
@@ -28,15 +28,15 @@ int main() {
 
 	CacheManager* cm = cgp->cm;
 
-	cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 17);
-	cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 53);
-	cm->cacheColumnSegmentInGPU(cm->lo_custkey, 35);
-	cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
-	cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
-	cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);
-	cm->cacheColumnSegmentInGPU(cm->lo_discount, 0);
-	cm->cacheColumnSegmentInGPU(cm->lo_quantity, 0);
-	cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 17);
+	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 53);
+	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 35);
+	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 0);
 	// cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
 	// cm->cacheColumnSegmentInGPU(cm->d_year, 0);
 	// cm->cacheColumnSegmentInGPU(cm->d_yearmonthnum, 0);
@@ -53,21 +53,21 @@ int main() {
 	// cm->cacheColumnSegmentInGPU(cm->s_nation, 0);
 	// cm->cacheColumnSegmentInGPU(cm->s_city, 0);
 
-	cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->d_year, cm->d_year->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->d_yearmonthnum, cm->d_yearmonthnum->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->p_partkey, cm->p_partkey->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->p_category, cm->p_category->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->p_brand1, cm->p_brand1->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->p_mfgr, cm->p_mfgr->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->c_custkey, cm->c_custkey->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->c_region, cm->c_region->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->c_nation, cm->c_nation->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->c_city, cm->c_city->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->s_suppkey, cm->s_suppkey->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->s_region, cm->s_region->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->s_nation, cm->s_nation->total_segment);
-	cm->cacheColumnSegmentInGPU(cm->s_city, cm->s_city->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->d_year, cm->d_year->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->d_yearmonthnum, cm->d_yearmonthnum->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->p_partkey, cm->p_partkey->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->p_category, cm->p_category->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->p_brand1, cm->p_brand1->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->p_mfgr, cm->p_mfgr->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->c_custkey, cm->c_custkey->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->c_region, cm->c_region->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->c_nation, cm->c_nation->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->c_city, cm->c_city->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->s_suppkey, cm->s_suppkey->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->s_region, cm->s_region->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->s_nation, cm->s_nation->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->s_city, cm->s_city->total_segment);
 
 	bool exit = 0;
 	string input;
@@ -122,6 +122,7 @@ int main() {
 				if (time1 <= time2) time += time1;
 				else time += time2;
 			}
+			srand(123);
 		} else if (input.compare("4") == 0) {
 			time = 0;
 			cout << "Executing Random Query" << endl;
@@ -132,6 +133,7 @@ int main() {
 				if (time1 <= time2) time += time1;
 				else time += time2;
 			}
+			srand(123);
 		} else if (input.compare("5") == 0) {
 			cout << "LFU Replacement" << endl;
 			cgp->cm->runReplacement(LFU_v2);

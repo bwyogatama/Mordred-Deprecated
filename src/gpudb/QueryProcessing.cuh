@@ -894,7 +894,6 @@ QueryProcessing::executeTableFactOD2(int sg) {
         CHECK_ERROR_STREAM(streams[sg]);
         // CubDebugExit(cudaStreamSynchronize(streams[sg]));
         cgp->call_pfilter_probe_aggr_OD(params, filter, pkey, fkey, aggr, sg, j, batch_size, total_batch, streams[sg]);
-        // cout << "batch " << j+1 << " from " << total_batch << endl;
         CubDebugExit(cudaDeviceSynchronize());
       }
 
@@ -1189,10 +1188,10 @@ QueryProcessing::runHybridOnDemand(int options) {
 
     if (qo->segment_group_count[0][sg] > 0) {
       if ((sg & 0x40) == 0x40) {
-        cout << "sg1 " << sg << endl;
+        // cout << "sg1 " << sg << endl;
         executeTableFactOD2(sg);
       } else {
-        cout << "sg2 " << sg << endl;
+        // cout << "sg2 " << sg << endl;
         if (options == 1) {
           executeTableFact_v1(sg);
         } else if (options == 2) {

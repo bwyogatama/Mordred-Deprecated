@@ -2037,7 +2037,7 @@ CPUGPUProcessing::call_pfilter_probe_aggr_OD(QueryParams* params,
 
   // cout << "4" << endl;
 
-  cout << batch << " " << batch_size << endl;
+  // cout << batch << " " << batch_size << endl;
 
   short* d_segment_group;
   d_segment_group = (short*) cm->customCudaMalloc<short>(batch_size);
