@@ -1962,13 +1962,20 @@ void
 CPUGPUProcessing::call_pfilter_probe_aggr_OD(QueryParams* params, 
   ColumnInfo** filter, ColumnInfo** pkey, ColumnInfo** fkey, ColumnInfo** aggr,
   int sg, int batch, int batch_size, int total_batch,
-  cudaStream_t stream, int** od_col_idx) {
+  cudaStream_t stream) {
 
   int *filter_idx[2] = {}, *fkey_idx[4] = {}, *aggr_idx[2] = {};
 
   int tile_items = 128*4;
 
+  int** od_col_idx = new int*[cm->TOT_COLUMN];
+
+  for (int i = 0; i < cm->TOT_COLUMN; i++) {
+    od_col_idx[i] = col_idx[i];
+  }
+
   for (int i = 0; i < qo->select_probe[cm->lo_orderdate].size(); i++) {
+    od_col_idx[filter[i]->column_id] = NULL;
     cm->indexTransferOD(od_col_idx, filter[i], stream);
     filter_idx[i] = od_col_idx[filter[i]->column_id];
   }
@@ -1977,6 +1984,7 @@ CPUGPUProcessing::call_pfilter_probe_aggr_OD(QueryParams* params,
 
   for (int i = 0; i < qo->join.size(); i++) {
     int table_id = qo->join[i].second->table_id;
+    od_col_idx[fkey[table_id - 1]->column_id] = NULL;
     cm->indexTransferOD(od_col_idx, fkey[table_id - 1], stream);
     fkey_idx[table_id - 1] = od_col_idx[fkey[table_id - 1]->column_id];
   }
@@ -1984,6 +1992,7 @@ CPUGPUProcessing::call_pfilter_probe_aggr_OD(QueryParams* params,
   // cout << "2" << endl;
 
   for (int i = 0; i < qo->aggregation[cm->lo_orderdate].size(); i++) {
+    od_col_idx[aggr[i]->column_id] = NULL;
     cm->indexTransferOD(od_col_idx, aggr[i], stream);
     aggr_idx[i] = od_col_idx[aggr[i]->column_id];
   }
@@ -2042,24 +2051,34 @@ CPUGPUProcessing::call_pfilter_probe_aggr_OD(QueryParams* params,
 
   CHECK_ERROR_STREAM(stream);
 
+  delete[] od_col_idx;
+
 };
 
 void
 CPUGPUProcessing::call_probe_group_by_OD(QueryParams* params, ColumnInfo** pkey, ColumnInfo** fkey, ColumnInfo** aggr,
   int sg, int batch, int batch_size, int total_batch,
-  cudaStream_t stream, int** od_col_idx) {
+  cudaStream_t stream) {
 
   int *fkey_idx[4] = {}, *aggr_idx[2] = {};
 
   int tile_items = 128*4;
 
+  int** od_col_idx = new int*[cm->TOT_COLUMN];
+
+  for (int i = 0; i < cm->TOT_COLUMN; i++) {
+    od_col_idx[i] = col_idx[i];
+  }
+
   for (int i = 0; i < qo->join.size(); i++) {
     int table_id = qo->join[i].second->table_id;
+    od_col_idx[fkey[table_id - 1]->column_id] = NULL;
     cm->indexTransferOD(od_col_idx, fkey[table_id - 1], stream);
     fkey_idx[table_id - 1] = od_col_idx[fkey[table_id - 1]->column_id];
   }
 
   for (int i = 0; i < qo->aggregation[cm->lo_orderdate].size(); i++) {
+    od_col_idx[aggr[i]->column_id] = NULL;
     cm->indexTransferOD(od_col_idx, aggr[i], stream);
     aggr_idx[i] = od_col_idx[aggr[i]->column_id];
   }
@@ -2091,6 +2110,10 @@ CPUGPUProcessing::call_probe_group_by_OD(QueryParams* params, ColumnInfo** pkey,
   short* d_segment_group;
   d_segment_group = (short*) cm->customCudaMalloc<short>(batch_size);
   short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment) + (OD_BATCH_SIZE * batch);
+
+  // for (int i = 0; i < batch_size; i++) {
+  //   cout << segment_group_ptr[i] << od_segment_list[] << endl;
+  // }
   CubDebugExit(cudaMemcpyAsync(d_segment_group, segment_group_ptr, batch_size * sizeof(short), cudaMemcpyHostToDevice, stream));
 
   probe_group_by_GPU2<128, 4><<<(LEN + tile_items - 1)/tile_items, 128, 0, stream>>>(
@@ -2098,4 +2121,5 @@ CPUGPUProcessing::call_probe_group_by_OD(QueryParams* params, ColumnInfo** pkey,
 
   CHECK_ERROR_STREAM(stream);
 
+  delete[] od_col_idx;
 };

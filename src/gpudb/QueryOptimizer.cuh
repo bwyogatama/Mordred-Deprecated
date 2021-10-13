@@ -2374,15 +2374,15 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 			if (segment_group_count[table_id][i] > 0) {
 				if (groupGPUcheck && joinGPUall) {
 					if ((segment_group_count[table_id][i] > 8) && opCPUPipeline[table_id][i][0].size() > 0) {
-						int OD = segment_group_count[table_id][i] / 3;
-						// int OD = 1;
-						// cout << segment_group_count[table_id][i] << endl;
-						// cout << i << " " << OD << endl;
+						// int OD = segment_group_count[table_id][i] / 3;
+						int OD = segment_group_count[table_id][i];
+						cout << segment_group_count[table_id][i] << endl;
+						cout << i << " " << OD << endl;
 						segment_group_count[table_id][i] -= OD;
 						int start = segment_group_count[table_id][i];
 						short OD_sg = i | 0x40;
 						segment_group_count[table_id][OD_sg] = OD;
-						if (last_segment[table_id] == i) last_segment[table_id] = OD_sg; //TODO: THIS WON'T WORK IF OPTIMIZER IS PARALLELIZED
+						if (last_segment[table_id] == i && OD > 0) last_segment[table_id] = OD_sg; //TODO: THIS WON'T WORK IF OPTIMIZER IS PARALLELIZED
 						for (int j = 0; j < OD; j++) {
 							segment_group[table_id][OD_sg * total_segment + j] = segment_group[table_id][i * total_segment + start + j];
 						}

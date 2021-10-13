@@ -3,7 +3,7 @@
 
 #include "QueryOptimizer.cuh"
 #include "GPUProcessing.h"
-#include "CPUProcessing.h"
+#include "CPUProcessing_.h"
 
 #define OD_BATCH_SIZE 4
 
@@ -102,11 +102,11 @@ public:
   void call_pfilter_probe_aggr_OD(QueryParams* params, 
       ColumnInfo** filter, ColumnInfo** pkey, ColumnInfo** fkey, ColumnInfo** aggr,
       int sg, int batch, int batch_size, int total_batch,
-      cudaStream_t stream, int** od_col_idx);
+      cudaStream_t stream);
 
   void call_probe_group_by_OD(QueryParams* params, ColumnInfo** pkey, ColumnInfo** fkey, ColumnInfo** aggr,
     int sg, int batch, int batch_size, int total_batch,
-    cudaStream_t stream, int** od_col_idx);
+    cudaStream_t stream);
 
 };
 

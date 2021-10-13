@@ -14,7 +14,7 @@ using namespace tbb;
 
 #define BATCH_SIZE 256
 #define NUM_THREADS 48
-#define TASK_SIZE 1024
+#define TASK_SIZE 1024 //! TASK SIZE has to be a factor of SEGMENT SIZE and less than 20000
 
 void filter_probe_CPU(
   struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct offsetCPU out_off, int num_tuples,

@@ -251,7 +251,7 @@ CacheManager::customCudaHostAlloc(int size) {
 void
 CacheManager::copySegmentList() {
 	for (int i = 0; i < TOT_COLUMN; i++) {
-		memcpy(od_segment_list[allColumn[i]->column_id], segment_list[allColumn[i]->column_id], allColumn[i]->total_segment);
+		memcpy(od_segment_list[allColumn[i]->column_id], segment_list[allColumn[i]->column_id], allColumn[i]->total_segment * sizeof(int));
 	}
 }
 
@@ -273,11 +273,10 @@ CacheManager::onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, c
 	if (segment_bitmap[column->column_id][segment_idx] == 0) {
 		int* data_ptr = column->col_ptr + segment_idx * SEGMENT_SIZE;
 		int start = __atomic_fetch_add(&onDemandPointer, SEGMENT_SIZE, __ATOMIC_RELAXED);
-		// cout << "cur pointer = " << onDemandPointer << endl;
+		// cout << "cur pointer = " << onDemandPointer << " " << start / SEGMENT_SIZE << endl;
 		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
 		// CubDebugExit(cudaStreamSynchronize(stream));
 		od_segment_list[column->column_id][segment_idx] = start / SEGMENT_SIZE;
-		// cout << start / SEGMENT_SIZE << endl;
 	}
 };
 
@@ -294,6 +293,7 @@ CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stre
 void
 CacheManager::indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream) {
     if (od_col_idx[column->column_id] == NULL) {
+    	// cout << "doing index transfer " << column->column_name << endl;
       int* desired = (int*) customCudaMalloc<int>(column->total_segment); int* expected = NULL;
       CubDebugExit(cudaMemcpyAsync(desired, od_segment_list[column->column_id], column->total_segment * sizeof(int), cudaMemcpyHostToDevice, stream));
       CubDebugExit(cudaStreamSynchronize(stream));
@@ -534,16 +534,27 @@ CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, d
 
 void
 CacheManager::updateColumnWeightDirect(ColumnInfo* column, double speedup) {
-	column->stats->speedup += speedup/column->total_segment;
-	column->weight += speedup/column->total_segment;
+	if (column->table_id == 0) {
+		column->stats->speedup += speedup/column->total_segment;
+		column->weight += speedup/column->total_segment;		
+	} else {
+		column->stats->speedup += speedup*3/column->total_segment;
+		column->weight += speedup*3/column->total_segment;			
+	}
+
 }
 
 void
 CacheManager::updateSegmentWeightDirect(ColumnInfo* column, Segment* segment, double speedup) {
-	// cout << column->column_name << endl;
 	// cout << segment->segment_id << endl;
-	segment->stats->speedup += speedup/column->total_segment;
-	segment->weight += speedup/column->total_segment;
+	if (column->table_id == 0) {
+		segment->stats->speedup += speedup/column->total_segment;
+		segment->weight += speedup/column->total_segment;
+	} else {
+		segment->stats->speedup += speedup*3/column->total_segment;
+		segment->weight += speedup*3/column->total_segment;
+	}
+	// cout << column->column_name << " " << segment->weight << endl;
 }
 
 void
@@ -649,7 +660,7 @@ CacheManager::SegmentReplacement() {
 		for (int j = 0; j < allColumn[i]->total_segment; j++) {
 			Segment* segment = index_to_segment[i][j];
 			access_weight_map.insert({segment->weight, segment});
-			// cout << allColumn[i]->column_name << " " << segment->weight << endl;
+			cout << allColumn[i]->column_name << " " << segment->weight << endl;
 		}
 	}
 
@@ -888,40 +899,40 @@ CacheManager::LFU2Replacement() {
     for(acc_it = access.rbegin();acc_it != access.rend(); ++acc_it){
     	size_t count = access_frequency_map.count(*acc_it);
 
-    	multimap<double, ColumnInfo*> weight_map;
-		multimap<double, ColumnInfo*>::iterator it;
-	 	for (it=access_frequency_map.equal_range(*acc_it).first; it!=access_frequency_map.equal_range(*acc_it).second; ++it) {
-	 		if ((*acc_it) > 0) weight_map.insert({it->second->weight, it->second});
-	 	}
+	    multimap<double, ColumnInfo*> weight_map;
+			multimap<double, ColumnInfo*>::iterator it;
+		 	for (it=access_frequency_map.equal_range(*acc_it).first; it!=access_frequency_map.equal_range(*acc_it).second; ++it) {
+		 		if ((*acc_it) > 0) weight_map.insert({it->second->weight, it->second});
+		 	}
 
-	 	multimap<double, ColumnInfo*>::reverse_iterator cit_time;
+		 	multimap<double, ColumnInfo*>::reverse_iterator cit_time;
 
-	 	for(cit_time=weight_map.rbegin(); cit_time!=weight_map.rend(); ++cit_time){
-	        if(temp_buffer_size + cit_time->second->total_segment < cache_total_seg){
-	            temp_buffer_size+=cit_time->second->total_segment;
-	            columns_to_place.insert(cit_time->second);
-	            cout << "Should place ";
-	            cout << cit_time->second->column_name << endl;
-	        }
-	 	}
+		 	for(cit_time=weight_map.rbegin(); cit_time!=weight_map.rend(); ++cit_time){
+		        if(temp_buffer_size + cit_time->second->total_segment < cache_total_seg){
+		            temp_buffer_size+=cit_time->second->total_segment;
+		            columns_to_place.insert(cit_time->second);
+		            cout << "Should place ";
+		            cout << cit_time->second->column_name << endl;
+		        }
+		 	}
     }
 
     cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
-		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
-			cout << "Deleting column ";
-			cout << allColumn[i]->column_name << endl;
-			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
-		}
+			if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
+				cout << "Deleting column ";
+				cout << allColumn[i]->column_name << endl;
+				deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
+			}
     }
 
     set<ColumnInfo*>::const_iterator cit2;
     for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
     	if ((*cit2)->tot_seg_in_GPU == 0) {
-			cout << "Caching column ";
-			cout << (*cit2)->column_name << endl;
+				cout << "Caching column ";
+				cout << (*cit2)->column_name << endl;
     		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
     		cout << "Successfully cached" << endl;
     	}
@@ -1047,7 +1058,7 @@ CacheManager::NewReplacement() {
     assert(filled_cache <= cache_total_seg);
 
    	for (int i = 0; i < TOT_COLUMN; i++) {
-		allColumn[i]->weight = allColumn[i]->stats->speedup;
+			allColumn[i]->weight = allColumn[i]->stats->speedup;
    	}
 
 };

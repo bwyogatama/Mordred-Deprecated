@@ -46,7 +46,7 @@ public:
 
   void runOnDemand();
 
-  void runOnDemand2();
+  void runHybridOnDemand(int options = 1);
 
   // void prepareQuery();
 
@@ -60,7 +60,7 @@ public:
 
   double processOnDemand();
 
-  double processOnDemand2();
+  double processHybridOnDemand(int options = 1);
 
   void profile();
 
