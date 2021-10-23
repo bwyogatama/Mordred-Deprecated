@@ -10,6 +10,8 @@ QueryProcessing::executeTableDim(int table_id, int sg) {
     memset(h_total, 0, sizeof(int));
     d_total = (int*) cm->customCudaMalloc<int>(1);
 
+    cout << "dim " << sg << endl;
+
     if (sg == 0 || sg == 1) {
 
       if (qo->joinCPUcheck[table_id] && qo->joinGPUcheck[table_id]) {
@@ -43,11 +45,6 @@ QueryProcessing::executeTableDim(int table_id, int sg) {
 
 void
 QueryProcessing::executeTableFact_v1(int sg) {
-
-    SETUP_TIMING();
-    float time;
-    cudaEventRecord(start, 0);
-
     int** h_off_col = NULL, **off_col = NULL;
     int* d_total = NULL;
     int* h_total = NULL;
@@ -56,7 +53,7 @@ QueryProcessing::executeTableFact_v1(int sg) {
     memset(h_total, 0, sizeof(int));
     d_total = (int*) cm->customCudaMalloc<int>(1);
 
-    if (verbose) printf("sg = %d\n", sg);
+    printf("fact sg = %d\n", sg);
 
     if (qo->selectCPUPipelineCol[sg].size() > 0) {
       if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
@@ -227,10 +224,33 @@ QueryProcessing::executeTableFact_v1(int sg) {
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
+          // SETUP_TIMING();
+          // float time;
+          // cudaEventRecord(start, 0);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
+          // cudaEventRecord(stop, 0);
+          // cudaEventSynchronize(stop);
+          // cudaEventElapsedTime(&time, start, stop);
+          // cout << time << endl;
+
+          // cudaEventRecord(start, 0);
+          // chrono::high_resolution_clock::time_point st = chrono::high_resolution_clock::now();
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+          // chrono::high_resolution_clock::time_point end = chrono::high_resolution_clock::now();
+          // chrono::duration<double> timestamp = end - st;
+          // cudaEventRecord(stop, 0);
+          // cudaEventSynchronize(stop);
+          // cudaEventElapsedTime(&time, start, stop);
+          // cout << time << endl;
+          // cout << timestamp.count() * 1000 << endl;
+
+          // cudaEventRecord(start, 0);
           if (qo->groupby_build.size() == 0) cgp->call_probe_aggr_CPU(params, h_off_col, h_total, sg); 
           else cgp->call_probe_group_by_CPU(params, h_off_col, h_total, sg);
+          // cudaEventRecord(stop, 0);
+          // cudaEventSynchronize(stop);
+          // cudaEventElapsedTime(&time, start, stop);
+          // cout << time << endl;
 
         } else if (qo->joinCPUPipelineCol[sg].size() == 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -281,12 +301,6 @@ QueryProcessing::executeTableFact_v1(int sg) {
         }   
       }
     }
-
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&time, start, stop);
-
-    if (verbose) cout << "non demand time = " << time << endl;
 }
 
 void
@@ -610,9 +624,6 @@ QueryProcessing::executeTableDimOD(int table_id, int sg) {
           CubDebugExit(cudaStreamDestroy(streams[batch]));
       });
 
-      cm->resetOnDemand();
-       
-      CubDebugExit(cudaDeviceSynchronize());
     }
 }
 
@@ -714,9 +725,9 @@ QueryProcessing::executeTableFactOD(int sg) {
             CubDebugExit(cudaStreamDestroy(streams[batch]));
 
         });
-        cm->resetOnDemand();
 
       } 
+
     } else {
 
       ColumnInfo *pkey[4] = {}, *fkey[4] = {}, *aggr[2] = {};
@@ -794,9 +805,8 @@ QueryProcessing::executeTableFactOD(int sg) {
 
         });
         // }
-        cm->resetOnDemand();
 
-        CubDebugExit(cudaDeviceSynchronize());
+
       }
     }
 
@@ -806,10 +816,6 @@ QueryProcessing::executeTableFactOD(int sg) {
 
 void
 QueryProcessing::executeTableFactOD2(int sg) {
-
-    float time;
-    SETUP_TIMING();
-    cudaEventRecord(start, 0);
 
     int table_id = cm->lo_orderdate->table_id;
     int count_segment = qo->segment_group_count[table_id][sg];
@@ -846,12 +852,12 @@ QueryProcessing::executeTableFactOD2(int sg) {
 
         short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
 
-        parallel_for(int(0), batch_size, [=](int batch){
-        // for (int batch = 0; batch < batch_size; batch++) {
+        // parallel_for(int(0), batch_size, [=](int batch){
+        for (int batch = 0; batch < batch_size; batch++) {
 
-            cudaStream_t stream;
+            // cudaStream_t stream;
 
-            CubDebugExit(cudaStreamCreate(&stream));
+            // CubDebugExit(cudaStreamCreate(&stream));
             int segment_number = (j * OD_BATCH_SIZE + batch);
             assert(segment_number < qo->segment_group_count[0][sg]);
             int segment_idx = segment_group_ptr[segment_number];
@@ -867,34 +873,31 @@ QueryProcessing::executeTableFactOD2(int sg) {
 
             for (int i = 0; i < qo->select_probe[cm->lo_orderdate].size(); i++) {
               if (filter[i] != NULL) {
-                cm->onDemandTransfer2(filter[i], segment_idx, num_tuples, stream);
+                cm->onDemandTransfer2(filter[i], segment_idx, num_tuples, streams[sg]);
               }
             }
 
             for (int i = 0; i < qo->join.size(); i++) {
               int table_id = qo->join[i].second->table_id;
               if (fkey[table_id - 1] != NULL) {
-                cm->onDemandTransfer2(fkey[table_id - 1], segment_idx, num_tuples, stream);
+                cm->onDemandTransfer2(fkey[table_id - 1], segment_idx, num_tuples, streams[sg]);
               }
             }
 
             for (int i = 0; i < qo->aggregation[cm->lo_orderdate].size(); i++) {
               if (aggr[i] != NULL) {
-                cm->onDemandTransfer2(aggr[i], segment_idx, num_tuples, stream);
+                cm->onDemandTransfer2(aggr[i], segment_idx, num_tuples, streams[sg]);
               }
             }
 
-            CubDebugExit(cudaStreamSynchronize(stream));
-            CubDebugExit(cudaStreamDestroy(stream));
+            // CubDebugExit(cudaStreamSynchronize(streams[sg]));
+            // CubDebugExit(cudaStreamDestroy(stream));
 
-        });
-        // }
+        // });
+        }
 
-        // cout << " transfer done " << endl;
-        CHECK_ERROR_STREAM(streams[sg]);
         // CubDebugExit(cudaStreamSynchronize(streams[sg]));
         cgp->call_pfilter_probe_aggr_OD(params, filter, pkey, fkey, aggr, sg, j, batch_size, total_batch, streams[sg]);
-        CubDebugExit(cudaDeviceSynchronize());
       }
 
     } else {
@@ -911,6 +914,8 @@ QueryProcessing::executeTableFactOD2(int sg) {
         aggr[i] = qo->aggregation[cm->lo_orderdate][i];
       }
 
+      cout << sg << endl;
+
       for (int j = 0; j < total_batch; j++) {
 
         int batch_size;
@@ -919,12 +924,12 @@ QueryProcessing::executeTableFactOD2(int sg) {
 
         short* segment_group_ptr = qo->segment_group[0] + (sg * cm->lo_orderdate->total_segment);
 
-        parallel_for(int(0), batch_size, [=](int batch){
-        // for (int batch = 0; batch < batch_size; batch++) {
+        // parallel_for(int(0), batch_size, [=](int batch){
+        for (int batch = 0; batch < batch_size; batch++) {
 
-            cudaStream_t stream;
+            // cudaStream_t stream;
 
-            CubDebugExit(cudaStreamCreate(&stream));
+            // CubDebugExit(cudaStreamCreate(&stream));
             int segment_number = (j * OD_BATCH_SIZE + batch);
             assert(segment_number < qo->segment_group_count[0][sg]);
             int segment_idx = segment_group_ptr[segment_number];
@@ -942,35 +947,27 @@ QueryProcessing::executeTableFactOD2(int sg) {
             for (int i = 0; i < qo->join.size(); i++) {
               int table_id = qo->join[i].second->table_id;
               if (fkey[table_id - 1] != NULL) {
-                cm->onDemandTransfer2(fkey[table_id - 1], segment_idx, num_tuples, stream);
+                cm->onDemandTransfer2(fkey[table_id - 1], segment_idx, num_tuples, streams[sg]);
               }
             }
 
             for (int i = 0; i < qo->aggregation[cm->lo_orderdate].size(); i++) {
               if (aggr[i] != NULL) {
-                cm->onDemandTransfer2(aggr[i], segment_idx, num_tuples, stream);
+                cm->onDemandTransfer2(aggr[i], segment_idx, num_tuples, streams[sg]);
               }
             }
 
-            CubDebugExit(cudaStreamSynchronize(stream));
-            CubDebugExit(cudaStreamDestroy(stream));
+            // CubDebugExit(cudaStreamSynchronize(streams[sg]));
+            // CubDebugExit(cudaStreamDestroy(stream));
 
-        });
-        // }
+        // });
+        }
 
         // CubDebugExit(cudaStreamSynchronize(streams[sg]));
-        CHECK_ERROR_STREAM(streams[sg]);
         cgp->call_probe_group_by_OD(params, pkey, fkey, aggr, sg, j, batch_size, total_batch, streams[sg]);
-        CubDebugExit(cudaDeviceSynchronize());
       }
 
     }
-
-    cudaEventRecord(stop, 0);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&time, start, stop);
-
-    if (verbose) cout << "on demand time = " << time << endl;
 
 }
 
@@ -1023,9 +1020,20 @@ QueryProcessing::runQuery() {
 
     CubDebugExit(cudaStreamCreate(&streams[sg]));
 
+    float time_;
+    cudaEvent_t start_, stop_; 
+    cudaEventCreate(&start_); cudaEventCreate(&stop_);
+    cudaEventRecord(start_, 0);
+
     if (qo->segment_group_count[0][sg] > 0) {
       executeTableFact_v1(sg);
     }
+
+    cudaEventRecord(stop_, 0);
+    cudaEventSynchronize(stop_);
+    cudaEventElapsedTime(&time_, start_, stop_);
+
+    if (verbose) cout << "sg = " << sg << " non demand time = " << time_ << endl;
 
     CubDebugExit(cudaStreamSynchronize(streams[sg]));
     CubDebugExit(cudaStreamDestroy(streams[sg]));
@@ -1097,9 +1105,20 @@ QueryProcessing::runQuery2() {
 
     CubDebugExit(cudaStreamCreate(&streams[sg]));
 
+    float time_;
+    cudaEvent_t start_, stop_; 
+    cudaEventCreate(&start_); cudaEventCreate(&stop_);
+    cudaEventRecord(start_, 0);
+
     if (qo->segment_group_count[0][sg] > 0) {
       executeTableFact_v2(sg);
     }
+
+    cudaEventRecord(stop_, 0);
+    cudaEventSynchronize(stop_);
+    cudaEventElapsedTime(&time_, start_, stop_);
+
+    if (verbose) cout << "sg = " << sg << " non demand time = " << time_ << endl;
 
     CubDebugExit(cudaStreamSynchronize(streams[sg]));
     CubDebugExit(cudaStreamDestroy(streams[sg]));
@@ -1141,6 +1160,8 @@ QueryProcessing::runOnDemand() {
   if (qo->segment_group_count[0][sg] > 0) {
     executeTableFactOD(sg);
   }
+
+  cm->resetOnDemand();
 
   CubDebugExit(cudaDeviceSynchronize());
 };
@@ -1189,14 +1210,32 @@ QueryProcessing::runHybridOnDemand(int options) {
     if (qo->segment_group_count[0][sg] > 0) {
       if ((sg & 0x40) == 0x40) {
         // cout << "sg1 " << sg << endl;
+        float time;
+        SETUP_TIMING();
+        cudaEventRecord(start, 0);
+
         executeTableFactOD2(sg);
+
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&time, start, stop);
+
+        if (verbose) cout << "sg = " << sg << " on demand time = " << time << endl;
       } else {
         // cout << "sg2 " << sg << endl;
+        float time;
+        SETUP_TIMING();
+        cudaEventRecord(start, 0);
         if (options == 1) {
           executeTableFact_v1(sg);
         } else if (options == 2) {
           executeTableFact_v2(sg);
         }
+        cudaEventRecord(stop, 0);
+        cudaEventSynchronize(stop);
+        cudaEventElapsedTime(&time, start, stop);
+
+        if (verbose) cout << "sg = " << sg << " non demand time = " << time << endl;
       }
     }
 
@@ -1376,7 +1415,7 @@ QueryProcessing::profile() {
 double
 QueryProcessing::processOnDemand() {
   qo->parseQuery(query);
-  qo->prepareQuery(query);
+  qo->prepareQuery(query, skew);
   qo->prepareOperatorPlacement();
   qo->groupBitmapSegmentTable(0, query);
     for (int tbl = 0; tbl < qo->join.size(); tbl++) {
@@ -1419,7 +1458,7 @@ QueryProcessing::processHybridOnDemand(int options) {
   assert(options == 1 || options == 2);
 
   qo->parseQuery(query);
-  qo->prepareQuery(query);
+  qo->prepareQuery(query, skew);
   qo->prepareOperatorPlacement();
   qo->groupBitmapSegmentTableOD(0, query);
   for (int tbl = 0; tbl < qo->join.size(); tbl++) {
@@ -1466,7 +1505,7 @@ QueryProcessing::processQuery() {
   cudaEventRecord(start, 0);
 
   qo->parseQuery(query);
-  qo->prepareQuery(query);
+  qo->prepareQuery(query, skew);
   params = qo->params;
 
   cudaEventRecord(stop, 0);
@@ -1531,7 +1570,7 @@ QueryProcessing::processQuery2() {
   cudaEventRecord(start, 0);
 
   qo->parseQuery(query);
-  qo->prepareQuery(query);
+  qo->prepareQuery(query, skew);
   params = qo->params;
 
   cudaEventRecord(stop, 0);
@@ -1782,7 +1821,7 @@ QueryProcessing::dumpTrace(string filename) {
         fprintf(fptr, "===========================\n");
 
         qo->parseQuery(queries[i]);
-        qo->prepareQuery(queries[i]);
+        qo->prepareQuery(queries[i], skew);
 
         int* t_segment = new int[cm->TOT_COLUMN]();
         int* t_c_segment = new int[cm->TOT_COLUMN]();

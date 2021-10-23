@@ -261,7 +261,7 @@ CacheManager::onDemandTransfer(int* data_ptr, int size, cudaStream_t stream) {
 	if (data_ptr != NULL) {
 		int start = __atomic_fetch_add(&onDemandPointer, SEGMENT_SIZE, __ATOMIC_RELAXED);
 		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
-		// CubDebugExit(cudaStreamSynchronize(stream));
+		CubDebugExit(cudaStreamSynchronize(stream));
 		return gpuCache + start;
 	} else {
 		return NULL;
@@ -273,9 +273,9 @@ CacheManager::onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, c
 	if (segment_bitmap[column->column_id][segment_idx] == 0) {
 		int* data_ptr = column->col_ptr + segment_idx * SEGMENT_SIZE;
 		int start = __atomic_fetch_add(&onDemandPointer, SEGMENT_SIZE, __ATOMIC_RELAXED);
-		// cout << "cur pointer = " << onDemandPointer << " " << start / SEGMENT_SIZE << endl;
-		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
 		// CubDebugExit(cudaStreamSynchronize(stream));
+		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
+		CubDebugExit(cudaStreamSynchronize(stream));
 		od_segment_list[column->column_id][segment_idx] = start / SEGMENT_SIZE;
 	}
 };

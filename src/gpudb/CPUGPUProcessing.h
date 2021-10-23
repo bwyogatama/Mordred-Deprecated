@@ -5,7 +5,7 @@
 #include "GPUProcessing.h"
 #include "CPUProcessing_.h"
 
-#define OD_BATCH_SIZE 4
+#define OD_BATCH_SIZE 8
 
 class CPUGPUProcessing {
 public:

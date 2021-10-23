@@ -17,13 +17,15 @@ public:
   // map<int, int> query_freq;
   int query;
   bool verbose;
+  bool skew;
 
-  QueryProcessing(CPUGPUProcessing* _cgp, bool _verbose) {
+  QueryProcessing(CPUGPUProcessing* _cgp, bool _verbose, bool _skew = false) {
     cgp = _cgp;
     qo = cgp->qo;
     cm = cgp->cm;
     // query_freq[_query] = 0;
     verbose = _verbose;
+    skew = _skew;
   }
 
   ~QueryProcessing() {

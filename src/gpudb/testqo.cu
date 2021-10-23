@@ -20,7 +20,7 @@ int main() {
 	qp->profile();
 	delete qp;
 
-	cgp->cm->resetCache(52428800 * 2, 209715200 / 2, 536870912, 536870912);
+	cgp->cm->resetCache(52428800 * 6, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(314572800, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(629145600, 209715200 / 2, 536870912, 536870912);
 
@@ -28,9 +28,9 @@ int main() {
 
 	CacheManager* cm = cgp->cm;
 
-	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 17);
-	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 53);
-	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 35);
+	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 58);
+	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);
@@ -74,8 +74,9 @@ int main() {
 	string query;
 	double time = 0;
 	double time1 = 0, time2 = 0;
+	bool skew = true;
 
-	qp = new QueryProcessing(cgp, verbose);
+	qp = new QueryProcessing(cgp, verbose, skew);
 
 	while (!exit) {
 		cout << "Select Options:" << endl;
@@ -97,10 +98,12 @@ int main() {
 			cout << "Input Query: ";
 			cin >> query;
 			qp->setQuery(stoi(query));
-			qp->processQuery();
-			time1 = qp->processQuery();
-			qp->processQuery2();
 			time2 = qp->processQuery2();
+			cout << endl;
+			cout << endl;
+			time1 = qp->processQuery();
+			cout << endl;
+			cout << endl;
 			if (time1 <= time2) time += time1;
 			else time += time2;
 		} else if (input.compare("2") == 0) {
@@ -108,14 +111,18 @@ int main() {
 			cout << "Input Query: ";
 			cin >> query;
 			qp->setQuery(stoi(query));
-			time1 = qp->processHybridOnDemand(1);
 			time2 = qp->processHybridOnDemand(2);
+			cout << endl;
+			cout << endl;
+			time1 = qp->processHybridOnDemand(1);
+			cout << endl;
+			cout << endl;
 			if (time1 <= time2) time += time1;
 			else time += time2;
 		} else if (input.compare("3") == 0) {
 			time = 0;
 			cout << "Executing Random Query" << endl;
-			for (int i = 0; i < 100; i++) {
+			for (int i = 0; i < 1000; i++) {
 				qp->generate_rand_query();
 				time1 = qp->processQuery();
 				time2 = qp->processQuery2();
@@ -126,7 +133,7 @@ int main() {
 		} else if (input.compare("4") == 0) {
 			time = 0;
 			cout << "Executing Random Query" << endl;
-			for (int i = 0; i < 100; i++) {
+			for (int i = 0; i < 1000; i++) {
 				qp->generate_rand_query();
 				time1 = qp->processHybridOnDemand(1);
 				time2 = qp->processHybridOnDemand(2);

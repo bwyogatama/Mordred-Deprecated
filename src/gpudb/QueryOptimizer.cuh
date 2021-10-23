@@ -10,6 +10,21 @@ QueryOptimizer::QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t
 	pkey_fkey[cm->p_partkey] = cm->lo_partkey;
 	pkey_fkey[cm->c_custkey] = cm->lo_custkey;
 	pkey_fkey[cm->s_suppkey] = cm->lo_suppkey;
+
+	zipfian[11] = new Zipfian (7, 0);
+	zipfian[12] = new Zipfian (79, 0);
+	zipfian[13] = new Zipfian (316, 0);
+	zipfian[21] = new Zipfian (7, 0);
+	zipfian[22] = new Zipfian (7, 0);
+	zipfian[23] = new Zipfian (7, 0);
+	zipfian[31] = new Zipfian (7, 0);
+	zipfian[32] = new Zipfian (7, 0);
+	zipfian[33] = new Zipfian (7, 0);
+	zipfian[34] = new Zipfian (79, 0);
+	zipfian[41] = new Zipfian (7, 0);
+	zipfian[42] = new Zipfian (7, 0);
+	zipfian[43] = new Zipfian (7, 0);
+
 }
 
 QueryOptimizer::~QueryOptimizer() {
@@ -1783,6 +1798,7 @@ QueryOptimizer::checkPredicate(int table_id, int segment_idx) {
 
 void
 QueryOptimizer::updateSegmentStats(int table_id, int segment_idx, int query) {
+	// cout << " test " << endl;
  	for (int i = 0; i < queryColumn[table_id].size(); i++) {
 	    int column = queryColumn[table_id][i]->column_id;
 	    Segment* segment = cm->index_to_segment[column][segment_idx];
@@ -2114,6 +2130,7 @@ QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile)
 		int count = segment_group_count[table_id][temp];
 
 		if (checkPredicate(table_id, i)) {
+			// cout << " hi " << endl;
 			segment_group[table_id][temp * total_segment + count] = i;
 			segment_group_count[table_id][temp]++;
 			if (!isprofile) updateSegmentStats(table_id, i, query);
@@ -2372,20 +2389,24 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 	if (table_id == 0) {
 		for (int i = 0; i < MAX_GROUPS/2; i++) { //64 segment groups
 			if (segment_group_count[table_id][i] > 0) {
+				cout << i << endl;
 				if (groupGPUcheck && joinGPUall) {
-					if ((segment_group_count[table_id][i] > 8) && opCPUPipeline[table_id][i][0].size() > 0) {
-						int OD = segment_group_count[table_id][i] / 3;
+					if ((segment_group_count[table_id][i] > 12) && opCPUPipeline[table_id][i][0].size() > 0) {
+						int OD = segment_group_count[table_id][i] / 4;
+						// if (OD > 8) OD = 8;
 						// int OD = segment_group_count[table_id][i];
-						// cout << segment_group_count[table_id][i] << endl;
-						// cout << i << " " << OD << endl;
+						if (query == 32 || query == 33 || query == 43) OD = 0;
+						cout << "sg: " << i << " total member: " << segment_group_count[table_id][i] << " on demand portion: " << OD << endl;
 						segment_group_count[table_id][i] -= OD;
+						// short OD_sg = i | 0x40;
+						short OD_sg = 0x40;
 						int start = segment_group_count[table_id][i];
-						short OD_sg = i | 0x40;
-						segment_group_count[table_id][OD_sg] = OD;
+						int start_OD = segment_group_count[table_id][OD_sg];
 						if (last_segment[table_id] == i && OD > 0) last_segment[table_id] = OD_sg; //TODO: THIS WON'T WORK IF OPTIMIZER IS PARALLELIZED
 						for (int j = 0; j < OD; j++) {
-							segment_group[table_id][OD_sg * total_segment + j] = segment_group[table_id][i * total_segment + start + j];
+							segment_group[table_id][OD_sg * total_segment + start_OD + j] = segment_group[table_id][i * total_segment + start + j];
 						}
+						segment_group_count[table_id][OD_sg] += OD;
 					}
 				}
 			}
@@ -2428,7 +2449,7 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 }
 
 void
-QueryOptimizer::prepareQuery(int query) {
+QueryOptimizer::prepareQuery(int query, bool skew) {
 
 	params = new QueryParams(query);
 
@@ -2440,14 +2461,24 @@ QueryOptimizer::prepareQuery(int query) {
 			params->selectivity[cm->lo_discount] = 3.0/11 * 2;
 			params->selectivity[cm->lo_quantity] = 0.5 * 2;
 
-			params->compare1[cm->d_year] = 1993;
-			params->compare2[cm->d_year] = 1993;
+
 			params->compare1[cm->lo_discount] = 1;
 			params->compare2[cm->lo_discount] = 3;
 			params->compare1[cm->lo_quantity] = 0;
 			params->compare2[cm->lo_quantity] = 24;
-			params->compare1[cm->lo_orderdate] = 19930101;
-			params->compare2[cm->lo_orderdate] = 19931231;
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_year] = zipfian[query]->year.first;
+				params->compare2[cm->d_year] = zipfian[query]->year.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->d_year] = 1993;
+				params->compare2[cm->d_year] = 1993;
+				params->compare1[cm->lo_orderdate] = 19930101;
+				params->compare2[cm->lo_orderdate] = 19931231;
+			}
 
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_year]), p_pred_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
@@ -2464,14 +2495,23 @@ QueryOptimizer::prepareQuery(int query) {
 			params->selectivity[cm->lo_discount] = 3.0/11 * 2;
 			params->selectivity[cm->lo_quantity] = 0.2 * 2;
 
-			params->compare1[cm->d_yearmonthnum] = 199401;
-			params->compare2[cm->d_yearmonthnum] = 199401;
 			params->compare1[cm->lo_discount] = 4;
 			params->compare2[cm->lo_discount] = 6;
 			params->compare1[cm->lo_quantity] = 26;
 			params->compare2[cm->lo_quantity] = 35;
-			params->compare1[cm->lo_orderdate] = 19940101;
-			params->compare2[cm->lo_orderdate] = 19940131;
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_yearmonthnum] = zipfian[query]->yearmonth.first;
+				params->compare2[cm->d_yearmonthnum] = zipfian[query]->yearmonth.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->d_yearmonthnum] = 199401;
+				params->compare2[cm->d_yearmonthnum] = 199401;
+				params->compare1[cm->lo_orderdate] = 19940101;
+				params->compare2[cm->lo_orderdate] = 19940131;
+			}
 
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_yearmonthnum]), p_pred_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
@@ -2488,14 +2528,23 @@ QueryOptimizer::prepareQuery(int query) {
 			params->selectivity[cm->lo_discount] = 3.0/11 * 2;
 			params->selectivity[cm->lo_quantity] = 0.2 * 2;
 
-			params->compare1[cm->d_datekey] = 19940204;
-			params->compare2[cm->d_datekey] = 19940210;
 			params->compare1[cm->lo_discount] = 5;
 			params->compare2[cm->lo_discount] = 7;
 			params->compare1[cm->lo_quantity] = 26;
 			params->compare2[cm->lo_quantity] = 35;
-			params->compare1[cm->lo_orderdate] = 19940204;
-			params->compare2[cm->lo_orderdate] = 19940210;
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_datekey] = zipfian[query]->date.first;
+				params->compare2[cm->d_datekey] = zipfian[query]->date.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;	
+			} else {
+				params->compare1[cm->d_datekey] = 19940204;
+				params->compare2[cm->d_datekey] = 19940210;
+				params->compare1[cm->lo_orderdate] = 19940204;
+				params->compare2[cm->lo_orderdate] = 19940210;
+			}
 
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->d_datekey]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->lo_discount]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
@@ -2550,6 +2599,15 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare1[cm->p_category] = 1;
 			params->compare2[cm->p_category] = 1;
 
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->lo_orderdate] = 19920101;
+				params->compare2[cm->lo_orderdate] = 19981231;
+			}
+
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_category]), p_pred_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 
@@ -2569,6 +2627,15 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare1[cm->p_brand1] = 260;
 			params->compare2[cm->p_brand1] = 267;
 
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->lo_orderdate] = 19920101;
+				params->compare2[cm->lo_orderdate] = 19981231;
+			}
+
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_brand1]), p_pred_between<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 
@@ -2587,6 +2654,15 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare2[cm->s_region] = 3;
 			params->compare1[cm->p_brand1] = 260;
 			params->compare2[cm->p_brand1] = 260;
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->lo_orderdate] = 19920101;
+				params->compare2[cm->lo_orderdate] = 19981231;
+			}
 
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->s_region]), p_pred_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
 			CubDebugExit(cudaMemcpyFromSymbol(&(params->map_filter_func_dev[cm->p_brand1]), p_pred_eq<int, 128, 4>, sizeof(filter_func_t_dev<int, 128, 4>)));
@@ -2642,10 +2718,21 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare2[cm->c_region] = 2;
 			params->compare1[cm->s_region] = 2;
 			params->compare2[cm->s_region] = 2;
-			params->compare1[cm->d_year] = 1992;
-			params->compare2[cm->d_year] = 1997;
-			params->compare1[cm->lo_orderdate] = 19920101;
-			params->compare2[cm->lo_orderdate] = 19971231;
+
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_year] = zipfian[query]->year.first;
+				params->compare2[cm->d_year] = zipfian[query]->year.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->d_year] = 1992;
+				params->compare2[cm->d_year] = 1997;
+				params->compare1[cm->lo_orderdate] = 19920101;
+				params->compare2[cm->lo_orderdate] = 19971231;
+			}
+
 
 			params->unique_val[cm->p_partkey] = 0;
 			params->unique_val[cm->c_custkey] = 7;
@@ -2674,10 +2761,19 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare2[cm->c_nation] = 24;
 			params->compare1[cm->s_nation] = 24;
 			params->compare2[cm->s_nation] = 24;
-			params->compare1[cm->d_year] = 1992;
-			params->compare2[cm->d_year] = 1997;
-			params->compare1[cm->lo_orderdate] = 19920101;
-			params->compare2[cm->lo_orderdate] = 19971231;
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_year] = zipfian[query]->year.first;
+				params->compare2[cm->d_year] = zipfian[query]->year.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->d_year] = 1992;
+				params->compare2[cm->d_year] = 1997;
+				params->compare1[cm->lo_orderdate] = 19920101;
+				params->compare2[cm->lo_orderdate] = 19971231;
+			}
 
 			params->unique_val[cm->p_partkey] = 0;
 			params->unique_val[cm->c_custkey] = 7;
@@ -2706,10 +2802,19 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare2[cm->c_city] = 235;
 			params->compare1[cm->s_city] = 231;
 			params->compare2[cm->s_city] = 235;
-			params->compare1[cm->d_year] = 1992;
-			params->compare2[cm->d_year] = 1997;
-			params->compare1[cm->lo_orderdate] = 19920101;
-			params->compare2[cm->lo_orderdate] = 19971231;
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_year] = zipfian[query]->year.first;
+				params->compare2[cm->d_year] = zipfian[query]->year.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->d_year] = 1992;
+				params->compare2[cm->d_year] = 1997;
+				params->compare1[cm->lo_orderdate] = 19920101;
+				params->compare2[cm->lo_orderdate] = 19971231;
+			}
 
 			params->unique_val[cm->p_partkey] = 0;
 			params->unique_val[cm->c_custkey] = 7;
@@ -2738,10 +2843,27 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare2[cm->c_city] = 235;
 			params->compare1[cm->s_city] = 231;
 			params->compare2[cm->s_city] = 235;
-			params->compare1[cm->d_yearmonthnum] = 199712;
-			params->compare2[cm->d_yearmonthnum] = 199712;
-			params->compare1[cm->lo_orderdate] = 19971201;
-			params->compare2[cm->lo_orderdate] = 19971231;
+
+			if (skew) {
+				do {
+					zipfian[query]->generateZipf();
+					params->compare1[cm->d_yearmonthnum] = zipfian[query]->yearmonth.first;
+					params->compare2[cm->d_yearmonthnum] = zipfian[query]->yearmonth.second;
+					params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+					params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;
+				} while (params->compare1[cm->d_yearmonthnum] == 199804 || params->compare1[cm->d_yearmonthnum] == 199802);
+
+				// params->compare1[cm->d_yearmonthnum] = 199804;
+				// params->compare2[cm->d_yearmonthnum] = 199804;
+				// params->compare1[cm->lo_orderdate] = 19980401;
+				// params->compare2[cm->lo_orderdate] = 19980430;	
+				 			
+			} else {
+				params->compare1[cm->d_yearmonthnum] = 199712;
+				params->compare2[cm->d_yearmonthnum] = 199712;
+				params->compare1[cm->lo_orderdate] = 19971201;
+				params->compare2[cm->lo_orderdate] = 19971231;
+			}
 
 			params->unique_val[cm->p_partkey] = 0;
 			params->unique_val[cm->c_custkey] = 7;
@@ -2804,6 +2926,15 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare1[cm->p_mfgr] = 0;
 			params->compare2[cm->p_mfgr] = 1;
 
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->lo_orderdate] = 19920101;
+				params->compare2[cm->lo_orderdate] = 19981231;
+			}
+
 			params->unique_val[cm->p_partkey] = 0;
 			params->unique_val[cm->c_custkey] = 7;
 			params->unique_val[cm->s_suppkey] = 0;
@@ -2835,10 +2966,20 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare2[cm->s_region] = 1;
 			params->compare1[cm->p_mfgr] = 0;
 			params->compare2[cm->p_mfgr] = 1;
-			params->compare1[cm->d_year] = 1997;
-			params->compare2[cm->d_year] = 1998;
-			params->compare1[cm->lo_orderdate] = 19970101;
-			params->compare2[cm->lo_orderdate] = 19981231;
+
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_year] = zipfian[query]->year.first;
+				params->compare2[cm->d_year] = zipfian[query]->year.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->d_year] = 1997;
+				params->compare2[cm->d_year] = 1998;
+				params->compare1[cm->lo_orderdate] = 19970101;
+				params->compare2[cm->lo_orderdate] = 19981231;
+			}
 
 			params->unique_val[cm->p_partkey] = 1;
 			params->unique_val[cm->c_custkey] = 0;
@@ -2873,10 +3014,19 @@ QueryOptimizer::prepareQuery(int query) {
 			params->compare2[cm->s_nation] = 24;
 			params->compare1[cm->p_category] = 3;
 			params->compare2[cm->p_category] = 3;
-			params->compare1[cm->d_year] = 1997;
-			params->compare2[cm->d_year] = 1998;
-			params->compare1[cm->lo_orderdate] = 19970101;
-			params->compare2[cm->lo_orderdate] = 19981231;
+
+			if (skew) {
+				zipfian[query]->generateZipf();
+				params->compare1[cm->d_year] = zipfian[query]->year.first;
+				params->compare2[cm->d_year] = zipfian[query]->year.second;
+				params->compare1[cm->lo_orderdate] = zipfian[query]->date.first;
+				params->compare2[cm->lo_orderdate] = zipfian[query]->date.second;				
+			} else {
+				params->compare1[cm->d_year] = 1997;
+				params->compare2[cm->d_year] = 1998;
+				params->compare1[cm->lo_orderdate] = 19970101;
+				params->compare2[cm->lo_orderdate] = 19981231;
+			}
 
 			params->unique_val[cm->p_partkey] = 1;
 			params->unique_val[cm->c_custkey] = 0;
@@ -2928,6 +3078,8 @@ QueryOptimizer::prepareQuery(int query) {
 	} else {
 		assert(0);
 	}
+
+	cout << " Query: " << query << " " << params->compare1[cm->lo_orderdate] << " " << params->compare2[cm->lo_orderdate] << endl;
 
 	params->min_key[cm->p_partkey] = 0;
 	params->min_key[cm->c_custkey] = 0;

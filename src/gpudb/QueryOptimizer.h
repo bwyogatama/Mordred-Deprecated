@@ -18,6 +18,164 @@ enum DeviceType {
     CPU, GPU
 };
 
+class Zipfian {
+public:
+
+	int seed;
+	double c;
+	double alpha;
+	long x;
+	int n;
+	int range;
+	const long  a =      16807;  // Multiplier
+	const long  m = 2147483647;  // Modulus
+	const long  q =     127773;  // m div a
+	const long  r =       2836;  // m mod a
+
+	pair<int, int> year;
+	pair<int, int> yearmonth;
+	pair<int, int> date;
+
+	Zipfian (int N, int Range) {
+		seed = 123;
+		alpha = 2;
+		x = seed;
+		n = N;
+		range = Range;
+
+	  	c = 0;
+		for (int i=1; i<=N; i++) c = c + (1.0 / pow((double) i, alpha));
+		c = 1.0 / c;
+	};
+
+
+	int zipf()
+	{
+		// static int first = TRUE;      // Static first time flag
+		// static double c = 0;          // Normalization constant
+		double z;                     // Uniform random number (0 < z < 1)
+		double sum_prob;              // Sum of probabilities
+		double zipf_value;            // Computed exponential value to be returned
+
+		// Pull a uniform random number (0 < z < 1)
+		do {
+			z = rand_val();
+		} while ((z == 0) || (z == 1));
+
+		// Map z to the value
+		sum_prob = 0;
+		for (int i=1; i<=n; i++) {
+			sum_prob = sum_prob + c / pow((double) i, alpha);
+			if (sum_prob >= z) {
+			  zipf_value = i;
+			  break;
+			}
+		};
+
+		// Assert that zipf_value is between 1 and N
+		assert((zipf_value >=1) && (zipf_value <= n));
+
+		return(zipf_value-1);
+	}
+
+	double rand_val()
+	{
+		// static long x;               // Random int value
+		long        x_div_q;         // x divided by q
+		long        x_mod_q;         // x modulo q
+		long        x_new;           // New x value
+
+		// RNG using integer arithmetic
+		x_div_q = x / q;
+		x_mod_q = x % q;
+		x_new = (a * x_mod_q) - (r * x_div_q);
+		if (x_new > 0)
+		x = x_new;
+		else
+		x = x_new + m;
+
+		// Return a random value between 0.0 and 1.0
+		return((double) x / m);
+	};
+
+	void generateZipf() {
+	  	int zipf_rv;               // Zipf random variable
+
+	  	zipf_rv = zipf();
+
+	  	// zipf_rv = n - zipf_rv; //n-1 to 0 (n-1 with highest probability)
+
+	  	if (n <= 7) { //possibility #1 (year predicate)
+	  		assert(range < 7);
+	  		year = make_pair(1998 - zipf_rv - range, 1998 - zipf_rv);
+	  		yearmonth = make_pair(year.first * 100 + 1, year.second * 100 + 12);
+	  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
+	  	} else if (n <= 79) { //possibility #2 (yearmonthnum predicate)
+	  		assert(range == 0);
+	  		if (zipf_rv < 7) { // 0 to 6
+		  		int temp = zipf_rv / 12;
+		  		//zipf_rv = 0 to 6;
+		  		//min = 0; 1998
+		  		//max = 6; 1992
+		  		year = make_pair(1998 - temp, 1998 - temp);
+		  		temp = zipf_rv % 12;
+		  		//min = 0; 12
+		  		//max = 11; 1
+		  		yearmonth = make_pair(year.first * 100 + 7 - temp - range, year.second * 100 + 7 - temp);
+		  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
+	  		} else {
+	  			zipf_rv -= 7;
+		  		int temp = zipf_rv / 12;
+		  		//zipf_rv = 0 to 71 or 7 to 78
+		  		//min = 0; 1998
+		  		//max = 6; 1992
+		  		year = make_pair(1997 - temp, 1997 - temp);
+		  		temp = zipf_rv % 12;
+		  		//min = 0; 12
+		  		//max = 11; 1
+		  		yearmonth = make_pair(year.first * 100 + 12 - temp - range, year.second * 100 + 12 - temp);
+		  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
+	  		}
+	  	} else if (n <= 316) { //possibility #3 (week predicate)
+	  		assert(range == 0);
+	  		if (zipf_rv < 28) { // 0 to 27
+				int temp = zipf_rv / 48;
+				//zipf_rv = 0 to 27;
+				//min = 0; 1998
+				//max = 6; 1992
+				year = make_pair(1998 - temp, 1998 - temp);
+				temp = (zipf_rv % 48) / 4;
+				//min = 0; 12
+				//max = 11; 1
+				yearmonth = make_pair(year.first * 100 + 7 - temp, year.second * 100 + 7 - temp);
+				temp = (zipf_rv % 48) % 4;
+				//min = 0; 22 - 28
+				//max = 3; 1 - 7
+				date = make_pair(yearmonth.first * 100 + 22 - temp * 7 - range * 7, yearmonth.second * 100 + 28 - temp * 7);
+	  		} else {
+				int temp = zipf_rv / 48;
+				//zipf_rv = 0 to 27;
+				//min = 0; 1998
+				//max = 6; 1992
+				year = make_pair(1997 - temp, 1997 - temp);
+				temp = (zipf_rv % 48) / 4;
+				//min = 0; 12
+				//max = 11; 1
+				yearmonth = make_pair(year.first * 100 + 12 - temp, year.second * 100 + 12 - temp);
+				temp = (zipf_rv % 48) % 4;
+				//min = 0; 22 - 28
+				//max = 3; 1 - 7
+				date = make_pair(yearmonth.first * 100 + 22 - temp * 7 - range * 7, yearmonth.second * 100 + 28 - temp * 7);
+	  		}
+
+
+	  	}
+
+	  
+
+	};
+};
+
 class Operator {
 public:
 	DeviceType device;
@@ -96,6 +254,8 @@ public:
 
 	QueryParams* params;
 
+	map<int, Zipfian*> zipfian;
+
 	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize);
 	~QueryOptimizer();
 
@@ -114,7 +274,7 @@ public:
 	void parseQuery42();
 	void parseQuery43();
 
-	void prepareQuery(int query);
+	void prepareQuery(int query, bool skew = 0);
 
 	void clearParsing();
 	void clearPlacement();

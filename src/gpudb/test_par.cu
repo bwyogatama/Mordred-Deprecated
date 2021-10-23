@@ -1,4 +1,4 @@
-#include <assert.h>
+// #include <assert.h>
 #include <stdio.h>
 #include <chrono>
 
@@ -52,19 +52,32 @@ void runGPU(int* d_values, int size, int offset) {
     cudaStreamDestroy(stream);
 }
 
+void transferGPU(int* d_values, int* values, int size) {
+
+    cudaStream_t stream;
+    cudaStreamCreate(&stream);
+
+    printf("start transfer\n");
+	CubDebugExit(cudaMemcpyAsync(d_values, values, size * sizeof(int), cudaMemcpyHostToDevice, stream));
+	CubDebugExit(cudaStreamSynchronize(stream));
+	printf("transfer done\n");
+
+    cudaStreamDestroy(stream);
+}
+
 int main() {
 
-	int* values = new int[64000];
-	int* h_values = new int[64000];
+	int* values = new int[64000000];
+	int* h_values = new int[64000000];
 
 	int* d_values;
 
-	for (int i = 0; i < 64000; i++) {
+	for (int i = 0; i < 64000000; i++) {
 		values[i] = i;
 	}
 
-    cudaMalloc(&(d_values), 64000 * sizeof(int));
-    cudaMemcpy(d_values, values, 64000 * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMalloc(&(d_values), 64000000 * sizeof(int));
+    cudaMemcpy(d_values, values, 64000000 * sizeof(int), cudaMemcpyHostToDevice);
 
 	// vector<thread> vec_th(3);
 
@@ -87,9 +100,19 @@ int main() {
 	cudaEventCreate(&stop); 
 	cudaEventRecord(start, 0);
 
-	parallel_for(int(0), 64, [=](int i){
+	// parallel_for(int(0), 64, [=](int i){
+	// 	//runCPU(values, 1000, i*1000);
+	// 	runGPU(d_values, 1000, i*1000);
+	// });
+
+	parallel_for(int(0), 2, [=](int i){
 		//runCPU(values, 1000, i*1000);
-		runGPU(d_values, 1000, i*1000);
+		if (i == 0) transferGPU(d_values, values, 64000000);
+		else {
+			for (int j = 0; j < 10000; j++) {
+				printf("%d\n", j);
+			}
+		}
 	});
 
 	// for (int i = 0; i < 64; i++) {
