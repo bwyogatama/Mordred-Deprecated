@@ -1095,11 +1095,11 @@ CacheManager::New2Replacement() {
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
-		if (should_cached[allColumn[i]] < allColumn[i]->tot_seg_in_GPU) {
-			erased_segment = (allColumn[i]->tot_seg_in_GPU - should_cached[allColumn[i]]);
-			cout << "Deleting " << erased_segment << " segments for column " << allColumn[i]->column_name << endl;
-			deleteColumnSegmentInGPU(allColumn[i], erased_segment);
-		}
+			if (should_cached[allColumn[i]] < allColumn[i]->tot_seg_in_GPU) {
+				erased_segment = (allColumn[i]->tot_seg_in_GPU - should_cached[allColumn[i]]);
+				cout << "Deleting " << erased_segment << " segments for column " << allColumn[i]->column_name << endl;
+				deleteColumnSegmentInGPU(allColumn[i], erased_segment);
+			}
     }
 
 	for (int i = 0; i < TOT_COLUMN; i++) {
@@ -1111,6 +1111,34 @@ CacheManager::New2Replacement() {
 	}
 
 };
+
+int
+CacheManager::cacheSpecificColumn(string column_name) {
+	ColumnInfo* column;
+	bool found = false;
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		if (allColumn[i]->column_name.compare(column_name) == 0) {
+			column = allColumn[i];
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) return -1;
+
+	assert(column->tot_seg_in_GPU == 0);
+	cacheColumnSegmentInGPU(column, column->total_segment);
+	return 0;
+}
+
+void
+CacheManager::deleteColumnsFromGPU() {
+	for (int i = 0; i < TOT_COLUMN; i++) {
+		if (allColumn[i]->tot_seg_in_GPU == allColumn[i]->total_segment) {
+			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
+		}
+	}
+}
 
 void
 CacheManager::loadColumnToCPU() {

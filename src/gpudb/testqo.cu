@@ -6,9 +6,11 @@
 
 // tbb::task_scheduler_init init(1);
 
+
+
 int main() {
 
-	bool verbose = 0;
+	bool verbose = 1;
 
 	srand(123);
 	
@@ -29,7 +31,7 @@ int main() {
 	CacheManager* cm = cgp->cm;
 
 	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 58);
+	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
 	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
@@ -74,7 +76,7 @@ int main() {
 	string query;
 	double time = 0;
 	double time1 = 0, time2 = 0;
-	bool skew = true;
+	bool skew = false;
 
 	qp = new QueryProcessing(cgp, verbose, skew);
 
@@ -90,6 +92,8 @@ int main() {
 		cout << "8. Update Cache (Segmented)" << endl;
 		cout << "9. Dump Trace" << endl;
 		cout << "10. Exit" << endl;
+		cout << "cache. Cache Specific Column" << endl;
+		cout << "clear. Delete Columns from GPU" << endl;
 		cout << "Your Input: ";
 		cin >> input;
 
@@ -171,6 +175,16 @@ int main() {
 			cin >> filename;
 			qp->dumpTrace("logs/"+filename);
 			cout << "Dumped Trace" << endl;
+		} else if (input.compare("cache") == 0) {
+			string column_name;
+			int ret;
+			do {
+				cout << "	Column to cache: ";
+				cin >> column_name;
+				ret = cgp->cm->cacheSpecificColumn(column_name);
+			} while (ret != 0);
+		} else if (input.compare("clear") == 0) {
+			cgp->cm->deleteColumnsFromGPU();
 		} else {
 			exit = true;
 		}

@@ -79,7 +79,8 @@ void supplier (FILE *fp, char *outName){
         tupleUnit = tupleRemain;
       header.tupleNum = tupleUnit;
       header.blockId ++;
-      writeHeader = 1;
+      // writeHeader = 1;
+      writeHeader = 0;
     }
     for(i = 0, prev = 0,count=0; buf[i] !='\n';i++){
       if (buf[i] == delimiter){
@@ -228,7 +229,8 @@ void customer (FILE *fp, char *outName){
         tupleUnit = tupleRemain;
       header.tupleNum = tupleUnit;
       header.blockId ++;
-      writeHeader = 1;
+      // writeHeader = 1;
+      writeHeader = 0;
     }
     for(i = 0, prev = 0,count=0; buf[i] !='\n';i++){
       if (buf[i] == delimiter){
@@ -387,7 +389,8 @@ void part (FILE *fp, char *outName){
         tupleUnit = tupleRemain;
       header.tupleNum = tupleUnit;
       header.blockId ++;
-      writeHeader = 1;
+      // writeHeader = 1;
+      writeHeader = 0;
     }
     for(i = 0, prev = 0,count=0; buf[i] !='\n';i++){
       if (buf[i] == delimiter){
@@ -570,7 +573,8 @@ void ddate (FILE *fp, char *outName){
         tupleUnit = tupleRemain;
       header.tupleNum = tupleUnit;
       header.blockId ++;
-      writeHeader = 1;
+      // writeHeader = 1;
+      writeHeader = 0;
     }
     for(i = 0, prev = 0,count=0; buf[i] !='\n';i++){
       if (buf[i] == delimiter){

@@ -1306,6 +1306,9 @@ QueryOptimizer::prepareOperatorPlacement() {
 	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
 	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
 
+	memset(joinGPUcheck, 0, cm->TOT_TABLE * sizeof(bool));
+	memset(joinCPUcheck, 0, cm->TOT_TABLE * sizeof(bool));
+
 	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
 	// segment_group_temp = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
 	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
@@ -1348,6 +1351,7 @@ QueryOptimizer::prepareOperatorPlacement() {
 
 	joinGPUall = true;
 	for (int i = 0; i < join.size(); i++) {
+		// cout << i << endl;
 		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
 			joinCPUcheck[join[i].second->table_id] = true;
 			joinGPUcheck[join[i].second->table_id] = false;
@@ -1356,12 +1360,17 @@ QueryOptimizer::prepareOperatorPlacement() {
 			if (pkey_fkey[join[i].second]->tot_seg_in_GPU == pkey_fkey[join[i].second]->total_segment) {
 				joinCPUcheck[join[i].second->table_id] = false;
 				joinGPUcheck[join[i].second->table_id] = true;
+			} else if (pkey_fkey[join[i].second]->tot_seg_in_GPU == 0) {
+				joinCPUcheck[join[i].second->table_id] = true;
+				joinGPUcheck[join[i].second->table_id] = false;
 			} else {
 				joinCPUcheck[join[i].second->table_id] = true;
-				joinGPUcheck[join[i].second->table_id] = true;
+				joinGPUcheck[join[i].second->table_id] = true;	
 			}
 		}
 	}
+
+
 }
 
 void

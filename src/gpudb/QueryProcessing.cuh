@@ -10,7 +10,7 @@ QueryProcessing::executeTableDim(int table_id, int sg) {
     memset(h_total, 0, sizeof(int));
     d_total = (int*) cm->customCudaMalloc<int>(1);
 
-    cout << "dim " << sg << endl;
+    // cout << "dim " << sg << endl;
 
     if (sg == 0 || sg == 1) {
 
@@ -53,7 +53,7 @@ QueryProcessing::executeTableFact_v1(int sg) {
     memset(h_total, 0, sizeof(int));
     d_total = (int*) cm->customCudaMalloc<int>(1);
 
-    printf("fact sg = %d\n", sg);
+    // printf("fact sg = %d\n", sg);
 
     if (qo->selectCPUPipelineCol[sg].size() > 0) {
       if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
@@ -1278,6 +1278,8 @@ QueryProcessing::profile() {
     query = queries[i];
 
     cout << endl;
+    cout << endl;
+    cout << endl;
     cout << "Query: " << query << endl;
 
     qo->parseQuery(query);
@@ -1299,6 +1301,8 @@ QueryProcessing::profile() {
       qo->clearPlacement();
       endQuery();
     }
+
+    cout << endl;
 
     qo->clearParsing();
 
@@ -1329,6 +1333,8 @@ QueryProcessing::profile() {
 
       cm->deleteColumnSegmentInGPU(qo->querySelectColumn[j], qo->querySelectColumn[j]->total_segment);
     }
+
+    cout << endl;
 
     for (int j = 0; j < qo->join.size(); j++) {
       cm->cacheColumnSegmentInGPU(qo->join[j].first, qo->join[j].first->total_segment);
@@ -1373,6 +1379,8 @@ QueryProcessing::profile() {
       qo->clearPlacement();
       endQuery();
     }
+
+    cout << endl;
 
     for (int j = 0; j < qo->queryGroupByColumn.size(); j++) {
       cm->cacheColumnSegmentInGPU(qo->queryGroupByColumn[j], qo->queryGroupByColumn[j]->total_segment);

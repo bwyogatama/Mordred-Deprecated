@@ -124,7 +124,7 @@ static void primarySort(struct sortObject * obj, int num){
  * 	The memory is large enough to hold each column.	
  */
 
-//	./columnSort ../data/s10_columnar/LINEORDER ../data/s10_columnar/LINEORDERSORT 5 16 59986214
+//	./columnSort ../data/s40_columnar/LINEORDER ../data/s40_columnar/LINEORDERSORT 5 16 240012412
 
 int main(int argc, char **argv){
 
@@ -134,7 +134,7 @@ int main(int argc, char **argv){
 	}
 
 	int inFd;
-	int primaryIndex, largestIndex, LEN;
+	unsigned int primaryIndex, largestIndex, LEN;
 	// struct columnHeader header;
 
 	primaryIndex = atoi(argv[3]);
@@ -162,8 +162,8 @@ int main(int argc, char **argv){
 	// long tupleNum = header.totalTupleNum;
 	// int blockTotal = header.blockTotal;
 
-	long size = LEN * sizeof(int);
-	long tupleNum = LEN;
+	unsigned long size = LEN * sizeof(int);
+	unsigned long tupleNum = LEN;
 	int blockTotal = 1;
 
 	char * raw = (char *) malloc(size);
@@ -173,8 +173,8 @@ int main(int argc, char **argv){
 	}
 
 	// long offset = sizeof(struct columnHeader);
-	long offset = 0;
-	long inOffset = 0;
+	unsigned long offset = 0;
+	unsigned long inOffset = 0;
 	// size = header.tupleNum * sizeof(int);
 	size = LEN * sizeof(int);
 
@@ -218,8 +218,11 @@ int main(int argc, char **argv){
 
 	primarySort(obj,tupleNum);
 
+	printf("Sorting done\n");
+
 	for(int i=0;i<= largestIndex;i++){
 
+		printf("Writing %s%d\n",argv[1],i);
 		sprintf(buf,"%s%d",argv[1],i);
 		inFd = open(buf,O_RDONLY);
 		if(inFd == -1){
@@ -228,7 +231,8 @@ int main(int argc, char **argv){
 		}
 		size = lseek(inFd,0,SEEK_END);
 		// int tupleSize = (size - blockTotal*sizeof(struct columnHeader))/tupleNum;
-		int tupleSize = size/tupleNum;
+		// printf("%ld\n",size);
+		unsigned int tupleSize = size/tupleNum;
 
 		raw = (char *) malloc(size);
 		if(!raw){
@@ -239,20 +243,30 @@ int main(int argc, char **argv){
 		inOffset = 0;
 		offset = 0;
 
-		for(int j=0;j<blockTotal;j++){
+		// printf("hi\n");
+
+		// for(int j=0;j<blockTotal;j++){
 			lseek(inFd, offset, SEEK_SET);
 			// read(inFd, &header,sizeof(struct columnHeader));
 			// offset += sizeof(struct columnHeader);
 			// size = header.tupleNum * tupleSize;
 			size = LEN * tupleSize;
+			// printf("%d %d %ld\n",LEN, tupleSize, size);
 			outTable = (char *) mmap(0,size ,PROT_READ,MAP_SHARED,inFd, offset);
-
+			if (!outTable) {
+				printf ("Mmap failed!\n"); exit(-1);
+			}
+			// printf("ho\n");
 			memcpy(raw+inOffset, outTable,size);
+			// printf("ho\n");
 			munmap(outTable,size);
+			// printf("ho\n");
 
-			offset += size;
-			inOffset += size;
-		}
+			// offset += size;
+			// inOffset += size;
+		// }
+
+		
 
 		close(inFd);
 

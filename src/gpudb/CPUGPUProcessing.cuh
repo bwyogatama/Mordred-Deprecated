@@ -45,6 +45,7 @@ CPUGPUProcessing::switch_device_fact(int** &off_col, int** &h_off_col, int* &d_t
     CubDebugExit(cudaStreamSynchronize(stream));
     for (int i = 0; i < cm->TOT_TABLE; i++) {
       if (off_col[i] != NULL) {
+        // cout << i << endl;
         h_off_col[i] = (int*) cm->customCudaHostAlloc<int>(*h_total);
         CubDebugExit(cudaMemcpyAsync(h_off_col[i], off_col[i], *h_total * sizeof(int), cudaMemcpyDeviceToHost, stream));
         // CubDebugExit(cudaStreamSynchronize(stream));
