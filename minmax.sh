@@ -1,13 +1,13 @@
-SF=10
+SF=40
 
 # Make sure encoder is using right scale factor
 bin=bin/gpudb/minmax
 binsort=bin/gpudb/minmaxsort
 
-LO_LEN=59986214
-P_LEN=800000
-S_LEN=20000
-C_LEN=300000
+LO_LEN=240012412
+P_LEN=1200000
+S_LEN=80000
+C_LEN=1200000
 D_LEN=2556
 
 # arr=("lo_custkey" "lo_partkey" "lo_suppkey" "lo_orderdate" "lo_quantity" "lo_extendedprice" "lo_discount" "lo_revenue" "lo_supplycost" "lo_orderkey" "lo_linenumber" "lo_tax" "lo_ordtotalprice" "lo_commitdate")

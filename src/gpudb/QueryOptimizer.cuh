@@ -1,4 +1,8 @@
+#ifndef _QUERY_OPTIMIZER_CUH_
+#define _QUERY_OPTIMIZER_CUH_
+
 #include "QueryOptimizer.h"
+#include "CostModel.h"
 
 QueryOptimizer::QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize) {
 	cm = new CacheManager(_cache_size, _ondemand_size, _processing_size, _pinned_memsize);
@@ -1373,413 +1377,373 @@ QueryOptimizer::prepareOperatorPlacement() {
 
 }
 
-void
-QueryOptimizer::dataDrivenOperatorPlacement(int query, bool isprofile) {
+// void
+// QueryOptimizer::dataDrivenOperatorPlacement(int query, bool isprofile) {
 
-	opRoots.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) opRoots[i].resize(MAX_GROUPS);
-	opCPUPipeline.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		opCPUPipeline[i].resize(MAX_GROUPS);
-		for (int j = 0; j < MAX_GROUPS; j++) {
-			opCPUPipeline[i][j].resize(1);
-		}
-	}
-	opGPUPipeline.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		opGPUPipeline[i].resize(MAX_GROUPS);
-		for (int j = 0; j < MAX_GROUPS; j++) {
-			opGPUPipeline[i][j].resize(1);
-		}
-	}
+// 	opRoots.resize(cm->TOT_TABLE);
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) opRoots[i].resize(MAX_GROUPS);
+// 	opCPUPipeline.resize(cm->TOT_TABLE);
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) {
+// 		opCPUPipeline[i].resize(MAX_GROUPS);
+// 		for (int j = 0; j < MAX_GROUPS; j++) {
+// 			opCPUPipeline[i][j].resize(1);
+// 		}
+// 	}
+// 	opGPUPipeline.resize(cm->TOT_TABLE);
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) {
+// 		opGPUPipeline[i].resize(MAX_GROUPS);
+// 		for (int j = 0; j < MAX_GROUPS; j++) {
+// 			opGPUPipeline[i][j].resize(1);
+// 		}
+// 	}
 
-	selectGPUPipelineCol.resize(MAX_GROUPS);
-	selectCPUPipelineCol.resize(MAX_GROUPS);
-	joinGPUPipelineCol.resize(MAX_GROUPS);
-	joinCPUPipelineCol.resize(MAX_GROUPS);
-	groupbyGPUPipelineCol.resize(MAX_GROUPS);
-	groupbyCPUPipelineCol.resize(MAX_GROUPS);
+// 	selectGPUPipelineCol.resize(MAX_GROUPS);
+// 	selectCPUPipelineCol.resize(MAX_GROUPS);
+// 	joinGPUPipelineCol.resize(MAX_GROUPS);
+// 	joinCPUPipelineCol.resize(MAX_GROUPS);
+// 	groupbyGPUPipelineCol.resize(MAX_GROUPS);
+// 	groupbyCPUPipelineCol.resize(MAX_GROUPS);
 
-	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
-	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+// 	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+// 	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
+// 	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
+// 	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
 
-	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
-	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		int total_segment = cm->allColumn[cm->columns_in_table[i][0]]->total_segment;
-		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), MAX_GROUPS * total_segment * sizeof(short), cudaHostAllocDefault));
-		segment_group_count[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
-		par_segment[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
-		joinGPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
-		joinCPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
-		memset(joinGPU[i], 0, MAX_GROUPS * sizeof(bool));
-		memset(joinCPU[i], 0, MAX_GROUPS * sizeof(bool));
-		memset(segment_group_count[i], 0, MAX_GROUPS * sizeof(short));
-		memset(par_segment[i], 0, MAX_GROUPS * sizeof(short));
-	}
+// 	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
+// 	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+// 	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) {
+// 		int total_segment = cm->allColumn[cm->columns_in_table[i][0]]->total_segment;
+// 		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), MAX_GROUPS * total_segment * sizeof(short), cudaHostAllocDefault));
+// 		segment_group_count[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
+// 		par_segment[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
+// 		joinGPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
+// 		joinCPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
+// 		memset(joinGPU[i], 0, MAX_GROUPS * sizeof(bool));
+// 		memset(joinCPU[i], 0, MAX_GROUPS * sizeof(bool));
+// 		memset(segment_group_count[i], 0, MAX_GROUPS * sizeof(short));
+// 		memset(par_segment[i], 0, MAX_GROUPS * sizeof(short));
+// 	}
 
-	last_segment = new int[cm->TOT_TABLE];
-	par_segment_count = new short[cm->TOT_TABLE];
-	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
+// 	last_segment = new int[cm->TOT_TABLE];
+// 	par_segment_count = new short[cm->TOT_TABLE];
+// 	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
 
-	groupGPUcheck = true;
+// 	groupGPUcheck = true;
 
-	for (int i = 0; i < join.size(); i++) {
-		if (groupby_build.size() > 0) {
-			for (int j = 0; j < groupby_build[join[i].second].size(); j++) {
-				int tot_seg_in_GPU = groupby_build[join[i].second][j]->tot_seg_in_GPU;
-				int total_segment = groupby_build[join[i].second][j]->total_segment;
-				if (tot_seg_in_GPU < total_segment) {
-					groupGPUcheck = false;
-					break;
-				}
-			}
-		}
-	}
+// 	for (int i = 0; i < join.size(); i++) {
+// 		if (groupby_build.size() > 0) {
+// 			for (int j = 0; j < groupby_build[join[i].second].size(); j++) {
+// 				int tot_seg_in_GPU = groupby_build[join[i].second][j]->tot_seg_in_GPU;
+// 				int total_segment = groupby_build[join[i].second][j]->total_segment;
+// 				if (tot_seg_in_GPU < total_segment) {
+// 					groupGPUcheck = false;
+// 					break;
+// 				}
+// 			}
+// 		}
+// 	}
 
-	for (int i = 0; i < join.size(); i++) {
-		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
-			joinGPUcheck[join[i].second->table_id] = false;
-		} else {
-			joinGPUcheck[join[i].second->table_id] = true;
-		}
-	}
+// 	for (int i = 0; i < join.size(); i++) {
+// 		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
+// 			joinGPUcheck[join[i].second->table_id] = false;
+// 		} else {
+// 			joinGPUcheck[join[i].second->table_id] = true;
+// 		}
+// 	}
 
-	groupBitmapSegment(query, isprofile);
-}
+// 	groupBitmapSegment(query, isprofile);
+// }
 
-void
-QueryOptimizer::groupBitmap(bool isprofile) {
+// void
+// QueryOptimizer::groupBitmap(bool isprofile) {
 
-	for (int i = 0; i < cm->lo_orderdate->total_segment; i++) {
-		unsigned short temp = 0;
-		int table_id = cm->lo_orderdate->table_id;
+// 	for (int i = 0; i < cm->lo_orderdate->total_segment; i++) {
+// 		unsigned short temp = 0;
+// 		int table_id = cm->lo_orderdate->table_id;
 
-		for (int j = 0; j < opParsed[table_id].size(); j++) {
-			Operator* op = opParsed[table_id][j];
-			temp = temp << op->columns.size();
-			for (int k = 0; k < op->columns.size(); k++) {
-				ColumnInfo* column = op->columns[k];
-				bool isGPU = cm->segment_bitmap[column->column_id][i];
-				temp = temp | (isGPU << k);
-			}
-		}
+// 		for (int j = 0; j < opParsed[table_id].size(); j++) {
+// 			Operator* op = opParsed[table_id][j];
+// 			temp = temp << op->columns.size();
+// 			for (int k = 0; k < op->columns.size(); k++) {
+// 				ColumnInfo* column = op->columns[k];
+// 				bool isGPU = cm->segment_bitmap[column->column_id][i];
+// 				temp = temp | (isGPU << k);
+// 			}
+// 		}
 
-		segment_group[table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[table_id][temp]] = i;
-		segment_group_count[table_id][temp]++;
+// 		segment_group[table_id][temp * cm->lo_orderdate->total_segment + segment_group_count[table_id][temp]] = i;
+// 		segment_group_count[table_id][temp]++;
 
-		if (i == cm->lo_orderdate->total_segment - 1) {
-			if (cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) {
-				last_segment[table_id] = temp;
-			}
-		}
-	}
+// 		if (i == cm->lo_orderdate->total_segment - 1) {
+// 			if (cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) {
+// 				last_segment[table_id] = temp;
+// 			}
+// 		}
+// 	}
 
-	for (int i = 0; i < join.size(); i++) {
+// 	for (int i = 0; i < join.size(); i++) {
 
-		int table_id = join[i].second->table_id;
+// 		int table_id = join[i].second->table_id;
 		
-		for (int j = 0; j < join[i].second->total_segment; j++) {
-			unsigned short temp = 0;
+// 		for (int j = 0; j < join[i].second->total_segment; j++) {
+// 			unsigned short temp = 0;
 
-			for (int k = 0; k < opParsed[table_id].size(); k++) {
-				Operator* op = opParsed[table_id][k];
-				temp = temp << op->columns.size();
-				for (int l = 0; l < op->columns.size(); l++) {
-					ColumnInfo* column = op->columns[l];
-					bool isGPU = cm->segment_bitmap[column->column_id][j];
-					temp = temp | (isGPU << l);
-				}
-			}
+// 			for (int k = 0; k < opParsed[table_id].size(); k++) {
+// 				Operator* op = opParsed[table_id][k];
+// 				temp = temp << op->columns.size();
+// 				for (int l = 0; l < op->columns.size(); l++) {
+// 					ColumnInfo* column = op->columns[l];
+// 					bool isGPU = cm->segment_bitmap[column->column_id][j];
+// 					temp = temp | (isGPU << l);
+// 				}
+// 			}
 
-			segment_group[table_id][temp * join[i].second->total_segment + segment_group_count[table_id][temp]] = j;
-			segment_group_count[table_id][temp]++;
+// 			segment_group[table_id][temp * join[i].second->total_segment + segment_group_count[table_id][temp]] = j;
+// 			segment_group_count[table_id][temp]++;
 
-			if (j == join[i].second->total_segment - 1) {
-				if (join[i].second->LEN % SEGMENT_SIZE != 0) {
-					last_segment[table_id] = temp;
-				}
-			}
+// 			if (j == join[i].second->total_segment - 1) {
+// 				if (join[i].second->LEN % SEGMENT_SIZE != 0) {
+// 					last_segment[table_id] = temp;
+// 				}
+// 			}
 
-		}
-	}
+// 		}
+// 	}
 
-	for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
-		int table_id = cm->lo_orderdate->table_id;
-		if (segment_group_count[table_id][i] > 0) {
+// 	for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+// 		int table_id = cm->lo_orderdate->table_id;
+// 		if (segment_group_count[table_id][i] > 0) {
 
-			unsigned short sg = i;
+// 			unsigned short sg = i;
 
-			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
+// 			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
 
-				Operator* op = opParsed[table_id][j];
-				unsigned short  bit = 1;
-				for (int k = 0; k < op->columns.size(); k++) {
-					bit = (sg & (1 << k)) >> k;
-					if (!bit) break;
-				}
+// 				Operator* op = opParsed[table_id][j];
+// 				unsigned short  bit = 1;
+// 				for (int k = 0; k < op->columns.size(); k++) {
+// 					bit = (sg & (1 << k)) >> k;
+// 					if (!bit) break;
+// 				}
 
-				if (op->type == GroupBy) {
-					// cout << bit << " " << groupGPUcheck << endl;
-					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Aggr) {
-					(bit) ? (op->device = GPU):(op->device = CPU); 		
-				} else if (op->type == Probe) {	
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
-				} else if (op->type == Filter) {
-					(bit) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Build) {
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
-				}
+// 				if (op->type == GroupBy) {
+// 					// cout << bit << " " << groupGPUcheck << endl;
+// 					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
+// 				} else if (op->type == Aggr) {
+// 					(bit) ? (op->device = GPU):(op->device = CPU); 		
+// 				} else if (op->type == Probe) {	
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
+// 				} else if (op->type == Filter) {
+// 					(bit) ? (op->device = GPU):(op->device = CPU);
+// 				} else if (op->type == Build) {
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
+// 				}
 
-				sg = sg >> op->columns.size();
-			}
+// 				sg = sg >> op->columns.size();
+// 			}
 
-			for (int j = 0; j < opParsed[table_id].size(); j++) {
-				Operator* op = opParsed[table_id][j];
-				// cout << op->type << endl;
-				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
-					if (op->device == GPU) {
-						opGPUPipeline[table_id][i][0].push_back(op);
-					} else if (op->device == CPU) {
-						opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == GroupBy || op->type == Aggr) {
-					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
-						// cout << "ho" << endl;
-						opCPUPipeline[table_id][i][0].push_back(op);
-					} else {
-						// cout << "hi" << endl;
-						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == Build) { //TODO!! FIX THIS
-					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-					else {
-						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}					
-				}
-			}
+// 			for (int j = 0; j < opParsed[table_id].size(); j++) {
+// 				Operator* op = opParsed[table_id][j];
+// 				// cout << op->type << endl;
+// 				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
+// 					if (op->device == GPU) {
+// 						opGPUPipeline[table_id][i][0].push_back(op);
+// 					} else if (op->device == CPU) {
+// 						opCPUPipeline[table_id][i][0].push_back(op);
+// 					}
+// 				} else if (op->type == GroupBy || op->type == Aggr) {
+// 					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
+// 						// cout << "ho" << endl;
+// 						opCPUPipeline[table_id][i][0].push_back(op);
+// 					} else {
+// 						// cout << "hi" << endl;
+// 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 					}
+// 				} else if (op->type == Build) { //TODO!! FIX THIS
+// 					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+// 					else {
+// 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 					}					
+// 				}
+// 			}
 
-			Operator* op;
+// 			Operator* op;
 
-			//TODO!! FIX THIS
-			if (opGPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opGPUPipeline[table_id][i][0][j]);
-					op = opGPUPipeline[table_id][i][0][j];
-				}
-				if (opCPUPipeline[table_id][i][0].size() > 0) {
-					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-					op->addChild(transferOp);
-					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-					transferOp->addChild(matOp);
-					op = matOp;
-					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-						op->addChild(opCPUPipeline[table_id][i][0][j]);
-						op = opCPUPipeline[table_id][i][0][j];
-					}
-				}
-			} else {
-				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opCPUPipeline[table_id][i][0][j]);
-					op = opCPUPipeline[table_id][i][0][j];
-				}
-			}
-		}
-	}
+// 			//TODO!! FIX THIS
+// 			if (opGPUPipeline[table_id][i][0].size() > 0) {
+// 				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+// 				op = opRoots[table_id][i];
+// 				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+// 					op->addChild(opGPUPipeline[table_id][i][0][j]);
+// 					op = opGPUPipeline[table_id][i][0][j];
+// 				}
+// 				if (opCPUPipeline[table_id][i][0].size() > 0) {
+// 					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
+// 					op->addChild(transferOp);
+// 					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
+// 					transferOp->addChild(matOp);
+// 					op = matOp;
+// 					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 						op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 						op = opCPUPipeline[table_id][i][0][j];
+// 					}
+// 				}
+// 			} else {
+// 				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
+// 				op = opRoots[table_id][i];
+// 				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 					op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 					op = opCPUPipeline[table_id][i][0][j];
+// 				}
+// 			}
+// 		}
+// 	}
 
-	for (int dim = 0; dim < join.size(); dim++) {
-		int table_id = join[dim].second->table_id;
-			for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
-				if (segment_group_count[table_id][i] > 0) {
+// 	for (int dim = 0; dim < join.size(); dim++) {
+// 		int table_id = join[dim].second->table_id;
+// 			for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+// 				if (segment_group_count[table_id][i] > 0) {
 
-					unsigned short sg = i;
+// 					unsigned short sg = i;
 
-					for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
+// 					for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
 
-						Operator* op = opParsed[table_id][j];
-						unsigned short  bit = 1;
-						for (int k = 0; k < op->columns.size(); k++) {
-							bit = (sg & (1 << k)) >> k;
-							if (!bit) break;
-						}
+// 						Operator* op = opParsed[table_id][j];
+// 						unsigned short  bit = 1;
+// 						for (int k = 0; k < op->columns.size(); k++) {
+// 							bit = (sg & (1 << k)) >> k;
+// 							if (!bit) break;
+// 						}
 
-						if (op->type == GroupBy) {
-							(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
-						} else if (op->type == Aggr) {
-							(bit) ? (op->device = GPU):(op->device = CPU); 		
-						} else if (op->type == Probe) {	
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
-						} else if (op->type == Filter) {
-							(bit) ? (op->device = GPU):(op->device = CPU);
-						} else if (op->type == Build) {
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
-						}
+// 						if (op->type == GroupBy) {
+// 							(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
+// 						} else if (op->type == Aggr) {
+// 							(bit) ? (op->device = GPU):(op->device = CPU); 		
+// 						} else if (op->type == Probe) {	
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
+// 						} else if (op->type == Filter) {
+// 							(bit) ? (op->device = GPU):(op->device = CPU);
+// 						} else if (op->type == Build) {
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
+// 						}
 
-						sg = sg >> op->columns.size();
-					}
+// 						sg = sg >> op->columns.size();
+// 					}
 
-					for (int j = 0; j < opParsed[table_id].size(); j++) {
-						Operator* op = opParsed[table_id][j];
-						if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
-							if (op->device == GPU) {
-								opGPUPipeline[table_id][i][0].push_back(op);
-							} else if (op->device == CPU) {
-								opCPUPipeline[table_id][i][0].push_back(op);	
-							}
-						} else if (op->type == GroupBy || op->type == Aggr) {
-							if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
-								opCPUPipeline[table_id][i][0].push_back(op);
-							} else {
-								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-							}
-						} else if (op->type == Build) { //TODO!! FIX THIS
-							if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-							else {
-								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-							}					
-						}
-					}
+// 					for (int j = 0; j < opParsed[table_id].size(); j++) {
+// 						Operator* op = opParsed[table_id][j];
+// 						if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
+// 							if (op->device == GPU) {
+// 								opGPUPipeline[table_id][i][0].push_back(op);
+// 							} else if (op->device == CPU) {
+// 								opCPUPipeline[table_id][i][0].push_back(op);	
+// 							}
+// 						} else if (op->type == GroupBy || op->type == Aggr) {
+// 							if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
+// 								opCPUPipeline[table_id][i][0].push_back(op);
+// 							} else {
+// 								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 							}
+// 						} else if (op->type == Build) { //TODO!! FIX THIS
+// 							if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+// 							else {
+// 								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 							}					
+// 						}
+// 					}
 
-					Operator* op;
+// 					Operator* op;
 
-					//TODO!! FIX THIS
-					if (opGPUPipeline[table_id][i][0].size() > 0) {
-						opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-						op = opRoots[table_id][i];
-						for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-							op->addChild(opGPUPipeline[table_id][i][0][j]);
-							op = opGPUPipeline[table_id][i][0][j];
-						}
-						if (opCPUPipeline[table_id][i][0].size() > 0) {
-							Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-							op->addChild(transferOp);
-							Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-							transferOp->addChild(matOp);
-							op = matOp;
-							for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-								op->addChild(opCPUPipeline[table_id][i][0][j]);
-								op = opCPUPipeline[table_id][i][0][j];
-							}
-						}
-					} else {
-						opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
-						op = opRoots[table_id][i];
-						for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-							op->addChild(opCPUPipeline[table_id][i][0][j]);
-							op = opCPUPipeline[table_id][i][0][j];
-						}
-					}
-				}
-			}
-	}
+// 					//TODO!! FIX THIS
+// 					if (opGPUPipeline[table_id][i][0].size() > 0) {
+// 						opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+// 						op = opRoots[table_id][i];
+// 						for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+// 							op->addChild(opGPUPipeline[table_id][i][0][j]);
+// 							op = opGPUPipeline[table_id][i][0][j];
+// 						}
+// 						if (opCPUPipeline[table_id][i][0].size() > 0) {
+// 							Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
+// 							op->addChild(transferOp);
+// 							Operator* matOp = new Operator(CPU, i, table_id, Materialize);
+// 							transferOp->addChild(matOp);
+// 							op = matOp;
+// 							for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 								op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 								op = opCPUPipeline[table_id][i][0][j];
+// 							}
+// 						}
+// 					} else {
+// 						opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
+// 						op = opRoots[table_id][i];
+// 						for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 							op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 							op = opCPUPipeline[table_id][i][0][j];
+// 						}
+// 					}
+// 				}
+// 			}
+// 	}
 
-	for (int i = 0; i < MAX_GROUPS; i++) {
-		if (segment_group_count[0][i] > 0) {
-			// cout << i << endl;
-			for (int j = 0; j < opGPUPipeline[0][i][0].size(); j++) {
-				Operator* op = opGPUPipeline[0][i][0][j];
-				// for (int col = 0; col < op->columns.size(); col++)
-				// 	cout << "GPU " << op->columns[col]->column_name << endl;
-				if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == GroupBy || op->type == Aggr) {
-					for (int k = 0; k < op->columns.size(); k++)
-						groupbyGPUPipelineCol[i].push_back(op->columns[k]);
-				}
-			}
-			for (int j = 0; j < opCPUPipeline[0][i][0].size(); j++) {
-				Operator* op = opCPUPipeline[0][i][0][j];
-				// for (int col = 0; col < op->columns.size(); col++)
-				// 	cout << "CPU " << op->columns[col]->column_name << endl;
-				if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == GroupBy || op->type == Aggr) {
-					for (int k = 0; k < op->columns.size(); k++)
-						groupbyCPUPipelineCol[i].push_back(op->columns[k]);
-				}
-			}
-		}
-	}
+// 	for (int i = 0; i < MAX_GROUPS; i++) {
+// 		if (segment_group_count[0][i] > 0) {
+// 			// cout << i << endl;
+// 			for (int j = 0; j < opGPUPipeline[0][i][0].size(); j++) {
+// 				Operator* op = opGPUPipeline[0][i][0][j];
+// 				// for (int col = 0; col < op->columns.size(); col++)
+// 				// 	cout << "GPU " << op->columns[col]->column_name << endl;
+// 				if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == GroupBy || op->type == Aggr) {
+// 					for (int k = 0; k < op->columns.size(); k++)
+// 						groupbyGPUPipelineCol[i].push_back(op->columns[k]);
+// 				}
+// 			}
+// 			for (int j = 0; j < opCPUPipeline[0][i][0].size(); j++) {
+// 				Operator* op = opCPUPipeline[0][i][0][j];
+// 				// for (int col = 0; col < op->columns.size(); col++)
+// 				// 	cout << "CPU " << op->columns[col]->column_name << endl;
+// 				if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == GroupBy || op->type == Aggr) {
+// 					for (int k = 0; k < op->columns.size(); k++)
+// 						groupbyCPUPipelineCol[i].push_back(op->columns[k]);
+// 				}
+// 			}
+// 		}
+// 	}
 
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		bool checkGPU = false, checkCPU = false;
-		for (int j = 0; j < MAX_GROUPS; j++) {
-			if (joinGPU[i][j] && joinGPUcheck[i]) checkGPU = true;
-			if (joinCPU[i][j]) checkCPU = true;
-		}
-		joinGPUcheck[i] = checkGPU;
-		joinCPUcheck[i] = checkCPU;
-		// cout << i << " check " << joinGPUcheck[i] << endl;
-		// cout << i << " check " << joinCPUcheck[i] << endl;
-	}
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) {
+// 		bool checkGPU = false, checkCPU = false;
+// 		for (int j = 0; j < MAX_GROUPS; j++) {
+// 			if (joinGPU[i][j] && joinGPUcheck[i]) checkGPU = true;
+// 			if (joinCPU[i][j]) checkCPU = true;
+// 		}
+// 		joinGPUcheck[i] = checkGPU;
+// 		joinCPUcheck[i] = checkCPU;
+// 		// cout << i << " check " << joinGPUcheck[i] << endl;
+// 		// cout << i << " check " << joinCPUcheck[i] << endl;
+// 	}
 
-
-	// cout << endl;
-
-	// cout << "joinGPUPipelineCol" << endl;
-	// for (int i = 0; i < MAX_GROUPS; i++) {
-	// 	for (int j = 0; j < joinGPUPipelineCol[i].size(); j++) {
-	// 		cout << joinGPUPipelineCol[i][j]->column_name << endl;
-	// 	}
-	// }
-
-	// cout << endl;
-
-	// cout << "joinCPUPipelineCol" << endl;
-	// for (int i = 0; i < MAX_GROUPS; i++) {
-	// 	for (int j = 0; j < joinCPUPipelineCol[i].size(); j++) {
-	// 		cout << joinCPUPipelineCol[i][j]->column_name << endl;
-	// 	}
-	// }
-
-	// cout << endl;
-
-	// cout << "groupbyGPUPipelineCol" << endl;
-	// for (int i = 0; i < MAX_GROUPS; i++) {
-	// 	for (int j = 0; j < groupbyGPUPipelineCol[i].size(); j++) {
-	// 		cout << groupbyGPUPipelineCol[i][j]->column_name << endl;
-	// 	}
-	// }
-
-	// cout << endl;
-
-	// cout << "groupbyCPUPipelineCol" << endl;
-	// for (int i = 0; i < MAX_GROUPS; i++) {
-	// 	for (int j = 0; j < groupbyCPUPipelineCol[i].size(); j++) {
-	// 		cout << groupbyCPUPipelineCol[i][j]->column_name << endl;
-	// 	}
-	// }
-
-	// cout << endl;
-
-
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		short count = 0;
-		for (int sg = 0; sg < MAX_GROUPS; sg++) {
-			if (segment_group_count[i][sg] > 0) {
-				par_segment[i][count] = sg;
-				count++;
-			}
-		}
-		par_segment_count[i] = count;
-	}
-}
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) {
+// 		short count = 0;
+// 		for (int sg = 0; sg < MAX_GROUPS; sg++) {
+// 			if (segment_group_count[i][sg] > 0) {
+// 				par_segment[i][count] = sg;
+// 				count++;
+// 			}
+// 		}
+// 		par_segment_count[i] = count;
+// 	}
+// }
 
 bool
 QueryOptimizer::checkPredicate(int table_id, int segment_idx) {
@@ -1815,307 +1779,307 @@ QueryOptimizer::updateSegmentStats(int table_id, int segment_idx, int query) {
 	}
 }
 
-void
-QueryOptimizer::groupBitmapSegment(int query, bool isprofile) {
+// void
+// QueryOptimizer::groupBitmapSegment(int query, bool isprofile) {
 
-	for (int i = 0; i < cm->lo_orderdate->total_segment; i++) {
-		unsigned short temp = 0;
-		int table_id = cm->lo_orderdate->table_id;
+// 	for (int i = 0; i < cm->lo_orderdate->total_segment; i++) {
+// 		unsigned short temp = 0;
+// 		int table_id = cm->lo_orderdate->table_id;
 
-		for (int j = 0; j < opParsed[table_id].size(); j++) {
-			Operator* op = opParsed[table_id][j];
-			temp = temp << op->columns.size();
-			for (int k = 0; k < op->columns.size(); k++) {
-				ColumnInfo* column = op->columns[k];
-				bool isGPU = cm->segment_bitmap[column->column_id][i];
-				temp = temp | (isGPU << k);
-			}
-		}
+// 		for (int j = 0; j < opParsed[table_id].size(); j++) {
+// 			Operator* op = opParsed[table_id][j];
+// 			temp = temp << op->columns.size();
+// 			for (int k = 0; k < op->columns.size(); k++) {
+// 				ColumnInfo* column = op->columns[k];
+// 				bool isGPU = cm->segment_bitmap[column->column_id][i];
+// 				temp = temp | (isGPU << k);
+// 			}
+// 		}
 
-		int count = segment_group_count[table_id][temp];
+// 		int count = segment_group_count[table_id][temp];
 
-		if (checkPredicate(table_id, i)) {
-			// cout << "hi" << endl;
-			segment_group[table_id][temp * cm->lo_orderdate->total_segment + count] = i;
-			segment_group_count[table_id][temp]++;
-			if (!isprofile) updateSegmentStats(table_id, i, query);
-		}
+// 		if (checkPredicate(table_id, i)) {
+// 			// cout << "hi" << endl;
+// 			segment_group[table_id][temp * cm->lo_orderdate->total_segment + count] = i;
+// 			segment_group_count[table_id][temp]++;
+// 			if (!isprofile) updateSegmentStats(table_id, i, query);
+// 		}
 
-		if (i == cm->lo_orderdate->total_segment - 1) {
-			if (cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) {
-				last_segment[table_id] = temp;
-			}
-		}
-	}
+// 		if (i == cm->lo_orderdate->total_segment - 1) {
+// 			if (cm->lo_orderdate->LEN % SEGMENT_SIZE != 0) {
+// 				last_segment[table_id] = temp;
+// 			}
+// 		}
+// 	}
 
-	for (int i = 0; i < join.size(); i++) {
+// 	for (int i = 0; i < join.size(); i++) {
 
-		int table_id = join[i].second->table_id;
+// 		int table_id = join[i].second->table_id;
 		
-		for (int j = 0; j < join[i].second->total_segment; j++) {
-			unsigned short temp = 0;
+// 		for (int j = 0; j < join[i].second->total_segment; j++) {
+// 			unsigned short temp = 0;
 
-			for (int k = 0; k < opParsed[table_id].size(); k++) {
-				Operator* op = opParsed[table_id][k];
-				temp = temp << op->columns.size();
-				for (int l = 0; l < op->columns.size(); l++) {
-					ColumnInfo* column = op->columns[l];
-					bool isGPU = cm->segment_bitmap[column->column_id][j];
-					temp = temp | (isGPU << l);
-				}
-			}
+// 			for (int k = 0; k < opParsed[table_id].size(); k++) {
+// 				Operator* op = opParsed[table_id][k];
+// 				temp = temp << op->columns.size();
+// 				for (int l = 0; l < op->columns.size(); l++) {
+// 					ColumnInfo* column = op->columns[l];
+// 					bool isGPU = cm->segment_bitmap[column->column_id][j];
+// 					temp = temp | (isGPU << l);
+// 				}
+// 			}
 
-			int count = segment_group_count[table_id][temp];
+// 			int count = segment_group_count[table_id][temp];
 
-			if (checkPredicate(table_id, j)) {
-				segment_group[table_id][temp * join[i].second->total_segment + count] = j;
-				segment_group_count[table_id][temp]++;
-				if (!isprofile) updateSegmentStats(table_id, j, query);
-			}
+// 			if (checkPredicate(table_id, j)) {
+// 				segment_group[table_id][temp * join[i].second->total_segment + count] = j;
+// 				segment_group_count[table_id][temp]++;
+// 				if (!isprofile) updateSegmentStats(table_id, j, query);
+// 			}
 
-			if (j == join[i].second->total_segment - 1) {
-				if (join[i].second->LEN % SEGMENT_SIZE != 0) {
-					last_segment[table_id] = temp;
-				}
-			}
+// 			if (j == join[i].second->total_segment - 1) {
+// 				if (join[i].second->LEN % SEGMENT_SIZE != 0) {
+// 					last_segment[table_id] = temp;
+// 				}
+// 			}
 
-		}
-	}
+// 		}
+// 	}
 
-	for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
-		int table_id = cm->lo_orderdate->table_id;
-		if (segment_group_count[table_id][i] > 0) {
+// 	for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+// 		int table_id = cm->lo_orderdate->table_id;
+// 		if (segment_group_count[table_id][i] > 0) {
 
-			unsigned short sg = i;
+// 			unsigned short sg = i;
 
-			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
+// 			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
 
-				Operator* op = opParsed[table_id][j];
-				unsigned short  bit = 1;
-				for (int k = 0; k < op->columns.size(); k++) {
-					bit = (sg & (1 << k)) >> k;
-					if (!bit) break;
-				}
+// 				Operator* op = opParsed[table_id][j];
+// 				unsigned short  bit = 1;
+// 				for (int k = 0; k < op->columns.size(); k++) {
+// 					bit = (sg & (1 << k)) >> k;
+// 					if (!bit) break;
+// 				}
 
-				if (op->type == GroupBy) {
-					// cout << bit << " " << groupGPUcheck << endl;
-					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Aggr) {
-					(bit) ? (op->device = GPU):(op->device = CPU); 		
-				} else if (op->type == Probe) {	
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
-				} else if (op->type == Filter) {
-					(bit) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Build) {
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
-				}
+// 				if (op->type == GroupBy) {
+// 					// cout << bit << " " << groupGPUcheck << endl;
+// 					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
+// 				} else if (op->type == Aggr) {
+// 					(bit) ? (op->device = GPU):(op->device = CPU); 		
+// 				} else if (op->type == Probe) {	
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
+// 				} else if (op->type == Filter) {
+// 					(bit) ? (op->device = GPU):(op->device = CPU);
+// 				} else if (op->type == Build) {
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
+// 				}
 
-				sg = sg >> op->columns.size();
-			}
+// 				sg = sg >> op->columns.size();
+// 			}
 
-			for (int j = 0; j < opParsed[table_id].size(); j++) {
-				Operator* op = opParsed[table_id][j];
-				// cout << op->type << endl;
-				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
-					if (op->device == GPU) {
-						opGPUPipeline[table_id][i][0].push_back(op);
-					} else if (op->device == CPU) {
-						opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == GroupBy || op->type == Aggr) {
-					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
-						// cout << "ho" << endl;
-						opCPUPipeline[table_id][i][0].push_back(op);
-					} else {
-						// cout << "hi" << endl;
-						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == Build) { //TODO!! FIX THIS
-					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-					else {
-						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}					
-				}
-			}
+// 			for (int j = 0; j < opParsed[table_id].size(); j++) {
+// 				Operator* op = opParsed[table_id][j];
+// 				// cout << op->type << endl;
+// 				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
+// 					if (op->device == GPU) {
+// 						opGPUPipeline[table_id][i][0].push_back(op);
+// 					} else if (op->device == CPU) {
+// 						opCPUPipeline[table_id][i][0].push_back(op);
+// 					}
+// 				} else if (op->type == GroupBy || op->type == Aggr) {
+// 					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
+// 						// cout << "ho" << endl;
+// 						opCPUPipeline[table_id][i][0].push_back(op);
+// 					} else {
+// 						// cout << "hi" << endl;
+// 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 					}
+// 				} else if (op->type == Build) { //TODO!! FIX THIS
+// 					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+// 					else {
+// 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 					}					
+// 				}
+// 			}
 
-			Operator* op;
+// 			Operator* op;
 
-			//TODO!! FIX THIS
-			if (opGPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opGPUPipeline[table_id][i][0][j]);
-					op = opGPUPipeline[table_id][i][0][j];
-				}
-				if (opCPUPipeline[table_id][i][0].size() > 0) {
-					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-					op->addChild(transferOp);
-					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-					transferOp->addChild(matOp);
-					op = matOp;
-					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-						op->addChild(opCPUPipeline[table_id][i][0][j]);
-						op = opCPUPipeline[table_id][i][0][j];
-					}
-				}
-			} else {
-				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opCPUPipeline[table_id][i][0][j]);
-					op = opCPUPipeline[table_id][i][0][j];
-				}
-			}
-		}
-	}
+// 			//TODO!! FIX THIS
+// 			if (opGPUPipeline[table_id][i][0].size() > 0) {
+// 				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+// 				op = opRoots[table_id][i];
+// 				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+// 					op->addChild(opGPUPipeline[table_id][i][0][j]);
+// 					op = opGPUPipeline[table_id][i][0][j];
+// 				}
+// 				if (opCPUPipeline[table_id][i][0].size() > 0) {
+// 					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
+// 					op->addChild(transferOp);
+// 					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
+// 					transferOp->addChild(matOp);
+// 					op = matOp;
+// 					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 						op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 						op = opCPUPipeline[table_id][i][0][j];
+// 					}
+// 				}
+// 			} else {
+// 				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
+// 				op = opRoots[table_id][i];
+// 				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 					op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 					op = opCPUPipeline[table_id][i][0][j];
+// 				}
+// 			}
+// 		}
+// 	}
 
-	for (int dim = 0; dim < join.size(); dim++) {
-		int table_id = join[dim].second->table_id;
-			for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
-				if (segment_group_count[table_id][i] > 0) {
+// 	for (int dim = 0; dim < join.size(); dim++) {
+// 		int table_id = join[dim].second->table_id;
+// 			for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+// 				if (segment_group_count[table_id][i] > 0) {
 
-					unsigned short sg = i;
+// 					unsigned short sg = i;
 
-					for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
+// 					for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
 
-						Operator* op = opParsed[table_id][j];
-						unsigned short  bit = 1;
-						for (int k = 0; k < op->columns.size(); k++) {
-							bit = (sg & (1 << k)) >> k;
-							if (!bit) break;
-						}
+// 						Operator* op = opParsed[table_id][j];
+// 						unsigned short  bit = 1;
+// 						for (int k = 0; k < op->columns.size(); k++) {
+// 							bit = (sg & (1 << k)) >> k;
+// 							if (!bit) break;
+// 						}
 
-						if (op->type == GroupBy) {
-							(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
-						} else if (op->type == Aggr) {
-							(bit) ? (op->device = GPU):(op->device = CPU); 		
-						} else if (op->type == Probe) {	
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
-						} else if (op->type == Filter) {
-							(bit) ? (op->device = GPU):(op->device = CPU);
-						} else if (op->type == Build) {
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
-						}
+// 						if (op->type == GroupBy) {
+// 							(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
+// 						} else if (op->type == Aggr) {
+// 							(bit) ? (op->device = GPU):(op->device = CPU); 		
+// 						} else if (op->type == Probe) {	
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
+// 						} else if (op->type == Filter) {
+// 							(bit) ? (op->device = GPU):(op->device = CPU);
+// 						} else if (op->type == Build) {
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
+// 							(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1);					
+// 						}
 
-						sg = sg >> op->columns.size();
-					}
+// 						sg = sg >> op->columns.size();
+// 					}
 
-					for (int j = 0; j < opParsed[table_id].size(); j++) {
-						Operator* op = opParsed[table_id][j];
-						if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
-							if (op->device == GPU) {
-								opGPUPipeline[table_id][i][0].push_back(op);
-							} else if (op->device == CPU) {
-								opCPUPipeline[table_id][i][0].push_back(op);	
-							}
-						} else if (op->type == GroupBy || op->type == Aggr) {
-							if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
-								opCPUPipeline[table_id][i][0].push_back(op);
-							} else {
-								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-							}
-						} else if (op->type == Build) { //TODO!! FIX THIS
-							if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-							else {
-								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-							}					
-						}
-					}
+// 					for (int j = 0; j < opParsed[table_id].size(); j++) {
+// 						Operator* op = opParsed[table_id][j];
+// 						if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
+// 							if (op->device == GPU) {
+// 								opGPUPipeline[table_id][i][0].push_back(op);
+// 							} else if (op->device == CPU) {
+// 								opCPUPipeline[table_id][i][0].push_back(op);	
+// 							}
+// 						} else if (op->type == GroupBy || op->type == Aggr) {
+// 							if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
+// 								opCPUPipeline[table_id][i][0].push_back(op);
+// 							} else {
+// 								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 							}
+// 						} else if (op->type == Build) { //TODO!! FIX THIS
+// 							if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+// 							else {
+// 								if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
+// 								else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
+// 							}					
+// 						}
+// 					}
 
-					Operator* op;
+// 					Operator* op;
 
-					//TODO!! FIX THIS
-					if (opGPUPipeline[table_id][i][0].size() > 0) {
-						opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-						op = opRoots[table_id][i];
-						for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-							op->addChild(opGPUPipeline[table_id][i][0][j]);
-							op = opGPUPipeline[table_id][i][0][j];
-						}
-						if (opCPUPipeline[table_id][i][0].size() > 0) {
-							Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-							op->addChild(transferOp);
-							Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-							transferOp->addChild(matOp);
-							op = matOp;
-							for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-								op->addChild(opCPUPipeline[table_id][i][0][j]);
-								op = opCPUPipeline[table_id][i][0][j];
-							}
-						}
-					} else {
-						opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
-						op = opRoots[table_id][i];
-						for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-							op->addChild(opCPUPipeline[table_id][i][0][j]);
-							op = opCPUPipeline[table_id][i][0][j];
-						}
-					}
-				}
-			}
-	}
+// 					//TODO!! FIX THIS
+// 					if (opGPUPipeline[table_id][i][0].size() > 0) {
+// 						opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+// 						op = opRoots[table_id][i];
+// 						for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+// 							op->addChild(opGPUPipeline[table_id][i][0][j]);
+// 							op = opGPUPipeline[table_id][i][0][j];
+// 						}
+// 						if (opCPUPipeline[table_id][i][0].size() > 0) {
+// 							Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
+// 							op->addChild(transferOp);
+// 							Operator* matOp = new Operator(CPU, i, table_id, Materialize);
+// 							transferOp->addChild(matOp);
+// 							op = matOp;
+// 							for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 								op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 								op = opCPUPipeline[table_id][i][0][j];
+// 							}
+// 						}
+// 					} else {
+// 						opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
+// 						op = opRoots[table_id][i];
+// 						for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+// 							op->addChild(opCPUPipeline[table_id][i][0][j]);
+// 							op = opCPUPipeline[table_id][i][0][j];
+// 						}
+// 					}
+// 				}
+// 			}
+// 	}
 
-	for (int i = 0; i < MAX_GROUPS; i++) {
-		if (segment_group_count[0][i] > 0) {
-			// cout << i << endl;
-			for (int j = 0; j < opGPUPipeline[0][i][0].size(); j++) {
-				Operator* op = opGPUPipeline[0][i][0][j];
-				// for (int col = 0; col < op->columns.size(); col++)
-				// 	cout << "GPU " << op->columns[col]->column_name << endl;
-				if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == GroupBy || op->type == Aggr) {
-					for (int k = 0; k < op->columns.size(); k++)
-						groupbyGPUPipelineCol[i].push_back(op->columns[k]);
-				}
-			}
-			for (int j = 0; j < opCPUPipeline[0][i][0].size(); j++) {
-				Operator* op = opCPUPipeline[0][i][0][j];
-				// for (int col = 0; col < op->columns.size(); col++)
-				// 	cout << "CPU " << op->columns[col]->column_name << endl;
-				if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
-				else if (op->type == GroupBy || op->type == Aggr) {
-					for (int k = 0; k < op->columns.size(); k++)
-						groupbyCPUPipelineCol[i].push_back(op->columns[k]);
-				}
-			}
-		}
-	}
+// 	for (int i = 0; i < MAX_GROUPS; i++) {
+// 		if (segment_group_count[0][i] > 0) {
+// 			// cout << i << endl;
+// 			for (int j = 0; j < opGPUPipeline[0][i][0].size(); j++) {
+// 				Operator* op = opGPUPipeline[0][i][0][j];
+// 				// for (int col = 0; col < op->columns.size(); col++)
+// 				// 	cout << "GPU " << op->columns[col]->column_name << endl;
+// 				if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == GroupBy || op->type == Aggr) {
+// 					for (int k = 0; k < op->columns.size(); k++)
+// 						groupbyGPUPipelineCol[i].push_back(op->columns[k]);
+// 				}
+// 			}
+// 			for (int j = 0; j < opCPUPipeline[0][i][0].size(); j++) {
+// 				Operator* op = opCPUPipeline[0][i][0][j];
+// 				// for (int col = 0; col < op->columns.size(); col++)
+// 				// 	cout << "CPU " << op->columns[col]->column_name << endl;
+// 				if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
+// 				else if (op->type == GroupBy || op->type == Aggr) {
+// 					for (int k = 0; k < op->columns.size(); k++)
+// 						groupbyCPUPipelineCol[i].push_back(op->columns[k]);
+// 				}
+// 			}
+// 		}
+// 	}
 
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		bool checkGPU = false, checkCPU = false;
-		for (int j = 0; j < MAX_GROUPS; j++) {
-			if (joinGPU[i][j] && joinGPUcheck[i]) checkGPU = true;
-			if (joinCPU[i][j]) checkCPU = true;
-		}
-		joinGPUcheck[i] = checkGPU;
-		joinCPUcheck[i] = checkCPU;
-		// cout << i << " check " << joinGPUcheck[i] << endl;
-		// cout << i << " check " << joinCPUcheck[i] << endl;
-	}
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) {
+// 		bool checkGPU = false, checkCPU = false;
+// 		for (int j = 0; j < MAX_GROUPS; j++) {
+// 			if (joinGPU[i][j] && joinGPUcheck[i]) checkGPU = true;
+// 			if (joinCPU[i][j]) checkCPU = true;
+// 		}
+// 		joinGPUcheck[i] = checkGPU;
+// 		joinCPUcheck[i] = checkCPU;
+// 		// cout << i << " check " << joinGPUcheck[i] << endl;
+// 		// cout << i << " check " << joinCPUcheck[i] << endl;
+// 	}
 
 
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		short count = 0;
-		for (int sg = 0; sg < MAX_GROUPS; sg++) {
-			if (segment_group_count[i][sg] > 0) {
-				par_segment[i][count] = sg;
-				count++;
-			}
-		}
-		par_segment_count[i] = count;
-	}
-}
+// 	for (int i = 0; i < cm->TOT_TABLE; i++) {
+// 		short count = 0;
+// 		for (int sg = 0; sg < MAX_GROUPS; sg++) {
+// 			if (segment_group_count[i][sg] > 0) {
+// 				par_segment[i][count] = sg;
+// 				count++;
+// 			}
+// 		}
+// 		par_segment_count[i] = count;
+// 	}
+// }
 
 void
 QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile) {
@@ -2152,7 +2116,7 @@ QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile)
 		}
 	}
 
-	for (unsigned short i = 0; i < MAX_GROUPS; i++) { //64 segment groups
+	for (unsigned short i = 0; i < MAX_GROUPS/2; i++) { //64 segment groups
 		if (segment_group_count[table_id][i] > 0) {
 
 			unsigned short sg = i;
@@ -2198,36 +2162,65 @@ QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile)
 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
 					}
-				} else if (op->type == Build) { //TODO!! FIX THIS
-					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-					else {
+				} else if (op->type == Build) { //TODO!! FIX THIS (ONLY WORKS FOR CURRENT KERNEL MATCHING)
+					// if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+					// else {
 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}					
+					// }		
 				}
 			}
 
-			Operator* op;
+			Operator* op = NULL;
+			Operator* build_op = NULL;
 
-			//TODO!! FIX THIS
+			//TODO! FIX THIS (ONLY WORKS FOR SSB)
 			if (opGPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opGPUPipeline[table_id][i][0][j]);
-					op = opGPUPipeline[table_id][i][0][j];
+				if (opGPUPipeline[table_id][i][0][0]->type != Build) { // if not build type
+					opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+					op = opRoots[table_id][i];	
+
+					for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+						if (opGPUPipeline[table_id][i][0][j]->type != Build) {
+							op->addChild(opGPUPipeline[table_id][i][0][j]);
+							op = opGPUPipeline[table_id][i][0][j];								
+						} else build_op = opGPUPipeline[table_id][i][0][j];
+					}
+				} else {
+					assert(opGPUPipeline[table_id][i][0].size() == 1);
+					build_op = opGPUPipeline[table_id][i][0][0];						
 				}
+
 				if (opCPUPipeline[table_id][i][0].size() > 0) {
 					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
 					op->addChild(transferOp);
 					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
 					transferOp->addChild(matOp);
 					op = matOp;
-					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+					for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
 						op->addChild(opCPUPipeline[table_id][i][0][j]);
 						op = opCPUPipeline[table_id][i][0][j];
 					}
+
+					if (build_op != NULL) {
+						assert(build_op->device == GPU);
+						Operator* transferOp = new Operator(CPU, i, table_id, CPUtoGPU);
+						op->addChild(transferOp);
+						Operator* matOp = new Operator(GPU, i, table_id, Materialize);
+						transferOp->addChild(matOp);
+						op = matOp;
+						op->addChild(build_op);
+						op = build_op;
+					}
+				} else {
+					if (build_op != NULL) {
+						assert(build_op->device == GPU);
+						if (op == NULL) opRoots[table_id][i] = build_op;
+						else op->addChild(build_op);
+						op = build_op;
+					}
 				}
+
 			} else {
 				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
 				op = opRoots[table_id][i];
@@ -2236,11 +2229,13 @@ QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile)
 					op = opCPUPipeline[table_id][i][0][j];
 				}
 			}
+
 		}
 	}
 
+	//TODO!! FIX THIS (NOT ELEGANT)
 	if (table_id == 0) {
-		for (int i = 0; i < MAX_GROUPS; i++) {
+		for (int i = 0; i < MAX_GROUPS/2; i++) {
 			if (segment_group_count[table_id][i] > 0) {
 				for (int j = 0; j < opGPUPipeline[table_id][i][0].size(); j++) {
 					Operator* op = opGPUPipeline[table_id][i][0][j];
@@ -2354,36 +2349,65 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
 					}
-				} else if (op->type == Build) { //TODO!! FIX THIS
-					if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
-					else {
+				} else if (op->type == Build) { //TODO!! FIX THIS (ONLY WORKS FOR CURRENT KERNEL MATCHING)
+					// if (opCPUPipeline[table_id][i][0].size() > 0) opCPUPipeline[table_id][i][0].push_back(op);
+					// else {
 						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
 						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}					
+					// }		
 				}
 			}
 
-			Operator* op;
+			Operator* op = NULL;
+			Operator* build_op = NULL;
 
-			//TODO!! FIX THIS
+			//TODO! FIX THIS (ONLY WORKS FOR SSB)
 			if (opGPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opGPUPipeline[table_id][i][0][j]);
-					op = opGPUPipeline[table_id][i][0][j];
+				if (opGPUPipeline[table_id][i][0][0]->type != Build) { // if not build type
+					opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
+					op = opRoots[table_id][i];	
+
+					for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
+						if (opGPUPipeline[table_id][i][0][j]->type != Build) {
+							op->addChild(opGPUPipeline[table_id][i][0][j]);
+							op = opGPUPipeline[table_id][i][0][j];								
+						} else build_op = opGPUPipeline[table_id][i][0][j];
+					}
+				} else {
+					assert(opGPUPipeline[table_id][i][0].size() == 1);
+					build_op = opGPUPipeline[table_id][i][0][0];						
 				}
+
 				if (opCPUPipeline[table_id][i][0].size() > 0) {
 					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
 					op->addChild(transferOp);
 					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
 					transferOp->addChild(matOp);
 					op = matOp;
-					for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
+					for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
 						op->addChild(opCPUPipeline[table_id][i][0][j]);
 						op = opCPUPipeline[table_id][i][0][j];
 					}
+
+					if (build_op != NULL) {
+						assert(build_op->device == GPU);
+						Operator* transferOp = new Operator(CPU, i, table_id, CPUtoGPU);
+						op->addChild(transferOp);
+						Operator* matOp = new Operator(GPU, i, table_id, Materialize);
+						transferOp->addChild(matOp);
+						op = matOp;
+						op->addChild(build_op);
+						op = build_op;
+					}
+				} else {
+					if (build_op != NULL) {
+						assert(build_op->device == GPU);
+						if (op == NULL) opRoots[table_id][i] = build_op;
+						else op->addChild(build_op);
+						op = build_op;
+					}
 				}
+
 			} else {
 				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
 				op = opRoots[table_id][i];
@@ -2392,20 +2416,21 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 					op = opCPUPipeline[table_id][i][0][j];
 				}
 			}
+
 		}
 	}
 
 	if (table_id == 0) {
 		for (int i = 0; i < MAX_GROUPS/2; i++) { //64 segment groups
 			if (segment_group_count[table_id][i] > 0) {
-				cout << i << endl;
+				// cout << i << endl;
 				if (groupGPUcheck && joinGPUall) {
 					if ((segment_group_count[table_id][i] > 12) && opCPUPipeline[table_id][i][0].size() > 0) {
 						int OD = segment_group_count[table_id][i] / 4;
 						// if (OD > 8) OD = 8;
 						// int OD = segment_group_count[table_id][i];
 						if (query == 32 || query == 33 || query == 43) OD = 0;
-						cout << "sg: " << i << " total member: " << segment_group_count[table_id][i] << " on demand portion: " << OD << endl;
+						// cout << "sg: " << i << " total member: " << segment_group_count[table_id][i] << " on demand portion: " << OD << endl;
 						segment_group_count[table_id][i] -= OD;
 						// short OD_sg = i | 0x40;
 						short OD_sg = 0x40;
@@ -2422,6 +2447,7 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 		}
 	}
 
+	//TODO!! FIX THIS (NOT ELEGANT)
 	if (table_id == 0) {
 		for (int i = 0; i < MAX_GROUPS/2; i++) {
 			if (segment_group_count[table_id][i] > 0) {
@@ -3135,3 +3161,5 @@ QueryOptimizer::clearPrepare() {
   params->compare2.clear();
   params->mode.clear();
 }
+
+#endif

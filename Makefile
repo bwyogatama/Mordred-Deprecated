@@ -50,6 +50,15 @@ $(BIN)/cpu/%: $(OBJ)/cpu/%.o
 $(OBJ)/%.o: $(SRC)/%.cpp
 	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
+$(OBJ)/gpudb/CostModel.o: $(SRC)/gpudb/CostModel.cu
+	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+
+$(OBJ)/gpudb/qo.o: $(SRC)/gpudb/testqo.cu
+	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+
+$(BIN)/gpudb/final: $(OBJ)/gpudb/qo.o $(OBJ)/gpudb/CostModel.o
+	$(NVCC) $(SM_TARGETS) -ltbb -lcurand $^ -o $@
+
 sort: test/ssb/sort.c
 	gcc -o sort $< -std=c99 
 

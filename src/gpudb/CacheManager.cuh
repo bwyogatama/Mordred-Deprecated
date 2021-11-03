@@ -1,3 +1,6 @@
+#ifndef _CACHE_MANAGER_CUH_
+#define _CACHE_MANAGER_CUH_
+
 #include "CacheManager.h"
 
 Segment::Segment(ColumnInfo* _column, int* _seg_ptr, int _priority)
@@ -1395,3 +1398,5 @@ CacheManager::~CacheManager() {
 	free(segment_list);
 	free(segment_bitmap);
 }
+
+#endif

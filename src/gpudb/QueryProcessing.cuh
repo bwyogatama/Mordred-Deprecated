@@ -1,3 +1,6 @@
+#ifndef _QUERY_PROCESSING_CUH_
+#define _QUERY_PROCESSING_CUH_
+
 #include "QueryProcessing.h"
 
 void
@@ -1894,3 +1897,5 @@ QueryProcessing::countTouchedSegment(int table_id, int* t_segment, int* t_c_segm
     }
   }
 }
+
+#endif

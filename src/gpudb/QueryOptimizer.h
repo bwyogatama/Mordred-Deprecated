@@ -7,8 +7,7 @@
 #define NUM_QUERIES 13
 #define MAX_GROUPS 128
 
-class CacheManager;
-class ColumnInfo;
+class CostModel;
 
 enum OperatorType {
     Filter, Probe, Build, GroupBy, Aggr, CPUtoGPU, GPUtoCPU, Materialize, Merge
@@ -251,10 +250,8 @@ public:
 	int* last_segment;
 
 	map<int, map<ColumnInfo*, double>> speedup;
-
-	QueryParams* params;
-
 	map<int, Zipfian*> zipfian;
+	QueryParams* params;
 
 	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize);
 	~QueryOptimizer();

@@ -14,11 +14,11 @@ int main() {
 
 	srand(123);
 	
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200 / 2, 536870912, 536870912, verbose);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(52428800 * 12, 209715200, 52428800 * 12, 52428800 * 12, verbose);
 	QueryProcessing* qp;
 
 	cout << "Profiling" << endl;
-	qp = new QueryProcessing(cgp, 0);
+	qp = new QueryProcessing(cgp, 1);
 	qp->profile();
 	delete qp;
 

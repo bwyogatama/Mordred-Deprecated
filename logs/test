@@ -51,21 +51,21 @@ Segment cached and touched: 0
 
 
 lo_discount
-Speedup: 1.201
+Speedup: 0.645
 Segment cached: 0
 Segment touched: 20
 Segment cached and touched: 0
 
 
 lo_quantity
-Speedup: 0.626
+Speedup: 0.000
 Segment cached: 0
 Segment touched: 10
 Segment cached and touched: 0
 
 
 lo_extendedprice
-Speedup: 1.201
+Speedup: 0.645
 Segment cached: 0
 Segment touched: 10
 Segment cached and touched: 0
@@ -79,7 +79,7 @@ Segment cached and touched: 0
 
 
 d_year
-Speedup: 0.807
+Speedup: 0.441
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -111,7 +111,7 @@ Segment cached and touched: 0
 
 
 lo_quantity
-Speedup: 0.288
+Speedup: 0.193
 Segment cached: 0
 Segment touched: 2
 Segment cached and touched: 0
@@ -132,7 +132,7 @@ Segment cached and touched: 0
 
 
 d_yearmonthnum
-Speedup: 0.000
+Speedup: 0.023
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -196,56 +196,56 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 32.050
+Speedup: 32.083
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_partkey
-Speedup: 58.761
+Speedup: 58.144
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_orderdate
-Speedup: 0.466
+Speedup: 1.584
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 1.933
+Speedup: 1.691
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 32.050
+Speedup: 32.083
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_region
-Speedup: 0.000
+Speedup: 0.170
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_partkey
-Speedup: 58.761
+Speedup: 58.144
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_brand1
-Speedup: 1.933
+Speedup: 1.691
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -259,14 +259,14 @@ Segment cached and touched: 0
 
 
 d_datekey
-Speedup: 0.466
+Speedup: 1.584
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_year
-Speedup: 1.933
+Speedup: 1.691
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -284,70 +284,70 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 31.721
+Speedup: 32.508
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_partkey
-Speedup: 62.973
+Speedup: 62.562
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_orderdate
-Speedup: 0.000
+Speedup: 1.848
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 2.130
+Speedup: 0.786
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 31.721
+Speedup: 32.508
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_region
-Speedup: 0.207
+Speedup: 0.179
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_partkey
-Speedup: 62.973
+Speedup: 62.562
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_brand1
-Speedup: 2.130
+Speedup: 0.786
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_datekey
-Speedup: 0.000
+Speedup: 1.848
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_year
-Speedup: 2.130
+Speedup: 0.786
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -365,70 +365,70 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 33.144
+Speedup: 32.318
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_partkey
-Speedup: 64.875
+Speedup: 63.517
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_orderdate
-Speedup: 2.868
+Speedup: 2.061
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 3.382
+Speedup: 2.547
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 33.144
+Speedup: 32.318
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_region
-Speedup: 1.120
+Speedup: 0.094
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_partkey
-Speedup: 64.875
+Speedup: 63.517
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_brand1
-Speedup: 3.382
+Speedup: 2.547
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_datekey
-Speedup: 2.868
+Speedup: 2.061
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_year
-Speedup: 3.382
+Speedup: 2.547
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -446,14 +446,14 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 28.767
+Speedup: 27.926
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 lo_custkey
-Speedup: 36.587
+Speedup: 35.788
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
@@ -467,49 +467,49 @@ Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 3.978
+Speedup: 3.491
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 c_custkey
-Speedup: 36.587
+Speedup: 35.788
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_nation
-Speedup: 3.978
+Speedup: 3.491
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_region
-Speedup: 1.450
+Speedup: 0.000
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 28.767
+Speedup: 27.926
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_nation
-Speedup: 3.978
+Speedup: 3.491
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_region
-Speedup: 1.505
+Speedup: 0.142
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -523,7 +523,7 @@ Segment cached and touched: 0
 
 
 d_year
-Speedup: 3.978
+Speedup: 3.491
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -541,56 +541,56 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 25.387
+Speedup: 24.979
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 lo_custkey
-Speedup: 28.668
+Speedup: 28.145
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 lo_orderdate
-Speedup: 1.253
+Speedup: 1.391
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 1.264
+Speedup: 1.310
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 c_custkey
-Speedup: 28.668
+Speedup: 28.145
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_nation
-Speedup: 0.000
+Speedup: 0.003
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_city
-Speedup: 1.264
+Speedup: 1.310
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 25.387
+Speedup: 24.979
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -604,21 +604,21 @@ Segment cached and touched: 0
 
 
 s_city
-Speedup: 1.264
+Speedup: 1.310
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_datekey
-Speedup: 1.253
+Speedup: 1.391
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_year
-Speedup: 1.264
+Speedup: 1.310
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -636,35 +636,35 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 24.414
+Speedup: 24.244
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 lo_custkey
-Speedup: 25.540
+Speedup: 25.435
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 lo_orderdate
-Speedup: 1.780
+Speedup: 2.010
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 2.017
+Speedup: 2.007
 Segment cached: 0
 Segment touched: 53
 Segment cached and touched: 0
 
 
 c_custkey
-Speedup: 25.540
+Speedup: 25.435
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -678,14 +678,14 @@ Segment cached and touched: 0
 
 
 c_city
-Speedup: 2.017
+Speedup: 2.007
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 24.414
+Speedup: 24.244
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -699,21 +699,21 @@ Segment cached and touched: 0
 
 
 s_city
-Speedup: 2.017
+Speedup: 2.007
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_datekey
-Speedup: 1.780
+Speedup: 2.010
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_year
-Speedup: 2.017
+Speedup: 2.007
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -731,14 +731,14 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 0.106
+Speedup: 0.186
 Segment cached: 0
 Segment touched: 2
 Segment cached and touched: 0
 
 
 lo_custkey
-Speedup: 0.091
+Speedup: 0.223
 Segment cached: 0
 Segment touched: 2
 Segment cached and touched: 0
@@ -759,7 +759,7 @@ Segment cached and touched: 0
 
 
 c_custkey
-Speedup: 0.091
+Speedup: 0.223
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -780,7 +780,7 @@ Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 0.106
+Speedup: 0.186
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -808,7 +808,7 @@ Segment cached and touched: 0
 
 
 d_yearmonthnum
-Speedup: 0.012
+Speedup: 0.006
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -826,21 +826,21 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 34.828
+Speedup: 35.434
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_custkey
-Speedup: 42.268
+Speedup: 41.661
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_partkey
-Speedup: 16.735
+Speedup: 18.475
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
@@ -854,63 +854,63 @@ Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 0.427
+Speedup: 2.913
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 lo_supplycost
-Speedup: 0.427
+Speedup: 2.913
 Segment cached: 0
 Segment touched: 58
 Segment cached and touched: 0
 
 
 c_custkey
-Speedup: 42.268
+Speedup: 41.661
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_nation
-Speedup: 0.427
+Speedup: 2.913
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_region
-Speedup: 1.613
+Speedup: 0.722
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 34.828
+Speedup: 35.434
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_region
-Speedup: 1.509
+Speedup: 0.763
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_partkey
-Speedup: 16.735
+Speedup: 18.475
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_mfgr
-Speedup: 1.574
+Speedup: 0.609
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -924,7 +924,7 @@ Segment cached and touched: 0
 
 
 d_year
-Speedup: 0.427
+Speedup: 2.913
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -942,21 +942,21 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 7.325
+Speedup: 6.800
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_custkey
-Speedup: 9.365
+Speedup: 9.762
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_partkey
-Speedup: 2.052
+Speedup: 2.333
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
@@ -970,70 +970,70 @@ Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 0.000
+Speedup: 0.079
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_supplycost
-Speedup: 0.000
+Speedup: 0.079
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 c_custkey
-Speedup: 9.365
+Speedup: 9.762
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_region
-Speedup: 0.390
+Speedup: 0.035
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 7.325
+Speedup: 6.800
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_nation
-Speedup: 0.000
+Speedup: 0.079
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_region
-Speedup: 0.412
+Speedup: 0.067
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_partkey
-Speedup: 2.052
+Speedup: 2.333
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_category
-Speedup: 0.000
+Speedup: 0.079
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_mfgr
-Speedup: 0.373
+Speedup: 0.000
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -1047,7 +1047,7 @@ Segment cached and touched: 0
 
 
 d_year
-Speedup: 0.000
+Speedup: 0.079
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
@@ -1065,112 +1065,112 @@ Segment cached and touched: 0
 
 
 lo_suppkey
-Speedup: 7.818
+Speedup: 7.260
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_custkey
-Speedup: 4.743
+Speedup: 4.380
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_partkey
-Speedup: 9.028
+Speedup: 8.176
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_orderdate
-Speedup: 0.807
+Speedup: 0.000
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_revenue
-Speedup: 0.844
+Speedup: 0.183
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 lo_supplycost
-Speedup: 0.844
+Speedup: 0.183
 Segment cached: 0
 Segment touched: 15
 Segment cached and touched: 0
 
 
 c_custkey
-Speedup: 4.743
+Speedup: 4.380
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 c_region
-Speedup: 0.591
+Speedup: 0.011
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_suppkey
-Speedup: 7.818
+Speedup: 7.260
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_nation
-Speedup: 0.655
+Speedup: 0.000
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 s_city
-Speedup: 0.844
+Speedup: 0.183
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_partkey
-Speedup: 9.028
+Speedup: 8.176
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_brand1
-Speedup: 0.844
+Speedup: 0.183
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 p_category
-Speedup: 0.578
+Speedup: 0.000
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_datekey
-Speedup: 0.807
+Speedup: 0.000
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
 
 
 d_year
-Speedup: 0.844
+Speedup: 0.183
 Segment cached: 0
 Segment touched: 1
 Segment cached and touched: 0
