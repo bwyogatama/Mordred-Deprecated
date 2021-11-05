@@ -1,7 +1,9 @@
-#ifndef _QUERY_PROCESSING_CUH_
-#define _QUERY_PROCESSING_CUH_
-
 #include "QueryProcessing.h"
+#include "CacheManager.h"
+#include "QueryOptimizer.h"
+#include "CPUGPUProcessing.h"
+
+int queries[13] = {11, 12, 13, 21, 22, 23, 31, 32, 33, 34, 41, 42, 43};
 
 void
 QueryProcessing::executeTableDim(int table_id, int sg) {
@@ -1897,5 +1899,3 @@ QueryProcessing::countTouchedSegment(int table_id, int* t_segment, int* t_c_segm
     }
   }
 }
-
-#endif

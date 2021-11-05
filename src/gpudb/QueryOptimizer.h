@@ -1,8 +1,9 @@
 #ifndef _QUERY_OPTIMIZER_H_
 #define _QUERY_OPTIMIZER_H_
 
-#include "CacheManager.cuh"
+#include "CacheManager.h"
 #include "KernelArgs.h"
+#include "common.h"
 
 #define NUM_QUERIES 13
 #define MAX_GROUPS 128

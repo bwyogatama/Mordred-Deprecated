@@ -1,10 +1,12 @@
 #ifndef _KERNEL_ARGS_H_
 #define _KERNEL_ARGS_H_
 
-#include "crystal/crystal.cuh"
+#include "common.h"
 
 // #define BLOCK_T 128
 // #define ITEMS_PER_T 4
+
+class ColumnInfo;
 
 template<typename T>
 using group_func_t = T (*) (T, T);

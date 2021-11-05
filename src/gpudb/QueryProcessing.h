@@ -1,9 +1,10 @@
 #ifndef _QUERY_PROCESSING_H_
 #define _QUERY_PROCESSING_H_
 
-#include "CPUGPUProcessing.cuh"
+#include "CPUGPUProcessing.h"
+#include "common.h"
 
-int queries[13] = {11, 12, 13, 21, 22, 23, 31, 32, 33, 34, 41, 42, 43};
+extern int queries[13];
 
 class QueryProcessing {
 public:

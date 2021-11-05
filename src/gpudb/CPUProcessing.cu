@@ -1,20 +1,22 @@
-#ifndef _CPU_PROCESSING_H_
-#define _CPU_PROCESSING_H_
+// #ifndef _CPU_PROCESSING_H_
+// #define _CPU_PROCESSING_H_
 
-#include <chrono>
-#include <atomic>
-#include <unistd.h>
-#include <iostream>
-#include <stdio.h>
-#include "tbb/tbb.h"
-#include "KernelArgs.h"
+// #include <chrono>
+// #include <atomic>
+// #include <unistd.h>
+// #include <iostream>
+// #include <stdio.h>
+// #include "tbb/tbb.h"
+// #include "KernelArgs.h"
 
-using namespace std;
-using namespace tbb;
+// using namespace std;
+// using namespace tbb;
 
-#define BATCH_SIZE 256
-#define NUM_THREADS 48
-#define TASK_SIZE 1024 //! TASK_SIZE must be a factor of SEGMENT_SIZE and must be less than 20000
+// #define BATCH_SIZE 256
+// #define NUM_THREADS 48
+// #define TASK_SIZE 1024 //! TASK_SIZE must be a factor of SEGMENT_SIZE and must be less than 20000
+
+#include "CPUProcessing.h"
 
 void filter_probe_CPU(
   struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct offsetCPU out_off, int num_tuples,
@@ -2363,4 +2365,4 @@ void build_CPU_minmax2(int *dim_off, struct filterArgsCPU fargs,
 
   }, simple_partitioner());
 }
-#endif
+// #endif

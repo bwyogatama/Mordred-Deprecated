@@ -1,8 +1,6 @@
-#ifndef _QUERY_OPTIMIZER_CUH_
-#define _QUERY_OPTIMIZER_CUH_
-
 #include "QueryOptimizer.h"
-#include "CostModel.h"
+// #include "CostModel.h"
+#include "CacheManager.h"
 
 QueryOptimizer::QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize) {
 	cm = new CacheManager(_cache_size, _ondemand_size, _processing_size, _pinned_memsize);
@@ -2430,7 +2428,7 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 						// if (OD > 8) OD = 8;
 						// int OD = segment_group_count[table_id][i];
 						if (query == 32 || query == 33 || query == 43) OD = 0;
-						// cout << "sg: " << i << " total member: " << segment_group_count[table_id][i] << " on demand portion: " << OD << endl;
+						cout << "sg: " << i << " total member: " << segment_group_count[table_id][i] << " on demand portion: " << OD << endl;
 						segment_group_count[table_id][i] -= OD;
 						// short OD_sg = i | 0x40;
 						short OD_sg = 0x40;
@@ -3161,5 +3159,3 @@ QueryOptimizer::clearPrepare() {
   params->compare2.clear();
   params->mode.clear();
 }
-
-#endif

@@ -1,9 +1,10 @@
 #ifndef _CPUGPU_PROCESSING_H_
 #define _CPUGPU_PROCESSING_H_
 
-#include "QueryOptimizer.cuh"
+#include "QueryOptimizer.h"
 #include "GPUProcessing.h"
-#include "CPUProcessing_.h"
+#include "CPUProcessing.h"
+#include "common.h"
 
 #define OD_BATCH_SIZE 8
 

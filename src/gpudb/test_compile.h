@@ -1,29 +1,6 @@
-#ifndef _CACHE_MANAGER_H_
-#define _CACHE_MANAGER_H_
+#pragma once
 
 #include "common.h"
-
-// #include <iostream>
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <sstream>
-// #include <fstream>
-// #include <string>
-// #include <vector>
-// #include <unordered_map>
-// #include <queue>
-// #include <assert.h>
-
-// #include <curand.h>
-// #include <cuda.h>
-// #include <cub/util_allocator.cuh>
-// //#include <cub/test/test_util.h>
-// #include "crystal/crystal.cuh"
-// #include "ssb_utils.h"
-
-// //#include "QueryOptimizer.h"
-
-// using namespace std;
 
 #define CUB_STDERR
 
@@ -255,34 +232,6 @@ public:
 	template <typename T>
 	T* customCudaHostAlloc(int size);
 
-	// template <typename T>
-	// T* customMalloc(int size) {
-	// 	// printf("%d\n", size);
-	// 	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
-	// 	int start = __atomic_fetch_add(&cpuPointer, alloc, __ATOMIC_RELAXED);
-	// 	// printf("%d\n", start + size);
-	// 	assert((start + alloc) < processing_size);
-	// 	return reinterpret_cast<T*>(cpuProcessing + start);
-	// };
-
-	// template <typename T>
-	// T* customCudaMalloc(int size) {
-	// 	// cout << size * sizeof(T) << endl;
-	// 	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
-	// 	int start = __atomic_fetch_add(&gpuPointer, alloc, __ATOMIC_RELAXED);
-	// 	assert((start + alloc) < processing_size);
-	// 	// cout << size << " " << start << endl;
-	// 	return reinterpret_cast<T*>(gpuProcessing + start);
-	// };
-
-	// template <typename T>
-	// T* customCudaHostAlloc(int size) {
-	// 	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
-	// 	int start = __atomic_fetch_add(&pinnedPointer, alloc, __ATOMIC_RELAXED);
-	// 	assert((start + alloc) < processing_size);
-	// 	return reinterpret_cast<T*>(pinnedMemory + start);
-	// };
-
 	int* onDemandTransfer(int* data_ptr, int size, cudaStream_t stream);
 
 	void indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream);
@@ -303,5 +252,3 @@ public:
 
 	void deleteColumnsFromGPU();
 };
-
-#endif

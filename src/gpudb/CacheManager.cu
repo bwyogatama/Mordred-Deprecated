@@ -1,6 +1,3 @@
-#ifndef _CACHE_MANAGER_CUH_
-#define _CACHE_MANAGER_CUH_
-
 #include "CacheManager.h"
 
 Segment::Segment(ColumnInfo* _column, int* _seg_ptr, int _priority)
@@ -1399,4 +1396,21 @@ CacheManager::~CacheManager() {
 	free(segment_bitmap);
 }
 
-#endif
+
+template int*
+CacheManager::customMalloc<int>(int size);
+
+template int*
+CacheManager::customCudaMalloc<int>(int size);
+
+template int*
+CacheManager::customCudaHostAlloc<int>(int size);
+
+template short*
+CacheManager::customMalloc<short>(int size);
+
+template short*
+CacheManager::customCudaMalloc<short>(int size);
+
+template short*
+CacheManager::customCudaHostAlloc<short>(int size);

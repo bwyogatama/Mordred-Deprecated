@@ -1,12 +1,10 @@
-#include "QueryProcessing.cuh"
-
-#include <chrono>
-#include <atomic>
-#include <string>
+#include "QueryProcessing.h"
+#include "QueryOptimizer.h"
+#include "CPUGPUProcessing.h"
+#include "CacheManager.h"
+// #include "CostModel.h"
 
 // tbb::task_scheduler_init init(1);
-
-
 
 int main() {
 
@@ -18,11 +16,11 @@ int main() {
 	QueryProcessing* qp;
 
 	cout << "Profiling" << endl;
-	qp = new QueryProcessing(cgp, 1);
+	qp = new QueryProcessing(cgp, 0);
 	qp->profile();
 	delete qp;
 
-	cgp->cm->resetCache(52428800 * 6, 209715200 / 2, 536870912, 536870912);
+	cgp->cm->resetCache(52428800 * 15, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(314572800, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(629145600, 209715200 / 2, 536870912, 536870912);
 
@@ -126,7 +124,7 @@ int main() {
 		} else if (input.compare("3") == 0) {
 			time = 0;
 			cout << "Executing Random Query" << endl;
-			for (int i = 0; i < 1000; i++) {
+			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
 				time1 = qp->processQuery();
 				time2 = qp->processQuery2();
@@ -137,7 +135,7 @@ int main() {
 		} else if (input.compare("4") == 0) {
 			time = 0;
 			cout << "Executing Random Query" << endl;
-			for (int i = 0; i < 1000; i++) {
+			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
 				time1 = qp->processHybridOnDemand(1);
 				time2 = qp->processHybridOnDemand(2);

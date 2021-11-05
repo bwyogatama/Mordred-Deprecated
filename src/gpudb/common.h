@@ -1,18 +1,31 @@
 #pragma once
 
 #include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sstream>
 #include <fstream>
 #include <string>
+#include <vector>
+#include <unordered_map>
+#include <queue>
+#include <assert.h>
+#include <unistd.h>
+#include <chrono>
+#include <atomic>
 
-/*#include <cuda.h>*/
-/*#include <cub/util_allocator.cuh>*/
-#include <cuda.h>
 #include <curand.h>
+#include <cuda.h>
 #include <cub/util_allocator.cuh>
+#include "crystal/crystal.cuh"
+
+#include "tbb/tbb.h"
 
 using namespace std;
+using namespace tbb;
 
-#define SF 40
+
+#define SF 10
 
 #define BASE_PATH "/home/ubuntu/Implementation-GPUDB/test/ssb/data/"
 
@@ -176,13 +189,3 @@ int storeColumn(string col_name, int num_entries, int* h_col) {
   colData.write((char*)h_col, num_entries * sizeof(T));
   return 0;
 }
-
-/*int main() {*/
-  //int *h_col = new int[10];
-  //for (int i=0; i<10; i++) h_col[i] = i;
-  //storeColumn<int>("test", 10, h_col);
-  //int *l_col = loadColumn<int>("test", 10);
-  //for (int i=0; i<10; i++) cout << l_col[i] << " ";
-  //cout << endl;
-  //return 0;
-/*}*/

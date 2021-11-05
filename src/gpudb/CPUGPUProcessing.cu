@@ -1,7 +1,6 @@
-#ifndef _CPU_GPU_PROCESSING_CUH_
-#define _CPU_GPU_PROCESSING_CUH_
-
 #include "CPUGPUProcessing.h"
+#include "CacheManager.h"
+#include "QueryOptimizer.h"
 
 // void
 // CPUGPUProcessing::copyColIdx() {
@@ -2164,5 +2163,3 @@ CPUGPUProcessing::call_probe_group_by_OD(QueryParams* params, ColumnInfo** pkey,
 
   delete[] od_col_idx;
 };
-
-#endif
