@@ -118,8 +118,8 @@ public:
   map<ColumnInfo*, int> compare2;
   map<ColumnInfo*, int> mode;
 
-  map<ColumnInfo*, float> selectivity;
-  map<ColumnInfo*, float> sel;
+  map<ColumnInfo*, float> selectivity; //estimated output
+  map<ColumnInfo*, float> real_selectivity; //real_selectivity
 
   int total_val, mode_group;
 

@@ -1,8 +1,9 @@
 #include "QueryOptimizer.h"
 #include "CostModel.h"
 
-CostModel::CostModel(int _L, int _n_group_key, int _n_aggr_key, int _sg, int _table_id, QueryOptimizer* _qo) {
-		L = _L;
+CostModel::CostModel(int _L, int _total_segment, int _n_group_key, int _n_aggr_key, int _sg, int _table_id, QueryOptimizer* _qo) {
+		L = (double) _L;
+		ori_L = (double) _L;
 		n_group_key = _n_group_key;
 		n_aggr_key = _n_aggr_key;
 
@@ -11,12 +12,15 @@ CostModel::CostModel(int _L, int _n_group_key, int _n_aggr_key, int _sg, int _ta
 
 		qo = _qo;
 
+		total_segment = _total_segment;
 
 		Operator* op = qo->opRoots[table_id][sg];
+		// cout << op->type << endl;
 		opPipeline.push_back(op);
 		op = op->children;
 
 		while (op != NULL) {
+			// cout << op->type << endl;
 			if (op->type != Materialize && op->type != GPUtoCPU && op->type != CPUtoGPU && op->type != Merge) {
 				opPipeline.push_back(op);
 			}
@@ -53,6 +57,9 @@ CostModel::permute_cost() {
 
 	double default_cost = calculate_cost();
 
+	cout << "sg: " << sg <<  " default cost: " << endl;
+	printf("%.4f\n", default_cost);
+
 	clear();
 
 	for (int i = 0; i < opPipeline.size(); i++) {
@@ -84,21 +91,43 @@ CostModel::permute_cost() {
 
 		cost = calculate_cost();
 
+		cout << "sg: " << sg << " playing with " << cur_op->columns[0]->column_name << ": ";
+		printf("%.4f\n", cost - default_cost);
+		cout << endl;
+
 		if (cur_op->device == CPU) {
 			cur_op->device = GPU;
-			for (int k = 0; k < cur_op->columns.size(); k++) {
-				// speedup_segment[cur_op->columns[k]] = cost - default_cost;
+			for (int col = 0; col < cur_op->columns.size(); col++) {
+				ColumnInfo* column = cur_op->columns[col];
+				for (int seg = 0; seg < qo->segment_group_count[table_id][sg]; seg++) {
+					int seg_id = qo->segment_group[table_id][sg * total_segment + seg];
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (cost - default_cost) / qo->segment_group_count[table_id][sg]);
+				}
 			}
-			for (int k = 0; k < cur_op->supporting_columns.size(); k++) {
-				// speedup_segment[cur_op->supporting_columns[k]] += cost - default_cost;
+			for (int col = 0; col < cur_op->supporting_columns.size(); col++) {
+				ColumnInfo* column = cur_op->supporting_columns[col];
+				for (int seg_id = 0; seg_id < column->total_segment; seg_id++) {
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (cost - default_cost) / column->total_segment);
+				}
 			}
 		} else if (cur_op->device == GPU) {
 			cur_op->device = CPU;
-			for (int k = 0; k < cur_op->columns.size(); k++) {
-				// speedup_segment[cur_op->columns[k]] = default_cost - cost;
+			for (int col = 0; col < cur_op->columns.size(); col++) {
+				ColumnInfo* column = cur_op->columns[col];
+				for (int seg = 0; seg < qo->segment_group_count[table_id][sg]; seg++) {
+					int seg_id = qo->segment_group[table_id][sg * total_segment + seg];
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (default_cost - cost) / qo->segment_group_count[table_id][sg]);
+				}
 			}
-			for (int k = 0; k < cur_op->supporting_columns.size(); k++) {
-				// speedup_segment[cur_op->supporting_columns[k]] += default_cost - cost;
+			for (int col = 0; col < cur_op->supporting_columns.size(); col++) {
+				ColumnInfo* column = cur_op->supporting_columns[col];
+				for (int seg_id = 0; seg_id < column->total_segment; seg_id++) {
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (default_cost - cost) / column->total_segment);
+				}
 			}
 		}
 
@@ -110,35 +139,38 @@ CostModel::permute_cost() {
 double 
 CostModel::calculate_cost() {
 	double cost = 0;
+	L = (double) ori_L;
 
 	bool fromGPU = false;
 	if (selectGPU.size() > 0 || joinGPU.size() > 0) {
 		for (int i = 0; i < selectGPU.size(); ++i) {	
 			ColumnInfo* col = selectGPU[i];
-			L *= qo->params->selectivity[col];
+			L *= qo->params->real_selectivity[col];
 		}
 		for (int i = 0; i < joinGPU.size(); ++i) {	
 			ColumnInfo* col = joinGPU[i];
-			L *= qo->params->selectivity[col];
+			L *= qo->params->real_selectivity[col];
 		}
-		cost += transfer_cost(joinGPU.size() + 1);
-		fromGPU = true;
+		if (selectCPU.size() > 0 || joinCPU.size() > 0 || groupCPU.size() > 0 || buildCPU.size() > 0) {
+			cost += transfer_cost(joinGPU.size() + 1);
+			fromGPU = true;
+		}
 	}
 
 	for (int i = 0; i < selectCPU.size(); i++) {
 		ColumnInfo* col = selectCPU[i];
 		if (fromGPU) {
-			cost += filter_cost(qo->params->selectivity[col], 1, 0);
+			cost += filter_cost(qo->params->real_selectivity[col], 1, 0);
 			fromGPU = false;
-		} else cost += filter_cost(qo->params->selectivity[col], 0, 0);
+		} else cost += filter_cost(qo->params->real_selectivity[col], 0, 0);
 	}
 
 	for (int i = 0; i < joinCPU.size(); i++) {
 		ColumnInfo* col = joinCPU[i];
 		if (fromGPU) {
-			cost += probe_cost(qo->params->selectivity[col], 1, 0);
+			cost += probe_cost(qo->params->real_selectivity[col], 1, 0);
 			fromGPU = false;
-		} else cost += probe_cost(qo->params->selectivity[col], 0, 0);
+		} else cost += probe_cost(qo->params->real_selectivity[col], 0, 0);
 	}
 
 	for (int i = 0; i < groupCPU.size(); i++) {
@@ -147,6 +179,20 @@ CostModel::calculate_cost() {
 			cost += group_cost(0);
 			fromGPU = false;
 		} else cost += group_cost(1);
+	}
+
+	//TODO: only works for SSB
+	if (groupGPU.size() > 0 && (selectCPU.size() > 0 || joinCPU.size() > 0)) {
+		cost += transfer_cost(joinCPU.size() + joinGPU.size() + 1);
+	} else if (groupGPU.size() > 0 && (selectGPU.size() > 0 || joinGPU.size() > 0)) {
+		cost = 0;
+	}
+
+	//TODO: only works for SSB
+	if (buildGPU.size() > 0 && (selectCPU.size() > 0 || joinCPU.size() > 0)) {
+		cost += transfer_cost(joinCPU.size() + joinGPU.size() + 1);
+	} else if (buildGPU.size() > 0 && (selectGPU.size() > 0 || joinGPU.size() > 0)) {
+		cost = 0;
 	}
 
 	for (int i = 0; i < buildCPU.size(); i++) {

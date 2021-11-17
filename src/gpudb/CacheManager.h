@@ -226,6 +226,8 @@ public:
 
 	void updateSegmentWeightDirect(ColumnInfo* column, Segment* segment, double speedup);
 
+	void updateSegmentWeightCostDirect(ColumnInfo* column, Segment* segment, double speedup);
+
 	void weightAdjustment();
 
 	void runReplacement(ReplacementPolicy strategy);

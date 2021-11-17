@@ -53,9 +53,6 @@ $(OBJ)/%.o: $(SRC)/%.cpp
 $(OBJ)/gpudb/CostModel.o: $(SRC)/gpudb/CostModel.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
-$(OBJ)/gpudb/test_compile.o: $(SRC)/gpudb/test_compile.cu
-	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
-
 $(OBJ)/gpudb/QueryOptimizer.o: $(SRC)/gpudb/QueryOptimizer.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
@@ -74,7 +71,7 @@ $(OBJ)/gpudb/main.o: $(SRC)/gpudb/testqo.cu
 # $(BIN)/gpudb/final: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o
 # 	$(NVCC) $(SM_TARGETS) -ltbb -lcurand --device-link $^ -o $@
 
-$(BIN)/gpudb/main: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o
+$(BIN)/gpudb/main: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
 	$(NVCC) $(SM_TARGETS) -ltbb -lcurand $^ -o $@
 
 sort: test/ssb/sort.c

@@ -2,41 +2,42 @@
 #include "QueryOptimizer.h"
 #include "CPUGPUProcessing.h"
 #include "CacheManager.h"
-// #include "CostModel.h"
+#include "CPUProcessing.h"
+#include "CostModel.h"
 
 // tbb::task_scheduler_init init(1);
 
 int main() {
 
-	bool verbose = 1;
+	bool verbose = 0;
 
 	srand(123);
 	
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(52428800 * 12, 209715200, 52428800 * 12, 52428800 * 12, verbose);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(52428800 * 4, 209715200, 52428800 * 12, 52428800 * 12, verbose);
 	QueryProcessing* qp;
 
-	cout << "Profiling" << endl;
-	qp = new QueryProcessing(cgp, 0);
-	qp->profile();
-	delete qp;
+	// cout << "Profiling" << endl;
+	// qp = new QueryProcessing(cgp, 0);
+	// qp->profile();
+	// delete qp;
 
-	cgp->cm->resetCache(52428800 * 15, 209715200 / 2, 536870912, 536870912);
+	// cgp->cm->resetCache(52428800 / 2, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(314572800, 209715200 / 2, 536870912, 536870912);
 	// cgp->cm->resetCache(629145600, 209715200 / 2, 536870912, 536870912);
 
 	cout << endl;
 
-	CacheManager* cm = cgp->cm;
+	// CacheManager* cm = cgp->cm;
 
-	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 0);
-	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 0);
+	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 57);
 	// cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
 	// cm->cacheColumnSegmentInGPU(cm->d_year, 0);
 	// cm->cacheColumnSegmentInGPU(cm->d_yearmonthnum, 0);

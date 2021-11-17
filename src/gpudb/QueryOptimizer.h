@@ -197,7 +197,7 @@ public:
 	};
 	void addChild(Operator* child) {
 		children = child;
-		child->parents = this;
+		if (child != NULL) child->parents = this;
 	};
 	void setDevice(DeviceType _device) {
 		device = _device;
@@ -251,6 +251,7 @@ public:
 	int* last_segment;
 
 	map<int, map<ColumnInfo*, double>> speedup;
+	double** speedup_segment;
 	map<int, Zipfian*> zipfian;
 	QueryParams* params;
 

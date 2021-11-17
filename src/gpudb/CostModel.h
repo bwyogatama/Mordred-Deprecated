@@ -2,19 +2,21 @@
 #define _COST_MODEL_H
 
 #define CACHE_LINE 64
-#define BW_CPU 42000
-#define BW_PCI 12000
+#define BW_CPU 42000000
+#define BW_PCI 12000000
 
 #include "QueryOptimizer.h"
 
 class CostModel {
 public:
 
-	int L;
-	int n_group_key;
-	int n_aggr_key;
+	double L;
+	double ori_L;
 	int sg;
 	int table_id;
+	int n_group_key;
+	int n_aggr_key;
+	int total_segment;
 
 	vector<Operator*> opPipeline;
 
@@ -30,7 +32,7 @@ public:
 
 	QueryOptimizer* qo;
 
-	CostModel(int _L, int _n_group_key, int _n_aggr_key, int _sg, int _table_id, QueryOptimizer* _qo);;
+	CostModel(int _L, int _total_segment, int _n_group_key, int _n_aggr_key, int _sg, int _table_id, QueryOptimizer* _qo);
 	void clear();
 	void permute_cost();
 	double calculate_cost();

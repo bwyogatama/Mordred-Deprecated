@@ -547,12 +547,31 @@ CacheManager::updateColumnWeightDirect(ColumnInfo* column, double speedup) {
 void
 CacheManager::updateSegmentWeightDirect(ColumnInfo* column, Segment* segment, double speedup) {
 	// cout << segment->segment_id << endl;
-	if (column->table_id == 0) {
-		segment->stats->speedup += speedup/column->total_segment;
-		segment->weight += speedup/column->total_segment;
-	} else {
-		segment->stats->speedup += speedup*3/column->total_segment;
-		segment->weight += speedup*3/column->total_segment;
+	if (speedup > 0) {
+		// cout << column->column_name << endl;
+		if (column->table_id == 0) {
+			segment->stats->speedup += speedup/column->total_segment;
+			segment->weight += speedup/column->total_segment;
+		} else {
+			segment->stats->speedup += speedup*3/column->total_segment;
+			segment->weight += speedup*3/column->total_segment;
+		}
+	}
+	// cout << column->column_name << " " << segment->weight << endl;
+}
+
+void
+CacheManager::updateSegmentWeightCostDirect(ColumnInfo* column, Segment* segment, double speedup) {
+	// cout << segment->segment_id << endl;
+	if (speedup > 0) {
+		// cout << column->column_name << endl;
+		if (column->table_id == 0) {
+			segment->stats->speedup += speedup;
+			segment->weight += speedup;
+		} else {
+			segment->stats->speedup += speedup;
+			segment->weight += speedup;
+		}
 	}
 	// cout << column->column_name << " " << segment->weight << endl;
 }
