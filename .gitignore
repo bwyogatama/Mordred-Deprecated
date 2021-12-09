@@ -5,4 +5,5 @@
 cub/
 bin/
 obj/
-test/
+test/ssb/data
+test/bench/data
