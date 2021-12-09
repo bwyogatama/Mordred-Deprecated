@@ -25,7 +25,7 @@ using namespace std;
 using namespace tbb;
 
 
-#define SF 10
+#define SF 40
 
 #define BASE_PATH "/home/ubuntu/Implementation-GPUDB/test/ssb/data/"
 

@@ -125,6 +125,7 @@ static void primarySort(struct sortObject * obj, int num){
  */
 
 //	./columnSort ../data/s40_columnar/LINEORDER ../data/s40_columnar/LINEORDERSORT 5 16 240012412
+//	./columnSort ../data/s160_columnar/LINEORDER ../data/s160_columnar/LINEORDERSORT 5 16 960017453
 
 int main(int argc, char **argv){
 

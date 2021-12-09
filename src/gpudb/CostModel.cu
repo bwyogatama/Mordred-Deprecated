@@ -57,8 +57,8 @@ CostModel::permute_cost() {
 
 	double default_cost = calculate_cost();
 
-	cout << "sg: " << sg <<  " default cost: " << endl;
-	printf("%.4f\n", default_cost);
+	// cout << "sg: " << sg <<  " default cost: " << endl;
+	// printf("%.4f\n", default_cost);
 
 	clear();
 
@@ -91,9 +91,9 @@ CostModel::permute_cost() {
 
 		cost = calculate_cost();
 
-		cout << "sg: " << sg << " playing with " << cur_op->columns[0]->column_name << ": ";
-		printf("%.4f\n", cost - default_cost);
-		cout << endl;
+		// cout << "sg: " << sg << " playing with " << cur_op->columns[0]->column_name << ": ";
+		// printf("%.4f\n", cost - default_cost);
+		// cout << endl;
 
 		if (cur_op->device == CPU) {
 			cur_op->device = GPU;
