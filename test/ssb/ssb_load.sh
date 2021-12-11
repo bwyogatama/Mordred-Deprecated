@@ -22,11 +22,22 @@ echo "copy lineorder from '$MAPD_DATA/lineorder.tbl' with (delimiter='|');" | ./
 ./bin/omnisql omnisci -u admin -p HyperInteractive --port 6274
 
 #COGADB
+#use script utility_scripts/install_cogadb_dependencies.sh from Hawk-VLDBJ
+#don't install nvidia-cuda-toolkit
 sudo docker images --all
 sudo docker ps
-sudo docker run --rm --it nvidia/cuda:cogadb
+sudo docker run -v ~/Implementation-GPUDB/test/ssb/data:/data --rm --gpus "device=0" -it bwyogatama/cogadb:10.0-devel-ubuntu14.04 
+
 sudo docker commit container_id new_image_name
 
+mkdir -p /cogadata
+set path_to_database=/cogadata
+create_ssb_database /data/s1/
+loaddatabase
+
+select sum(lo_extendedprice*lo_discount) as revenue from lineorder, dates where lo_orderdate = d_datekey and d_weeknuminyear = 6 and d_year = 1994 and lo_discount between 5 and 7 and lo_quantity between 26 and 35;
+
+		
 sudo docker login -u bwyogatama docker.io
-sudo docker tag nvidia/cuda:cogadb bwyogatama/cogadb:10.0-devel-ubuntu14.04
-sudo docker push bwyogatama/cogadb:10.0-devel-ubuntu14.04
+sudo docker tag nvidia/cuda:cogadb bwyogatama/cogadb:6.5-devel-ubuntu14.04
+sudo docker push bwyogatama/cogadb:6.5-devel-ubuntu14.04
