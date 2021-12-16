@@ -13,7 +13,7 @@ int main() {
 
 	srand(123);
 	
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(52428800 * 20, 52428800 * 20, 52428800 * 10, 52428800 * 20, verbose);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(52428800 * 12, 0, 52428800 * 18, 52428800 * 20, verbose);
 	QueryProcessing* qp;
 
 	// cout << "Profiling" << endl;
@@ -87,10 +87,11 @@ int main() {
 		cout << "4. Run Random Queries (HOD)" << endl;
 		cout << "5. Update Cache (LFU)" << endl;
 		cout << "6. Update Cache (LRU)" << endl;
-		cout << "7. Update Cache (New)" << endl;
-		cout << "8. Update Cache (Segmented)" << endl;
-		cout << "9. Dump Trace" << endl;
-		cout << "10. Exit" << endl;
+		cout << "7. Update Cache (LFUSegmented)" << endl;
+		cout << "8. Update Cache (LRUSegmented)" << endl;
+		cout << "9. Update Cache (Segmented)" << endl;
+		cout << "10. Dump Trace" << endl;
+		cout << "11. Exit" << endl;
 		cout << "cache. Cache Specific Column" << endl;
 		cout << "clear. Delete Columns from GPU" << endl;
 		cout << "Your Input: ";
@@ -109,6 +110,7 @@ int main() {
 			cout << endl;
 			if (time1 <= time2) time += time1;
 			else time += time2;
+			time += time1;
 		} else if (input.compare("2") == 0) {
 			time = 0;
 			cout << "Input Query: ";
@@ -131,6 +133,7 @@ int main() {
 				time2 = qp->processQuery2();
 				if (time1 <= time2) time += time1;
 				else time += time2;
+				// time += time1;
 			}
 			srand(123);
 		} else if (input.compare("4") == 0) {
@@ -146,29 +149,35 @@ int main() {
 			srand(123);
 		} else if (input.compare("5") == 0) {
 			cout << "LFU Replacement" << endl;
-			cgp->cm->runReplacement(LFU_v2);
+			cgp->cm->runReplacement(LFU);
 			qp->percentageData();
 			time = 0;
 			srand(123);
 		} else if (input.compare("6") == 0) {
 			cout << "LRU Replacement" << endl;
-			cgp->cm->runReplacement(LRU_v2);
+			cgp->cm->runReplacement(LRU);
 			qp->percentageData();
 			time = 0;
 			srand(123);
 		} else if (input.compare("7") == 0) {
-			cout << "New Replacement" << endl;
-			cgp->cm->runReplacement(New_v2);
+			cout << "LFU Segmented Replacement" << endl;
+			cgp->cm->runReplacement(LFUSegmented);
 			qp->percentageData();
 			time = 0;
 			srand(123);
 		} else if (input.compare("8") == 0) {
+			cout << "LRU Segmented Replacement" << endl;
+			cgp->cm->runReplacement(LRUSegmented);
+			qp->percentageData();
+			time = 0;
+			srand(123);
+		} else if (input.compare("9") == 0) {
 			cout << "Segmented Replacement" << endl;
 			cgp->cm->runReplacement(Segmented);
 			qp->percentageData();
 			time = 0;
 			srand(123);
-		} else if (input.compare("9") == 0) {
+		} else if (input.compare("10") == 0) {
 			string filename;
 			cout << "File name: ";
 			cin >> filename;
@@ -183,7 +192,7 @@ int main() {
 				ret = cgp->cm->cacheSpecificColumn(column_name);
 			} while (ret != 0);
 		} else if (input.compare("clear") == 0) {
-			cgp->cm->deleteColumnsFromGPU();
+			cgp->cm->deleteAll();
 		} else {
 			exit = true;
 		}

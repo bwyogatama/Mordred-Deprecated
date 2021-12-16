@@ -9,6 +9,15 @@
 //   }
 // }
 
+CPUGPUProcessing::CPUGPUProcessing(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, bool _verbose) {
+  qo = new QueryOptimizer(_cache_size, _ondemand_size, _processing_size, _pinned_memsize, this);
+  cm = qo->cm;
+  begin_time = chrono::high_resolution_clock::now();
+  col_idx = new int*[cm->TOT_COLUMN]();
+  // od_col_idx = new int*[cm->TOT_COLUMN]();
+  verbose = _verbose;
+}
+
 void 
 CPUGPUProcessing::switch_device_fact(int** &off_col, int** &h_off_col, int* &d_total, int* h_total, int sg, int mode, int table, cudaStream_t stream) {
   // chrono::high_resolution_clock::time_point st = chrono::high_resolution_clock::now();
@@ -21,7 +30,7 @@ CPUGPUProcessing::switch_device_fact(int** &off_col, int** &h_off_col, int* &d_t
   if (mode == 0) { //CPU to GPU
     if (h_off_col == NULL) return;
     assert(h_off_col != NULL);
-    assert(*h_total > 0); // DONT BE SURPRISED IF WE REACHED THIS FOR 19980401-19980430 PREDICATES CAUSE THE RESULT IS 0
+    // assert(*h_total > 0); // DONT BE SURPRISED IF WE REACHED THIS FOR 19980401-19980430 PREDICATES CAUSE THE RESULT IS 0
     assert(h_off_col[0] != NULL);
 
     off_col = new int*[cm->TOT_TABLE]();
@@ -72,7 +81,7 @@ CPUGPUProcessing::switch_device_dim(int* &d_off_col, int* &h_off_col, int* &d_to
   if (mode == 0) { //CPU to GPU
     if (h_off_col == NULL) return;
     assert(h_off_col != NULL);
-    assert(*h_total > 0);
+    // assert(*h_total > 0);
 
     d_off_col = (int*) cm->customCudaMalloc<int>(*h_total);
 
@@ -841,28 +850,29 @@ CPUGPUProcessing::call_probe_GPU(QueryParams* params, int** &off_col, int* &d_to
   } else {
 
     assert(*h_total > 0);
+    // if (*h_total > 0) {
+      output_estimate = *h_total * output_selectivity;
 
-    output_estimate = *h_total * output_selectivity;
+      for (int i = 0; i < cm->TOT_TABLE; i++) {
+        if (off_col[i] != NULL || i == 0 || qo->joinGPUcheck[i])
+          off_col_out[i] = (int*) cm->customCudaMalloc<int>(output_estimate);
+      }
 
-    for (int i = 0; i < cm->TOT_TABLE; i++) {
-      if (off_col[i] != NULL || i == 0 || qo->joinGPUcheck[i])
-        off_col_out[i] = (int*) cm->customCudaMalloc<int>(output_estimate);
-    }
+      struct offsetGPU in_off = {
+        off_col[0], off_col[1], off_col[2], off_col[3], off_col[4]
+      };
 
-    struct offsetGPU in_off = {
-      off_col[0], off_col[1], off_col[2], off_col[3], off_col[4]
-    };
+      struct offsetGPU out_off = {
+        off_col_out[0], off_col_out[1], off_col_out[2], off_col_out[3], off_col_out[4]
+      };
 
-    struct offsetGPU out_off = {
-      off_col_out[0], off_col_out[1], off_col_out[2], off_col_out[3], off_col_out[4]
-    };
+      CHECK_ERROR_STREAM(stream);
 
-    CHECK_ERROR_STREAM(stream);
+      probe_GPU3<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
+        cm->gpuCache, in_off, pargs, out_off, *h_total, d_total);
 
-    probe_GPU3<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
-      cm->gpuCache, in_off, pargs, out_off, *h_total, d_total);
-
-    CHECK_ERROR_STREAM(stream);
+      CHECK_ERROR_STREAM(stream);      
+    // }
 
   }
 

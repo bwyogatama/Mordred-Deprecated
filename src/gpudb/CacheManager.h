@@ -36,7 +36,7 @@ class priority_stack;
 class custom_priority_queue;
 
 enum ReplacementPolicy {
-    LRU, LFU, LRU_v2, LFU_v2, New, New_v2, Segmented
+    LRU, LFU, LRU_v2, LFU_v2, LFUSegmented, LRUSegmented, New, New_v2, Segmented
 };
 
 class Statistics{
@@ -224,9 +224,13 @@ public:
 
 	void updateColumnTimestamp(ColumnInfo* column, double timestamp);
 
+	void updateSegmentTimeDirect(ColumnInfo* column, Segment* segment, double timestamp);
+
 	void updateSegmentWeightDirect(ColumnInfo* column, Segment* segment, double speedup);
 
 	void updateSegmentWeightCostDirect(ColumnInfo* column, Segment* segment, double speedup);
+
+	void updateSegmentFreqDirect(ColumnInfo* column, Segment* segment);
 
 	void weightAdjustment();
 
@@ -236,7 +240,11 @@ public:
 
 	void LFU2Replacement();
 
+	void LFUSegmentedReplacement();
+
 	void LRUReplacement();
+
+	void LRUSegmentedReplacement();
 
 	void LRU2Replacement();
 
@@ -303,7 +311,11 @@ public:
 
 	int cacheSpecificColumn(string column_name);
 
+	int deleteSpecificColumnFromGPU(string column_name);
+
 	void deleteColumnsFromGPU();
+
+	void deleteAll();
 };
 
 #endif

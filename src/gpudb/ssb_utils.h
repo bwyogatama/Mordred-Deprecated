@@ -45,6 +45,13 @@ using namespace std;
 #define S_LEN 80000
 #define C_LEN 1200000
 #define D_LEN 2556
+#elif SF == 160
+#define DATA_DIR BASE_PATH "s160_columnar/"
+#define LO_LEN 960017453
+#define P_LEN 1600000
+#define S_LEN 320000
+#define C_LEN 4800000
+#define D_LEN 2556
 #endif
 
 #define SEGMENT_SIZE 1048576

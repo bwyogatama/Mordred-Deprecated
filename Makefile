@@ -68,10 +68,16 @@ $(OBJ)/gpudb/CPUProcessing.o: $(SRC)/gpudb/CPUProcessing.cu
 $(OBJ)/gpudb/main.o: $(SRC)/gpudb/testqo.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
+$(OBJ)/gpudb/ondemand.o: $(SRC)/gpudb/ondemand.cu
+	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+
 # $(BIN)/gpudb/final: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o
 # 	$(NVCC) $(SM_TARGETS) -ltbb -lcurand --device-link $^ -o $@
 
 $(BIN)/gpudb/main: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
+	$(NVCC) $(SM_TARGETS) -ltbb -lcurand $^ -o $@
+
+$(BIN)/gpudb/ondemand: $(OBJ)/gpudb/ondemand.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
 	$(NVCC) $(SM_TARGETS) -ltbb -lcurand $^ -o $@
 
 sort: test/ssb/sort.c

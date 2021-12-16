@@ -18,14 +18,7 @@ public:
   chrono::high_resolution_clock::time_point begin_time;
   bool verbose;
 
-  CPUGPUProcessing(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, bool _verbose) {
-    qo = new QueryOptimizer(_cache_size, _ondemand_size, _processing_size, _pinned_memsize);
-    cm = qo->cm;
-    begin_time = chrono::high_resolution_clock::now();
-    col_idx = new int*[cm->TOT_COLUMN]();
-    // od_col_idx = new int*[cm->TOT_COLUMN]();
-    verbose = _verbose;
-  }
+  CPUGPUProcessing(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, bool _verbose);
 
   ~CPUGPUProcessing() {
     delete[] col_idx;

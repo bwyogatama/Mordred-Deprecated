@@ -1,27 +1,29 @@
-#include "QueryProcessing.cuh"
-
-#include <chrono>
-#include <atomic>
+#include "QueryProcessing.h"
+#include "QueryOptimizer.h"
+#include "CPUGPUProcessing.h"
+#include "CacheManager.h"
+#include "CPUProcessing.h"
+#include "CostModel.h"
 
 int main() {
 
-	bool verbose = 0;
+	bool verbose = 1;
 
 	srand(123);
-
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(209715200 * 2, 209715200, 536870912, 536870912, verbose);
+	
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(52428800 * 10, 52428800 * 30, 52428800 * 18, 52428800 * 20, verbose);
 	QueryProcessing* qp;
 
-	cout << "Profiling" << endl;
-	qp = new QueryProcessing(cgp, verbose);
-	qp->profile();
-	delete qp;
+	// cout << "Profiling" << endl;
+	// qp = new QueryProcessing(cgp, verbose);
+	// qp->profile();
+	// delete qp;
 
-	cgp->cm->resetCache(52428800 * 4, 209715200 / 2, 536870912, 536870912);
+	// cgp->cm->resetCache(52428800 * 4, 209715200 / 2, 536870912, 536870912);
 	// // cgp->cm->resetCache(314572800, 209715200 / 2, 536870912, 536870912);
 	// // cgp->cm->resetCache(629145600, 209715200 / 2, 536870912, 536870912);
 
-	// cout << endl;
+	cout << endl;
 
 	// CacheManager* cm = cgp->cm;
 
@@ -70,13 +72,16 @@ int main() {
 	float time = 0;
 	string input;
 	string query;
+	bool skew = false;
+
+	qp = new QueryProcessing(cgp, verbose, skew);
 
 	while (!exit) {
 		cout << "Select Options:" << endl;
 		cout << "1. Run Specific Query" << endl;
-		cout << "2. Run Specific Query2" << endl;
+		cout << "2. Run Specific Query HOD" << endl;
 		cout << "3. Run Random Queries" << endl;
-		cout << "4. Run Random Queries2" << endl;
+		cout << "4. Run Random Queries HOD" << endl;
 		cout << "5. Exit" << endl;
 		cout << "Your Input: ";
 		cin >> input;
@@ -89,8 +94,8 @@ int main() {
 			cout << "Input Query: ";
 			cin >> query;
 			qp->setQuery(stoi(query));
-			qp->processQuery();
-			time = qp->processQuery();
+			// qp->processQuery();
+			time = qp->processOnDemand();
 		} else if (input.compare("2") == 0) {
 			cout << "Input Query: ";
 			cin >> query;
@@ -98,19 +103,19 @@ int main() {
 			qp->processHybridOnDemand();
 			time = qp->processHybridOnDemand();
 		} else if (input.compare("3") == 0) {
-			// time = 0;
-			// cout << "Executing Random Query" << endl;
-			// for (int i = 0; i < 100; i++) {
-			// 	qp->generate_rand_query();
-			// 	time += qp->processOnDemand();
-			// }
 			time = 0;
 			cout << "Executing Random Query" << endl;
 			for (int i = 0; i < 100; i++) {
 				qp->generate_rand_query();
-				qp->processQuery();
-				time += qp->processQuery();
+				time += qp->processOnDemand();
 			}
+			// time = 0;
+			// cout << "Executing Random Query" << endl;
+			// for (int i = 0; i < 100; i++) {
+			// 	qp->generate_rand_query();
+			// 	qp->processQuery();
+			// 	time += qp->processQuery();
+			// }
 			srand(123);
 		} else if (input.compare("4") == 0) {
 			time = 0;

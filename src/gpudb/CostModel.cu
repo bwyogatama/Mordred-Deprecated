@@ -1,31 +1,32 @@
 #include "QueryOptimizer.h"
 #include "CostModel.h"
+#include "CPUGPUProcessing.h"
 
 CostModel::CostModel(int _L, int _total_segment, int _n_group_key, int _n_aggr_key, int _sg, int _table_id, QueryOptimizer* _qo) {
-		L = (double) _L;
-		ori_L = (double) _L;
-		n_group_key = _n_group_key;
-		n_aggr_key = _n_aggr_key;
+	L = (double) _L;
+	ori_L = (double) _L;
+	n_group_key = _n_group_key;
+	n_aggr_key = _n_aggr_key;
 
-		sg = _sg;
-		table_id = _table_id;
+	sg = _sg;
+	table_id = _table_id;
 
-		qo = _qo;
+	qo = _qo;
 
-		total_segment = _total_segment;
+	total_segment = _total_segment;
 
-		Operator* op = qo->opRoots[table_id][sg];
+	Operator* op = qo->opRoots[table_id][sg];
+	// cout << op->type << endl;
+	opPipeline.push_back(op);
+	op = op->children;
+
+	while (op != NULL) {
 		// cout << op->type << endl;
-		opPipeline.push_back(op);
-		op = op->children;
-
-		while (op != NULL) {
-			// cout << op->type << endl;
-			if (op->type != Materialize && op->type != GPUtoCPU && op->type != CPUtoGPU && op->type != Merge) {
-				opPipeline.push_back(op);
-			}
-			op = op->children;
+		if (op->type != Materialize && op->type != GPUtoCPU && op->type != CPUtoGPU && op->type != Merge) {
+			opPipeline.push_back(op);
 		}
+		op = op->children;
+	}
 };
 
 void 
@@ -57,10 +58,15 @@ CostModel::permute_cost() {
 
 	double default_cost = calculate_cost();
 
-	// cout << "sg: " << sg <<  " default cost: " << endl;
+	// cout << "sg: " << sg <<  " default cost: ";;
 	// printf("%.4f\n", default_cost);
 
 	clear();
+
+	// for (int seg = 0; seg < qo->segment_group_count[table_id][sg]; seg++) {
+	// 	int seg_id = qo->segment_group[table_id][sg * total_segment + seg];
+	// 	cout << seg_id << endl;
+	// }
 
 	for (int i = 0; i < opPipeline.size(); i++) {
 		double cost = 0;
@@ -91,9 +97,50 @@ CostModel::permute_cost() {
 
 		cost = calculate_cost();
 
+		// cout << "select GPU" << endl;
+
+		// for (int i = 0; i < selectGPU.size(); i++) {
+		// 	cout << selectGPU[i]->column_name << endl;
+		// }
+
+		// cout << "select CPU" << endl;
+
+		// for (int i = 0; i < selectCPU.size(); i++) {
+		// 	cout << selectCPU[i]->column_name << endl;
+		// }
+
+		// cout << "join GPU" << endl;
+
+		// for (int i = 0; i < joinGPU.size(); i++) {
+		// 	cout << joinGPU[i]->column_name << endl;
+		// }
+
+		// cout << "join CPU" << endl;
+
+		// for (int i = 0; i < joinCPU.size(); i++) {
+		// 	cout << joinCPU[i]->column_name << endl;
+		// }
+
+		// cout << "group GPU" << endl;
+
+		// for (int i = 0; i < groupGPU.size(); i++) {
+		// 	cout << groupGPU[i]->column_name << endl;
+		// }
+
+		// cout << "group CPU" << endl;
+
+		// for (int i = 0; i < groupCPU.size(); i++) {
+		// 	cout << groupCPU[i]->column_name << endl;
+		// }
+
 		// cout << "sg: " << sg << " playing with " << cur_op->columns[0]->column_name << ": ";
 		// printf("%.4f\n", cost - default_cost);
-		// cout << endl;
+		// cout << cost << endl;
+
+		// chrono::high_resolution_clock::time_point cur_time = chrono::high_resolution_clock::now();
+		// chrono::duration<double> timestamp = cur_time - qo->cgp->begin_time;
+		// double time_count = timestamp.count();
+		// cout << time_count << endl;
 
 		if (cur_op->device == CPU) {
 			cur_op->device = GPU;
@@ -102,7 +149,7 @@ CostModel::permute_cost() {
 				for (int seg = 0; seg < qo->segment_group_count[table_id][sg]; seg++) {
 					int seg_id = qo->segment_group[table_id][sg * total_segment + seg];
 					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
-					qo->cm->updateSegmentWeightCostDirect(column, segment, (cost - default_cost) / qo->segment_group_count[table_id][sg]);
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (cost - default_cost) / qo->segment_group_count[table_id][sg] / cur_op->columns.size());
 				}
 			}
 			for (int col = 0; col < cur_op->supporting_columns.size(); col++) {
@@ -119,7 +166,7 @@ CostModel::permute_cost() {
 				for (int seg = 0; seg < qo->segment_group_count[table_id][sg]; seg++) {
 					int seg_id = qo->segment_group[table_id][sg * total_segment + seg];
 					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
-					qo->cm->updateSegmentWeightCostDirect(column, segment, (default_cost - cost) / qo->segment_group_count[table_id][sg]);
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (default_cost - cost) / qo->segment_group_count[table_id][sg]/ cur_op->columns.size());
 				}
 			}
 			for (int col = 0; col < cur_op->supporting_columns.size(); col++) {
@@ -157,6 +204,8 @@ CostModel::calculate_cost() {
 		}
 	}
 
+	// cout << "1 " << cost << endl;
+
 	for (int i = 0; i < selectCPU.size(); i++) {
 		ColumnInfo* col = selectCPU[i];
 		if (fromGPU) {
@@ -164,6 +213,8 @@ CostModel::calculate_cost() {
 			fromGPU = false;
 		} else cost += filter_cost(qo->params->real_selectivity[col], 0, 0);
 	}
+
+	// cout << "2 " << cost << endl;
 
 	for (int i = 0; i < joinCPU.size(); i++) {
 		ColumnInfo* col = joinCPU[i];
@@ -173,20 +224,26 @@ CostModel::calculate_cost() {
 		} else cost += probe_cost(qo->params->real_selectivity[col], 0, 0);
 	}
 
-	for (int i = 0; i < groupCPU.size(); i++) {
-		ColumnInfo* col = groupCPU[i];
+	// cout << "3 " << cost << endl;
+
+	if (groupCPU.size() > 0) {
 		if (fromGPU){
-			cost += group_cost(0);
+			cost += group_cost(1);
 			fromGPU = false;
-		} else cost += group_cost(1);
+		} else cost += group_cost(0);
 	}
+
+	// cout << "4 " << cost << endl;
 
 	//TODO: only works for SSB
 	if (groupGPU.size() > 0 && (selectCPU.size() > 0 || joinCPU.size() > 0)) {
-		cost += transfer_cost(joinCPU.size() + joinGPU.size() + 1);
+		// cost += transfer_cost(joinCPU.size() + joinGPU.size() + 1);
+		cost += group_cost(0);
 	} else if (groupGPU.size() > 0 && (selectGPU.size() > 0 || joinGPU.size() > 0)) {
 		cost = 0;
 	}
+
+	// cout << "5 " << cost << endl;
 
 	//TODO: only works for SSB
 	if (buildGPU.size() > 0 && (selectCPU.size() > 0 || joinCPU.size() > 0)) {
@@ -195,8 +252,7 @@ CostModel::calculate_cost() {
 		cost = 0;
 	}
 
-	for (int i = 0; i < buildCPU.size(); i++) {
-		ColumnInfo* col = buildCPU[i];
+	if (buildCPU.size() > 0) {
 		if (fromGPU) {
 			cost += build_cost(1);
 			fromGPU = false;
@@ -213,10 +269,10 @@ CostModel::probe_cost(double selectivity, bool mat_start, bool mat_end) {
 	double cost = 0;
 	double scan_time = 0, probe_time = 0, write_time = 0;
 
-	if (mat_start) scan_time = L * 4/BW_CPU + L * 4 * CACHE_LINE/BW_CPU;
+	if (mat_start) scan_time = L * 4/BW_CPU + L * CACHE_LINE/BW_CPU;
 	else scan_time = L * 4/BW_CPU;
 
-	probe_time = L * 4 * CACHE_LINE/BW_CPU;
+	probe_time = L * CACHE_LINE/BW_CPU;
 
 	if (mat_end) write_time = L * 4 * selectivity * 2/BW_CPU;
 	else write_time = 0;
@@ -240,7 +296,7 @@ CostModel::filter_cost(double selectivity, bool mat_start, bool mat_end) {
 	double cost = 0;
 	double scan_time = 0, write_time = 0;
 
-	if (mat_start) scan_time = L * 4/BW_CPU + L * 4 * CACHE_LINE/BW_CPU;
+	if (mat_start) scan_time = L * 4/BW_CPU + L * CACHE_LINE/BW_CPU;
 	else scan_time = L * 4/BW_CPU;
 
 	if (mat_end) write_time = L * 4 * selectivity/BW_CPU;
@@ -259,10 +315,10 @@ CostModel::group_cost(bool mat_start) {
 	double cost = 0;
 	double scan_time = 0, group_time = 0;
 
-	if (mat_start) scan_time = L * 4 * (n_group_key + 1)/BW_CPU + L * 4 * CACHE_LINE * (n_aggr_key + n_group_key)/BW_CPU;
-	else scan_time = L * 4 * CACHE_LINE * n_aggr_key/BW_CPU;
+	if (mat_start) scan_time = L * 4 /BW_CPU + L * CACHE_LINE * (n_aggr_key)/BW_CPU; //the cost to random read group key has not been included
+	else scan_time = L * CACHE_LINE * n_aggr_key/BW_CPU;
 
-	group_time = L * 4 * CACHE_LINE/BW_CPU;
+	group_time = L * CACHE_LINE/BW_CPU;
 
 	cost = scan_time + group_time;
 
@@ -275,10 +331,10 @@ CostModel::build_cost(bool mat_start) {
 	double cost = 0;
 	double scan_time = 0, build_time = 0;
 
-	if (mat_start) scan_time = L * 4/BW_CPU + L * 4 * CACHE_LINE/BW_CPU;
+	if (mat_start) scan_time = L * 4/BW_CPU + L * CACHE_LINE/BW_CPU;
 	else scan_time = L * 4/BW_CPU;
 
-	build_time = L * 4 * CACHE_LINE/BW_CPU;
+	build_time = L * CACHE_LINE/BW_CPU;
 
 	cost = scan_time + build_time;
 

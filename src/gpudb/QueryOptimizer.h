@@ -8,7 +8,7 @@
 #define NUM_QUERIES 13
 #define MAX_GROUPS 128
 
-class CostModel;
+class CPUGPUProcessing;
 
 enum OperatorType {
     Filter, Probe, Build, GroupBy, Aggr, CPUtoGPU, GPUtoCPU, Materialize, Merge
@@ -38,7 +38,7 @@ public:
 
 	Zipfian (int N, int Range) {
 		seed = 123;
-		alpha = 2;
+		alpha = 2.0;
 		x = seed;
 		n = N;
 		range = Range;
@@ -208,6 +208,7 @@ public:
 class QueryOptimizer {
 public:
 	CacheManager* cm;
+	CPUGPUProcessing* cgp;
 
 	vector<ColumnInfo*> querySelectColumn;
 	vector<ColumnInfo*> queryBuildColumn;
@@ -255,7 +256,7 @@ public:
 	map<int, Zipfian*> zipfian;
 	QueryParams* params;
 
-	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize);
+	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp);
 	~QueryOptimizer();
 
 	void parseQuery(int query);

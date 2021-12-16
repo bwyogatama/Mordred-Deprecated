@@ -7,13 +7,14 @@
 using namespace std;
 
 int main(int argc, char** argv) {
-  if (argc != 3) {
-    cout << "col-name len" << endl;
+  if (argc != 4) {
+    cout << "col-name len SF" << endl;
     return 1;
   }
 
   string col_name = argv[1];
   int len = atoi(argv[2]);
+  string sf = argv[3];
 
   cout << atoi(argv[2]) << endl;
 
@@ -26,7 +27,7 @@ int main(int argc, char** argv) {
   cout << "Loaded Column " << col_name << endl;
 
   ofstream myfile;
-  myfile.open (DATA_DIR + col_name + "minmax");
+  myfile.open ("/home/ubuntu/Implementation-GPUDB/test/ssb/data/s" + sf + "_columnar/" + col_name + "minmax");
 
   int total_segment = ((len + SEGMENT_SIZE - 1)/SEGMENT_SIZE);
 

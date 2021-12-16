@@ -1721,8 +1721,20 @@ QueryProcessing::updateStatsQuery() {
   for (int i = 0; i < qo->join.size(); i++) {
     for (int col = 0; col < qo->select_build[qo->join[i].second].size(); col++) {  
       cm->updateColumnTimestamp(qo->select_build[qo->join[i].second][col], time_count++);
+      ColumnInfo* column = qo->select_build[qo->join[i].second][col];
+      for (int seg_id = 0; seg_id < column->total_segment; seg_id++) {
+        Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+        cm->updateSegmentTimeDirect(column, segment, time_count);
+        cm->updateSegmentFreqDirect(column, segment);
+      }
     }
     cm->updateColumnTimestamp(qo->join[i].second, time_count++);
+    ColumnInfo* column = qo->join[i].second;
+    for (int seg_id = 0; seg_id < column->total_segment; seg_id++) {
+      Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+      cm->updateSegmentTimeDirect(column, segment, time_count);
+      cm->updateSegmentFreqDirect(column, segment);
+    }
   }
 
   parallel_for(short(0), qo->par_segment_count[0], [=](short i){
@@ -1734,26 +1746,62 @@ QueryProcessing::updateStatsQuery() {
       for (int col = 0; col < qo->selectCPUPipelineCol[sg].size(); col++) {
         ColumnInfo* column = qo->selectCPUPipelineCol[sg][col];
         cm->updateColumnTimestamp(column, par_time_count++);
+        for (int seg = 0; seg < qo->segment_group_count[column->table_id][sg]; seg++) {
+          int seg_id = qo->segment_group[column->table_id][sg * column->total_segment + seg];
+          Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+          cm->updateSegmentTimeDirect(column, segment, par_time_count);
+          cm->updateSegmentFreqDirect(column, segment);
+        }
       }
       for (int col = 0; col < qo->selectGPUPipelineCol[sg].size(); col++) {
         ColumnInfo* column = qo->selectGPUPipelineCol[sg][col];
         cm->updateColumnTimestamp(column, par_time_count++);
+        for (int seg = 0; seg < qo->segment_group_count[column->table_id][sg]; seg++) {
+          int seg_id = qo->segment_group[column->table_id][sg * column->total_segment + seg];
+          Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+          cm->updateSegmentTimeDirect(column, segment, par_time_count);
+          cm->updateSegmentFreqDirect(column, segment);
+        }
       }
       for (int col = 0; col < qo->joinGPUPipelineCol[sg].size(); col++) {
         ColumnInfo* column = qo->joinGPUPipelineCol[sg][col];
         cm->updateColumnTimestamp(column, par_time_count++);
+        for (int seg = 0; seg < qo->segment_group_count[column->table_id][sg]; seg++) {
+          int seg_id = qo->segment_group[column->table_id][sg * column->total_segment + seg];
+          Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+          cm->updateSegmentTimeDirect(column, segment, par_time_count);
+          cm->updateSegmentFreqDirect(column, segment);
+        }
       }
       for (int col = 0; col < qo->joinCPUPipelineCol[sg].size(); col++) {
         ColumnInfo* column = qo->joinCPUPipelineCol[sg][col];
         cm->updateColumnTimestamp(column, par_time_count++);
+        for (int seg = 0; seg < qo->segment_group_count[column->table_id][sg]; seg++) {
+          int seg_id = qo->segment_group[column->table_id][sg * column->total_segment + seg];
+          Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+          cm->updateSegmentTimeDirect(column, segment, par_time_count);
+          cm->updateSegmentFreqDirect(column, segment);
+        }
       }
       for (int col = 0; col < qo->queryGroupByColumn.size(); col++) {
         ColumnInfo* column = qo->queryGroupByColumn[col];
         cm->updateColumnTimestamp(column, par_time_count++);
+        for (int seg = 0; seg < qo->segment_group_count[column->table_id][sg]; seg++) {
+          int seg_id = qo->segment_group[column->table_id][sg * column->total_segment + seg];
+          Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+          cm->updateSegmentTimeDirect(column, segment, par_time_count);
+          cm->updateSegmentFreqDirect(column, segment);
+        }
       }
       for (int col = 0; col < qo->queryAggrColumn.size(); col++) {
         ColumnInfo* column = qo->queryAggrColumn[col];
         cm->updateColumnTimestamp(column, par_time_count++);
+        for (int seg = 0; seg < qo->segment_group_count[column->table_id][sg]; seg++) {
+          int seg_id = qo->segment_group[column->table_id][sg * column->total_segment + seg];
+          Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+          cm->updateSegmentTimeDirect(column, segment, par_time_count);
+          cm->updateSegmentFreqDirect(column, segment);
+        }
       }
 
   });
