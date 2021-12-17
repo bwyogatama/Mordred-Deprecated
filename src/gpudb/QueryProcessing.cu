@@ -6,14 +6,111 @@
 int queries[13] = {11, 12, 13, 21, 22, 23, 31, 32, 33, 34, 41, 42, 43};
 
 void
+QueryProcessing::executeTableDimNP(int table_id, int sg) {
+    int *h_off_col = NULL, *d_off_col = NULL;
+    int* d_total = NULL;
+    int* h_total = NULL;
+
+    if (custom) h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    else CubDebugExit(cudaHostAlloc((void**) &h_total, 1 * sizeof(int), cudaHostAllocDefault));
+    memset(h_total, 0, sizeof(int));
+    if (custom) d_total = (int*) cm->customCudaMalloc<int>(1);
+    else CubDebugExit(cudaMalloc((void**) &d_total, 1 * sizeof(int)));
+
+    // cout << "dim " << sg << endl;
+
+    if (sg == 0 || sg == 1) {
+
+      if (qo->joinCPUcheck[table_id] && qo->joinGPUcheck[table_id]) {
+        cgp->call_bfilter_CPU(params, h_off_col, h_total, sg, table_id);
+        cgp->switch_device_dim(d_off_col, h_off_col, d_total, h_total, sg, 0, table_id, streams[sg]);
+        cgp->call_build_GPU(params, d_off_col, h_total, sg, table_id, streams[sg]);
+        cgp->call_build_CPU(params, h_off_col, h_total, sg, table_id);
+      } else if (qo->joinCPUcheck[table_id] && !(qo->joinGPUcheck[table_id])) {
+        cgp->call_bfilter_CPU(params, h_off_col, h_total, sg, table_id);
+        cgp->call_build_CPU(params, h_off_col, h_total, sg, table_id);
+      } else if (!(qo->joinCPUcheck[table_id]) && qo->joinGPUcheck[table_id]) {
+        cgp->call_bfilter_CPU(params, h_off_col, h_total, sg, table_id);
+        cgp->switch_device_dim(d_off_col, h_off_col, d_total, h_total, sg, 0, table_id, streams[sg]);
+        cgp->call_build_GPU(params, d_off_col, h_total, sg, table_id, streams[sg]);            
+      }
+
+    } else if (sg == 2 || sg == 3) {
+
+      if (qo->joinCPUcheck[table_id]) {
+        cgp->call_bfilter_CPU(params, h_off_col, h_total, sg, table_id);
+        cgp->call_build_CPU(params, h_off_col, h_total, sg, table_id);
+      }
+
+      if (qo->joinGPUcheck[table_id]) {
+        cgp->call_bfilter_GPU(params, d_off_col, d_total, h_total, sg, table_id, streams[sg]);
+        cgp->call_build_GPU(params, d_off_col, h_total, sg, table_id, streams[sg]);  
+      }
+      
+    } else {
+      assert(0);
+    }
+}
+
+void
+QueryProcessing::executeTableFactNP(int sg) {
+    int** h_off_col = NULL, **off_col = NULL;
+    int* d_total = NULL;
+    int* h_total = NULL;
+
+    if (custom) h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    else CubDebugExit(cudaHostAlloc((void**) &h_total, 1 * sizeof(int), cudaHostAllocDefault));
+    memset(h_total, 0, sizeof(int));
+    if (custom) d_total = (int*) cm->customCudaMalloc<int>(1);
+    else CubDebugExit(cudaMalloc((void**) &d_total, 1 * sizeof(int)));
+
+    for (int i = 0; i < qo->selectCPUPipelineCol[sg].size(); i++) {
+      cgp->call_pfilter_CPUNP(params, h_off_col, h_total, sg, qo->selectCPUPipelineCol[sg][i]);
+    }
+
+    if (qo->selectCPUPipelineCol[sg].size() > 0 && (qo->joinGPUPipelineCol[sg].size() > 0 || qo->selectGPUPipelineCol[sg].size() > 0))  
+      cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
+
+    for (int i = 0; i < qo->selectGPUPipelineCol[sg].size(); i++) {
+      cgp->call_pfilter_GPUNP(params, off_col, d_total, h_total, sg, streams[sg], qo->selectGPUPipelineCol[sg][i]);
+    }
+
+    for (int i = 0; i < qo->joinGPUPipelineCol[sg].size(); i++) {
+      cgp->call_probe_GPUNP(params, off_col, d_total, h_total, sg, streams[sg], qo->joinGPUPipelineCol[sg][i]);
+    }
+
+    if ((qo->selectGPUPipelineCol[sg].size() > 0 || qo->joinGPUPipelineCol[sg].size() > 0) && (qo->joinCPUPipelineCol[sg].size() > 0 || qo->groupbyCPUPipelineCol[sg].size() > 0))
+      cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
+
+    for (int i = 0; i < qo->joinCPUPipelineCol[sg].size(); i++) {
+      cgp->call_probe_CPUNP(params, h_off_col, h_total, sg, qo->joinCPUPipelineCol[sg][i]);
+    }
+
+    if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
+      if (qo->joinCPUPipelineCol[sg].size() > 0) {
+        if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
+        else cgp->call_group_by_CPU(params, h_off_col, h_total);
+      } else {
+        if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]);
+        else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+      }
+    } else {
+      if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
+      else cgp->call_group_by_CPU(params, h_off_col, h_total);
+    }
+}
+
+void
 QueryProcessing::executeTableDim(int table_id, int sg) {
     int *h_off_col = NULL, *d_off_col = NULL;
     int* d_total = NULL;
     int* h_total = NULL;
 
-    h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    if (custom) h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    else CubDebugExit(cudaHostAlloc((void**) &h_total, 1 * sizeof(int), cudaHostAllocDefault));
     memset(h_total, 0, sizeof(int));
-    d_total = (int*) cm->customCudaMalloc<int>(1);
+    if (custom) d_total = (int*) cm->customCudaMalloc<int>(1);
+    else CubDebugExit(cudaMalloc((void**) &d_total, 1 * sizeof(int)));
 
     // cout << "dim " << sg << endl;
 
@@ -54,9 +151,11 @@ QueryProcessing::executeTableFact_v1(int sg) {
     int* d_total = NULL;
     int* h_total = NULL;
 
-    h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    if (custom) h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    else CubDebugExit(cudaHostAlloc((void**) &h_total, 1 * sizeof(int), cudaHostAllocDefault));
     memset(h_total, 0, sizeof(int));
-    d_total = (int*) cm->customCudaMalloc<int>(1);
+    if (custom) d_total = (int*) cm->customCudaMalloc<int>(1);
+    else CubDebugExit(cudaMalloc((void**) &d_total, 1 * sizeof(int)));
 
     // printf("fact sg = %d\n", sg);
 
@@ -314,9 +413,11 @@ QueryProcessing::executeTableFact_v2(int sg) {
     int* d_total = NULL;
     int* h_total = NULL;
 
-    h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    if (custom) h_total = (int*) cm->customCudaHostAlloc<int>(1);
+    else CubDebugExit(cudaHostAlloc((void**) &h_total, 1 * sizeof(int), cudaHostAllocDefault));
     memset(h_total, 0, sizeof(int));
-    d_total = (int*) cm->customCudaMalloc<int>(1);
+    if (custom) d_total = (int*) cm->customCudaMalloc<int>(1);
+    else CubDebugExit(cudaMalloc((void**) &d_total, 1 * sizeof(int)));
 
     if (verbose) printf("sg = %d\n", sg);
 
@@ -1054,7 +1155,9 @@ QueryProcessing::runQuery() {
   
   cudaEventRecord(start, 0);
 
-  int* resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
+  int* resGPU;
+  if (custom) resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
+  else CubDebugExit(cudaHostAlloc((void**) &resGPU, params->total_val * 6 * sizeof(int), cudaHostAllocDefault));
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
 
@@ -1139,7 +1242,99 @@ QueryProcessing::runQuery2() {
   
   cudaEventRecord(start, 0);
 
-  int* resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
+  int* resGPU;
+  if (custom) resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
+  else CubDebugExit(cudaHostAlloc((void**) &resGPU, params->total_val * 6 * sizeof(int), cudaHostAllocDefault));
+  CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
+  merge(params->res, resGPU, params->total_val);
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Merge time " << time << endl;
+}
+
+void
+QueryProcessing::runQueryNP() {
+
+  SETUP_TIMING();
+  float time;
+  cudaEventRecord(start, 0);
+
+  for (int i = 0; i < qo->join.size(); i++) {
+    int table_id = qo->join[i].second->table_id;
+
+    // for (short j = 0; j < qo->par_segment_count[table_id]; j++) {
+
+    parallel_for(short(0), qo->par_segment_count[table_id], [=](short j){
+
+      int sg = qo->par_segment[table_id][j];
+
+      if (verbose) {
+        cout << qo->join[i].second->column_name << endl;
+        printf("sg = %d\n", sg);
+      }
+
+      CubDebugExit(cudaStreamCreate(&streams[sg]));
+
+      if (qo->segment_group_count[table_id][sg] > 0) {
+        executeTableDimNP(table_id, sg);
+      }
+
+      CubDebugExit(cudaStreamSynchronize(streams[sg]));
+      CubDebugExit(cudaStreamDestroy(streams[sg]));
+
+    });
+
+    CubDebugExit(cudaDeviceSynchronize());
+  }
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Build time " << time << endl;
+
+  cudaEventRecord(start, 0);
+
+  parallel_for(short(0), qo->par_segment_count[0], [=](short i){
+
+  //for (int i = 0; i < qo->par_segment_count[0]; i++) {
+    int sg = qo->par_segment[0][i];
+
+    CubDebugExit(cudaStreamCreate(&streams[sg]));
+
+    float time_;
+    cudaEvent_t start_, stop_; 
+    cudaEventCreate(&start_); cudaEventCreate(&stop_);
+    cudaEventRecord(start_, 0);
+
+    if (qo->segment_group_count[0][sg] > 0) {
+      executeTableFactNP(sg);
+    }
+
+    cudaEventRecord(stop_, 0);
+    cudaEventSynchronize(stop_);
+    cudaEventElapsedTime(&time_, start_, stop_);
+
+    if (verbose) cout << "sg = " << sg << " non demand time = " << time_ << endl;
+
+    CubDebugExit(cudaStreamSynchronize(streams[sg]));
+    CubDebugExit(cudaStreamDestroy(streams[sg]));
+
+  });
+
+  CubDebugExit(cudaDeviceSynchronize());
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+  if (verbose) cout << "Probe time " << time << endl;
+  
+  cudaEventRecord(start, 0);
+
+  int* resGPU;
+  if (custom) resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
+  else CubDebugExit(cudaHostAlloc((void**) &resGPU, params->total_val * 6 * sizeof(int), cudaHostAllocDefault));
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
 
@@ -1261,7 +1456,9 @@ QueryProcessing::runHybridOnDemand(int options) {
 
   cudaEventRecord(start, 0);
 
-  int* resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
+  int* resGPU;
+  if (custom) resGPU = (int*) cm->customCudaHostAlloc<int>(params->total_val * 6);
+  else CubDebugExit(cudaHostAlloc((void**) &resGPU, params->total_val * 6 * sizeof(int), cudaHostAllocDefault));
   CubDebugExit(cudaMemcpy(resGPU, params->d_res, params->total_val * 6 * sizeof(int), cudaMemcpyDeviceToHost));
   merge(params->res, resGPU, params->total_val);
 
@@ -1453,6 +1650,9 @@ QueryProcessing::processOnDemand() {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
+    cout << "CPU Time: " << cgp->cpu_time << endl;
+    cout << "GPU Time: " << cgp->gpu_time << endl;
+    cout << "Transfer Time: " << cgp->transfer_time << endl;
     cout << endl;
   }
 
@@ -1496,6 +1696,9 @@ QueryProcessing::processHybridOnDemand(int options) {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
+    cout << "CPU Time: " << cgp->cpu_time << endl;
+    cout << "GPU Time: " << cgp->gpu_time << endl;
+    cout << "Transfer Time: " << cgp->transfer_time << endl;
     cout << endl;
   }
 
@@ -1560,6 +1763,9 @@ QueryProcessing::processQuery() {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
+    cout << "CPU Time: " << cgp->cpu_time << endl;
+    cout << "GPU Time: " << cgp->gpu_time << endl;
+    cout << "Transfer Time: " << cgp->transfer_time << endl;
     cout << endl;
   }
 
@@ -1625,6 +1831,9 @@ QueryProcessing::processQuery2() {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
+    cout << "CPU Time: " << cgp->cpu_time << endl;
+    cout << "GPU Time: " << cgp->gpu_time << endl;
+    cout << "Transfer Time: " << cgp->transfer_time << endl;
     cout << endl;
   }
 
@@ -1638,6 +1847,75 @@ QueryProcessing::processQuery2() {
   return time;
 
 };
+
+double
+QueryProcessing::processQueryNP() {
+
+  // cudaEvent_t start, stop;   // variables that holds 2 events 
+  SETUP_TIMING();
+  float time;
+
+  cudaEventRecord(start, 0);
+
+  qo->parseQuery(query);
+  qo->prepareQuery(query, skew);
+  params = qo->params;
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+
+  if (verbose) {
+    cout << "Query Prepare Time: " << time << endl;
+    cout << endl;
+  }
+
+  cudaEventRecord(start, 0);
+
+  qo->prepareOperatorPlacement();
+  qo->groupBitmapSegmentTable(0, query);
+    for (int tbl = 0; tbl < qo->join.size(); tbl++) {
+      qo->groupBitmapSegmentTable(qo->join[tbl].second->table_id, query);
+  }
+
+  cudaEventRecord(stop, 0);
+  cudaEventSynchronize(stop);
+  cudaEventElapsedTime(&time, start, stop);
+
+  if (verbose) {
+    cout << "Query Optimization Time: " << time << endl;
+    cout << endl;    
+  }
+
+  TIME_FUNC(runQueryNP(), time);
+
+  if (verbose) {
+    cout << "Result:" << endl;
+    int res_count = 0;
+    for (int i=0; i< params->total_val; i++) {
+      if (params->res[6*i+4] != 0) {
+        cout << params->res[6*i] << " " << params->res[6*i+1] << " " << params->res[6*i+2] << " " << params->res[6*i+3] << " " << reinterpret_cast<unsigned long long*>(&params->res[6*i+4])[0]  << endl;
+        res_count++;
+      }
+    }
+    cout << "Res count = " << res_count << endl;
+    cout << "Query Execution Time: " << time << endl;
+    cout << "CPU Time: " << cgp->cpu_time << endl;
+    cout << "GPU Time: " << cgp->gpu_time << endl;
+    cout << "Transfer Time: " << cgp->transfer_time << endl;
+    cout << endl;
+  }
+
+  updateStatsQuery();
+
+  endQuery();
+
+  qo->clearPlacement();
+  qo->clearParsing();
+
+  return time;
+
+}
 
 void
 QueryProcessing::percentageData() {
@@ -1706,6 +1984,8 @@ QueryProcessing::endQuery() {
   cm->resetPointer();
 
   cgp->resetCGP();
+
+  // cgp->resetTime();
 
 }
 

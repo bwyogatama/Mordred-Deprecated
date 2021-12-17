@@ -1,4 +1,4 @@
-export SAMPLE_PATH="/home/ubuntu/Implementation-GPUDB/test/ssb/data/s40"
+export SAMPLE_PATH="/home/ubuntu/Implementation-GPUDB/test/ssb/data/s160"
 export MAPD_DATA="data/mapd_import/ssb/"
 export QUERIES="/home/ubuntu/Implementation-GPUDB/test/ssb/queries/transformed"
 

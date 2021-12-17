@@ -295,7 +295,7 @@ public:
 
 	int* onDemandTransfer(int* data_ptr, int size, cudaStream_t stream);
 
-	void indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream);
+	void indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream, bool custom = true);
 
 	void resetPointer();
 
@@ -307,7 +307,7 @@ public:
 
 	void onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, cudaStream_t stream);
 
-	void indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream);
+	void indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream, bool custom = true);
 
 	int cacheSpecificColumn(string column_name);
 

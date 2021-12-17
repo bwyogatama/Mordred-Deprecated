@@ -256,6 +256,9 @@ public:
 	map<int, Zipfian*> zipfian;
 	QueryParams* params;
 
+	bool custom;
+	bool skipping;
+
 	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp);
 	~QueryOptimizer();
 

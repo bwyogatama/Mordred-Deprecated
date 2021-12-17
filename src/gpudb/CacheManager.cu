@@ -282,9 +282,12 @@ CacheManager::onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, c
 };
 
 void
-CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream) {
+CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream, bool custom) {
     if (col_idx[column->column_id] == NULL) {
-      int* desired = (int*) customCudaMalloc<int>(column->total_segment); int* expected = NULL;
+      int* desired;
+      if (custom) desired = (int*) customCudaMalloc<int>(column->total_segment); 
+      else CubDebugExit(cudaMalloc((void**) &desired, column->total_segment * sizeof(int)));
+      int* expected = NULL;
       CubDebugExit(cudaMemcpyAsync(desired, segment_list[column->column_id], column->total_segment * sizeof(int), cudaMemcpyHostToDevice, stream));
       CubDebugExit(cudaStreamSynchronize(stream));
       __atomic_compare_exchange_n(&(col_idx[column->column_id]), &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
@@ -292,10 +295,13 @@ CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stre
 };
 
 void
-CacheManager::indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream) {
+CacheManager::indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream, bool custom) {
     if (od_col_idx[column->column_id] == NULL) {
     	// cout << "doing index transfer " << column->column_name << endl;
-      int* desired = (int*) customCudaMalloc<int>(column->total_segment); int* expected = NULL;
+      int* desired;
+      if (custom) desired = (int*) customCudaMalloc<int>(column->total_segment); 
+      else CubDebugExit(cudaMalloc((void**) &desired, column->total_segment * sizeof(int)));
+      int* expected = NULL;
       CubDebugExit(cudaMemcpyAsync(desired, od_segment_list[column->column_id], column->total_segment * sizeof(int), cudaMemcpyHostToDevice, stream));
       CubDebugExit(cudaStreamSynchronize(stream));
       __atomic_compare_exchange_n(&(od_col_idx[column->column_id]), &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);

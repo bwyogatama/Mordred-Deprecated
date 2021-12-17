@@ -19,6 +19,8 @@ public:
   int query;
   bool verbose;
   bool skew;
+  bool custom;
+  bool skipping;
 
   QueryProcessing(CPUGPUProcessing* _cgp, bool _verbose, bool _skew = false) {
     cgp = _cgp;
@@ -27,6 +29,8 @@ public:
     // query_freq[_query] = 0;
     verbose = _verbose;
     skew = _skew;
+    custom = cgp->custom;
+    skipping = cgp->skipping;
   }
 
   ~QueryProcessing() {
@@ -47,6 +51,8 @@ public:
 
   void runQuery2();
 
+  void runQueryNP();
+
   void runOnDemand();
 
   void runHybridOnDemand(int options = 1);
@@ -58,6 +64,8 @@ public:
   double processQuery();
 
   double processQuery2();
+
+  double processQueryNP();
 
   double processOnDemand();
 
@@ -82,6 +90,10 @@ public:
   void executeTableFactOD(int sg);
 
   void executeTableFactOD2(int sg);
+
+  void executeTableDimNP(int table_id, int sg);
+
+  void executeTableFactNP(int sg);
 
 };
 

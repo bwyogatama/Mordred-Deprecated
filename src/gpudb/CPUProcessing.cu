@@ -1467,13 +1467,13 @@ void filter_CPU2(int* off_col, struct filterArgsCPU fargs,
 
               col_offset = off_col[start_offset + i];
 
-              // if (fargs.filter_col1 != NULL) {
-                  // selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
-              // }
+              if (fargs.filter_col1 != NULL) {
+                  selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+              }
 
-              // if (fargs.filter_col2 != NULL) {
+              if (fargs.filter_col2 != NULL) {
                 selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
-              // }
+              }
 
               if (selection_flag) {
                 temp[count] = col_offset;
@@ -1488,13 +1488,13 @@ void filter_CPU2(int* off_col, struct filterArgsCPU fargs,
 
             col_offset = off_col[start_offset + i];
 
-              // if (fargs.filter_col1 != NULL) {
-                  // selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
-              // }
+              if (fargs.filter_col1 != NULL) {
+                  selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+              }
 
-              // if (fargs.filter_col2 != NULL) {
+              if (fargs.filter_col2 != NULL) {
                 selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
-              // }
+              }
 
             if (selection_flag) {
               temp[count] = col_offset;
