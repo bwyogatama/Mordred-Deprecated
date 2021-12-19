@@ -96,6 +96,7 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 		}
 	}
 
+	cout << cache_size << endl;
 	
 }
 
@@ -371,6 +372,7 @@ CacheManager::cacheSegmentInGPU(Segment* seg) {
 	segment_list[seg->column->column_id][seg->segment_id] = idx;
 	// cout << idx << " " << idx * SEGMENT_SIZE << endl;
 	CubDebugExit(cudaMemcpy(&gpuCache[idx * SEGMENT_SIZE], seg->seg_ptr, SEGMENT_SIZE * sizeof(int), cudaMemcpyHostToDevice));
+	// cout << idx << " " << idx * SEGMENT_SIZE << endl;
 	allColumn[seg->column->column_id]->tot_seg_in_GPU++;
 	assert(allColumn[seg->column->column_id]->tot_seg_in_GPU <= allColumn[seg->column->column_id]->total_segment);
 }

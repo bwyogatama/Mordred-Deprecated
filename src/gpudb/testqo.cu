@@ -9,11 +9,15 @@
 
 int main() {
 
-	bool verbose = 1;
+	bool verbose = 0;
 
 	srand(123);
+
+	unsigned int size = 52428800;
+	double alpha = 0.5;
 	
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(52428800 * 10, 0, 52428800 * 15, 52428800 * 20, verbose, true, true);
+	//TODO: make it support cache size > 8 GB (there are lots of integer overflow resulting in negative offset to the gpuCache) should have used unsigned int everywhere
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(size * 16, 0, 52428800 * 15, 52428800 * 20, verbose, true, true, alpha);
 	QueryProcessing* qp;
 
 	// cout << "Profiling" << endl;
@@ -27,17 +31,18 @@ int main() {
 
 	cout << endl;
 
-	// CacheManager* cm = cgp->cm;
+	CacheManager* cm = cgp->cm;
 
-	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_discount, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, 57);
-	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, 57);
+	// cm->cacheColumnSegmentInGPU(cm->lo_orderdate, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_suppkey, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_custkey, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_partkey, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_revenue, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_supplycost, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_discount, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_quantity, cm->lo_orderdate->total_segment);
+	// cm->cacheColumnSegmentInGPU(cm->lo_extendedprice, cm->lo_orderdate->total_segment);
+
 	// cm->cacheColumnSegmentInGPU(cm->d_datekey, cm->d_datekey->total_segment);
 	// cm->cacheColumnSegmentInGPU(cm->d_year, 0);
 	// cm->cacheColumnSegmentInGPU(cm->d_yearmonthnum, 0);
@@ -73,13 +78,16 @@ int main() {
 	bool exit = 0;
 	string input;
 	string query;
+	string many;
+	int many_query;
 	double time = 0;
-	double cpu_time = 0, gpu_time = 0, transfer_time = 0;
+	double cpu_time_total = 0, gpu_time_total = 0, transfer_time_total = 0, malloc_time_total = 0;
 	double time1 = 0, time2 = 0;
-	double cpu_time1 = 0, cpu_time2 = 0;
-	double gpu_time1 = 0, gpu_time2 = 0;
-	double transfer_time1 = 0, transfer_time2 = 0;
-	bool skew = false;
+	double cpu_time_total1 = 0, cpu_time_total2 = 0;
+	double gpu_time_total1 = 0, gpu_time_total2 = 0;
+	double transfer_time_total1 = 0, transfer_time_total2 = 0;
+	double malloc_time_total1 = 0, malloc_time_total2 = 0;
+	bool skew = true;
 
 	qp = new QueryProcessing(cgp, verbose, skew);
 
@@ -102,76 +110,93 @@ int main() {
 		cin >> input;
 
 		if (input.compare("1") == 0) {
-			time = 0; cpu_time = 0; gpu_time = 0; transfer_time = 0;
+			time = 0; cpu_time_total = 0; gpu_time_total = 0; transfer_time_total = 0; malloc_time_total = 0;
 			cgp->resetTime();
 			cout << "Input Query: ";
 			cin >> query;
 			qp->setQuery(stoi(query));
+
 			time2 = qp->processQuery2();
-			cpu_time2 = cgp->cpu_time;
-			gpu_time2 = cgp->gpu_time;
-			transfer_time2 = cgp->transfer_time;
+			cpu_time_total2 = cgp->cpu_time_total;
+			gpu_time_total2 = cgp->gpu_time_total;
+			transfer_time_total2 = cgp->transfer_time_total;
+			malloc_time_total2 = cgp->malloc_time_total;
 			cgp->resetTime();
 			cout << endl;
 			cout << endl;
 
 			time1 = qp->processQuery();
-			cpu_time1 = cgp->cpu_time;
-			gpu_time1 = cgp->gpu_time;
-			transfer_time1 = cgp->transfer_time;
+			cpu_time_total1 = cgp->cpu_time_total;
+			gpu_time_total1 = cgp->gpu_time_total;
+			transfer_time_total1 = cgp->transfer_time_total;
+			malloc_time_total1 = cgp->malloc_time_total;
 			cgp->resetTime();
 			cout << endl;
 			cout << endl;
 
 			if (time1 <= time2) {
-				time += time1; cpu_time += cpu_time1; gpu_time += gpu_time1; transfer_time += transfer_time1;
+				time += time1; cpu_time_total += cpu_time_total1; gpu_time_total += gpu_time_total1; transfer_time_total += transfer_time_total1; malloc_time_total += malloc_time_total1;
 			} else {
-				time += time2; cpu_time += cpu_time2; gpu_time += gpu_time2; transfer_time += transfer_time2;
+				time += time2; cpu_time_total += cpu_time_total2; gpu_time_total += gpu_time_total2; transfer_time_total += transfer_time_total2; malloc_time_total += malloc_time_total2;
 			}
 
 			// time+=time1;
 		} else if (input.compare("2") == 0) {
-			time = 0; cpu_time = 0; gpu_time = 0; transfer_time = 0;
+			time = 0; cpu_time_total = 0; gpu_time_total = 0; transfer_time_total = 0; malloc_time_total = 0;
 			cgp->resetTime();
 			cout << "Input Query: ";
 			cin >> query;
 			qp->setQuery(stoi(query));
-			time2 = qp->processHybridOnDemand(2);
-			cout << endl;
-			cout << endl;
-			time1 = qp->processHybridOnDemand(1);
-			cout << endl;
-			cout << endl;
-			if (time1 <= time2) time += time1;
-			else time += time2;
+
+			// time2 = qp->processHybridOnDemand(2);
+			// cout << endl;
+			// cout << endl;
+			// time1 = qp->processHybridOnDemand(1);
+			// cout << endl;
+			// cout << endl;
+			// if (time1 <= time2) time += time1;
+			// else time += time2;
+
+			time1 = qp->processQueryNP();
+			time += time1;
+			cpu_time_total += cgp->cpu_time_total;
+			gpu_time_total += cgp->gpu_time_total;
+			transfer_time_total += cgp->transfer_time_total;
+			malloc_time_total += cgp->malloc_time_total;
+			cgp->resetTime();
 		} else if (input.compare("3") == 0) {
-			time = 0; cpu_time = 0; gpu_time = 0; transfer_time = 0;
+			time = 0; cpu_time_total = 0; gpu_time_total = 0; transfer_time_total = 0; malloc_time_total = 0;
+			cout << "How many queries: ";
+			cin >> many;
+			many_query = stoi(many);
 			cgp->resetTime();
 			cout << "Executing Random Query" << endl;
-			for (int i = 0; i < 100; i++) {
+			for (int i = 0; i < many_query; i++) {
 				qp->generate_rand_query();
 				time1 = qp->processQuery();
-				cpu_time1 = cgp->cpu_time;
-				gpu_time1 = cgp->gpu_time;
-				transfer_time1 = cgp->transfer_time;
+				cpu_time_total1 = cgp->cpu_time_total;
+				gpu_time_total1 = cgp->gpu_time_total;
+				transfer_time_total1 = cgp->transfer_time_total;
+				malloc_time_total1 = cgp->malloc_time_total;
 				cgp->resetTime();
 
 				time2 = qp->processQuery2();
-				cpu_time2 = cgp->cpu_time;
-				gpu_time2 = cgp->gpu_time;
-				transfer_time2 = cgp->transfer_time;
+				cpu_time_total2 = cgp->cpu_time_total;
+				gpu_time_total2 = cgp->gpu_time_total;
+				transfer_time_total2 = cgp->transfer_time_total;
+				malloc_time_total2 = cgp->malloc_time_total;
 				cgp->resetTime();
 
 				if (time1 <= time2) {
-					time += time1; cpu_time += cpu_time1; gpu_time += gpu_time1; transfer_time += transfer_time1;
+					time += time1; cpu_time_total += cpu_time_total1; gpu_time_total += gpu_time_total1; transfer_time_total += transfer_time_total1; malloc_time_total += malloc_time_total1;
 				} else {
-					time += time2; cpu_time += cpu_time2; gpu_time += gpu_time2; transfer_time += transfer_time2;
+					time += time2; cpu_time_total += cpu_time_total2; gpu_time_total += gpu_time_total2; transfer_time_total += transfer_time_total2; malloc_time_total += malloc_time_total2;
 				}
-				// time += time1;
+				
 			}
 			srand(123);
 		} else if (input.compare("4") == 0) {
-			// time = 0; cpu_time = 0; gpu_time = 0; transfer_time = 0;
+			// time = 0; cpu_time_total = 0; gpu_time_total = 0; transfer_time_total = 0;
 			// cout << "Executing Random Query" << endl;
 			// for (int i = 0; i < 100; i++) {
 			// 	qp->generate_rand_query();
@@ -181,19 +206,20 @@ int main() {
 			// 	else time += time2;
 			// }
 			// srand(123);
-			time = 0; cpu_time = 0; gpu_time = 0; transfer_time = 0;
+			time = 0; cpu_time_total = 0; gpu_time_total = 0; transfer_time_total = 0; malloc_time_total = 0;
+			cout << "How many queries: ";
+			cin >> many;
+			many_query = stoi(many);
 			cgp->resetTime();
 			cout << "Executing Random Query" << endl;
-			for (int i = 0; i < 100; i++) {
+			for (int i = 0; i < many_query; i++) {
 				qp->generate_rand_query();
 				time1 = qp->processQueryNP();
-				// time2 = qp->processQuery2();
-				// if (time1 <= time2) time += time1;
-				// else time += time2;
 				time += time1;
-				cpu_time += cgp->cpu_time;
-				gpu_time += cgp->gpu_time;
-				transfer_time += cgp->transfer_time;
+				cpu_time_total += cgp->cpu_time_total;
+				gpu_time_total += cgp->gpu_time_total;
+				transfer_time_total += cgp->transfer_time_total;
+				malloc_time_total += cgp->malloc_time_total;
 				cgp->resetTime();
 			}
 			srand(123);
@@ -249,9 +275,10 @@ int main() {
 
 		cout << endl;
 		cout << "Cumulated Time: " << time << endl;
-		cout << "CPU time: " << cpu_time << endl;
-		cout << "GPU time: " << gpu_time << endl;
-		cout << "Transfer time: " << transfer_time << endl;
+		cout << "CPU time: " << cpu_time_total << endl;
+		cout << "GPU time: " << gpu_time_total << endl;
+		cout << "Transfer time: " << transfer_time_total << endl;
+		cout << "Malloc time: " << malloc_time_total << endl;
 		cout << endl;
 
 	}

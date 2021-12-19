@@ -154,8 +154,9 @@ class CacheManager {
 public:
 	int* gpuCache;
 	uint64_t* gpuProcessing, *cpuProcessing, *pinnedMemory;
-	int gpuPointer, cpuPointer, pinnedPointer, onDemandPointer;
-	int cache_total_seg, cache_size, processing_size, pinned_memsize, ondemand_size, ondemand_segment;
+	unsigned int gpuPointer, cpuPointer, pinnedPointer, onDemandPointer;
+	int cache_total_seg, ondemand_segment;
+	size_t cache_size, processing_size, pinned_memsize, ondemand_size;
 	int TOT_COLUMN;
 	int TOT_TABLE;
 	vector<ColumnInfo*> allColumn;

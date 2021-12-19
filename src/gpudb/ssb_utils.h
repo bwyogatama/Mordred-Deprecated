@@ -12,7 +12,7 @@
 
 using namespace std;
 
-#define SF 40
+#define SF 20
 
 #define BASE_PATH "/home/ubuntu/Implementation-GPUDB/test/ssb/data/"
 

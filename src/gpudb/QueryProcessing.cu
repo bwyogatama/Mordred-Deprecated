@@ -88,15 +88,15 @@ QueryProcessing::executeTableFactNP(int sg) {
 
     if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
       if (qo->joinCPUPipelineCol[sg].size() > 0) {
-        if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-        else cgp->call_group_by_CPU(params, h_off_col, h_total);
+        if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+        else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
       } else {
-        if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]);
-        else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+        if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]);
+        else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
       }
     } else {
-      if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-      else cgp->call_group_by_CPU(params, h_off_col, h_total);
+      if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+      else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
     }
 }
 
@@ -176,8 +176,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -194,8 +194,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, qo->selectCPUPipelineCol[sg].size(), streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total); 
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg); 
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         }
       } else if (qo->selectGPUPipelineCol[sg].size() == 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
@@ -214,8 +214,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -232,8 +232,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total); 
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg); 
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         }
       } else if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() == 0) {
@@ -247,8 +247,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -269,8 +269,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
 
           cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, 0);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -294,8 +294,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -308,8 +308,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
 
           cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total); 
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg); 
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         }
       } else if (qo->selectGPUPipelineCol[sg].size() == 0 && qo->joinGPUPipelineCol[sg].size() > 0) {
@@ -323,8 +323,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -360,8 +360,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
 
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total); 
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg); 
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         }
       } else if (qo->selectGPUPipelineCol[sg].size() > 0 && qo->joinGPUPipelineCol[sg].size() == 0) {
@@ -373,8 +373,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
 
@@ -393,8 +393,8 @@ QueryProcessing::executeTableFact_v1(int sg) {
 
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]); 
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]); 
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         } else if (qo->joinCPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() == 0) {
           if (qo->groupby_build.size() == 0) cgp->call_probe_aggr_CPU(params, h_off_col, h_total, sg); 
@@ -438,8 +438,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -456,8 +456,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, qo->selectGPUPipelineCol[sg].size());
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]);
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]);
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         }
       } else if (qo->selectCPUPipelineCol[sg].size() == 0 && qo->joinCPUPipelineCol[sg].size() > 0) {
@@ -476,8 +476,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -494,8 +494,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]);
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]);
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         }
       } else if (qo->selectCPUPipelineCol[sg].size() > 0 && qo->joinCPUPipelineCol[sg].size() == 0) {
@@ -509,8 +509,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -531,8 +531,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
 
           cgp->call_pfilter_probe_GPU(params, off_col, d_total, h_total, sg, 0, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -556,8 +556,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -570,8 +570,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
 
           cgp->call_pfilter_probe_CPU(params, h_off_col, h_total, sg, 0);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]);
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]);
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         }
       } else if (qo->selectCPUPipelineCol[sg].size() == 0 && qo->joinCPUPipelineCol[sg].size() > 0) {
@@ -586,8 +586,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -600,8 +600,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
 
           cgp->call_probe_CPU(params, h_off_col, h_total, sg);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, streams[sg]);
-          else cgp->call_group_by_GPU(params, off_col, h_total, streams[sg]);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]);
+          else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
 
         }
       } else if (qo->selectCPUPipelineCol[sg].size() > 0 && qo->joinCPUPipelineCol[sg].size() == 0) {
@@ -613,8 +613,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 0, 0, streams[sg]);
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -633,8 +633,8 @@ QueryProcessing::executeTableFact_v2(int sg) {
 
           cgp->call_probe_GPU(params, off_col, d_total, h_total, sg, streams[sg]);
           cgp->switch_device_fact(off_col, h_off_col, d_total, h_total, sg, 1, 0, streams[sg]);
-          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total);
-          else cgp->call_group_by_CPU(params, h_off_col, h_total);
+          if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
 
         } else if (qo->joinGPUPipelineCol[sg].size() > 0 && qo->groupbyGPUPipelineCol[sg].size() > 0) {
 
@@ -1109,6 +1109,8 @@ QueryProcessing::runQuery() {
 
     });
 
+    // }
+
     CubDebugExit(cudaDeviceSynchronize());
   }
 
@@ -1185,6 +1187,11 @@ QueryProcessing::runQuery2() {
 
       int sg = qo->par_segment[table_id][j];
 
+      if (verbose) {
+        cout << qo->join[i].second->column_name << endl;
+        printf("sg = %d\n", sg);
+      }
+
       CubDebugExit(cudaStreamCreate(&streams[sg]));
 
       if (qo->segment_group_count[table_id][sg] > 0) {
@@ -1195,6 +1202,8 @@ QueryProcessing::runQuery2() {
       CubDebugExit(cudaStreamDestroy(streams[sg]));
 
     });
+    
+    // }
 
     CubDebugExit(cudaDeviceSynchronize());
   }
@@ -1639,6 +1648,13 @@ QueryProcessing::processOnDemand() {
 
   TIME_FUNC(runOnDemand(), time);
 
+  for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
+    cgp->cpu_time_total += cgp->cpu_time[sg];
+    cgp->gpu_time_total += cgp->gpu_time[sg];
+    cgp->transfer_time_total += cgp->transfer_time[sg];
+    cgp->malloc_time_total += cgp->malloc_time[sg];
+  }
+
   if (verbose) {
     cout << "Result:" << endl;
     int res_count = 0;
@@ -1650,9 +1666,10 @@ QueryProcessing::processOnDemand() {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
-    cout << "CPU Time: " << cgp->cpu_time << endl;
-    cout << "GPU Time: " << cgp->gpu_time << endl;
-    cout << "Transfer Time: " << cgp->transfer_time << endl;
+    cout << "CPU Time: " << cgp->cpu_time_total << endl;
+    cout << "GPU Time: " << cgp->gpu_time_total << endl;
+    cout << "Transfer Time: " << cgp->transfer_time_total << endl;
+    cout << "Malloc Time: " << cgp->malloc_time_total << endl;
     cout << endl;
   }
 
@@ -1685,6 +1702,13 @@ QueryProcessing::processHybridOnDemand(int options) {
 
   TIME_FUNC(runHybridOnDemand(options), time);
 
+  for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
+    cgp->cpu_time_total += cgp->cpu_time[sg];
+    cgp->gpu_time_total += cgp->gpu_time[sg];
+    cgp->transfer_time_total += cgp->transfer_time[sg];
+    cgp->malloc_time_total += cgp->malloc_time[sg];
+  }
+
   if (verbose) {
     cout << "Result:" << endl;
     int res_count = 0;
@@ -1696,9 +1720,10 @@ QueryProcessing::processHybridOnDemand(int options) {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
-    cout << "CPU Time: " << cgp->cpu_time << endl;
-    cout << "GPU Time: " << cgp->gpu_time << endl;
-    cout << "Transfer Time: " << cgp->transfer_time << endl;
+    cout << "CPU Time: " << cgp->cpu_time_total << endl;
+    cout << "GPU Time: " << cgp->gpu_time_total << endl;
+    cout << "Transfer Time: " << cgp->transfer_time_total << endl;
+    cout << "Malloc Time: " << cgp->malloc_time_total << endl;
     cout << endl;
   }
 
@@ -1752,6 +1777,13 @@ QueryProcessing::processQuery() {
 
   TIME_FUNC(runQuery(), time);
 
+  for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
+    cgp->cpu_time_total += cgp->cpu_time[sg];
+    cgp->gpu_time_total += cgp->gpu_time[sg];
+    cgp->transfer_time_total += cgp->transfer_time[sg];
+    cgp->malloc_time_total += cgp->malloc_time[sg];
+  }
+
   if (verbose) {
     cout << "Result:" << endl;
     int res_count = 0;
@@ -1763,9 +1795,10 @@ QueryProcessing::processQuery() {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
-    cout << "CPU Time: " << cgp->cpu_time << endl;
-    cout << "GPU Time: " << cgp->gpu_time << endl;
-    cout << "Transfer Time: " << cgp->transfer_time << endl;
+    cout << "CPU Time: " << cgp->cpu_time_total << endl;
+    cout << "GPU Time: " << cgp->gpu_time_total << endl;
+    cout << "Transfer Time: " << cgp->transfer_time_total << endl;
+    cout << "Malloc Time: " << cgp->malloc_time_total << endl;
     cout << endl;
   }
 
@@ -1820,6 +1853,13 @@ QueryProcessing::processQuery2() {
 
   TIME_FUNC(runQuery2(), time);
 
+  for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
+    cgp->cpu_time_total += cgp->cpu_time[sg];
+    cgp->gpu_time_total += cgp->gpu_time[sg];
+    cgp->transfer_time_total += cgp->transfer_time[sg];
+    cgp->malloc_time_total += cgp->malloc_time[sg];
+  }
+
   if (verbose) {
     cout << "Result:" << endl;
     int res_count = 0;
@@ -1831,9 +1871,10 @@ QueryProcessing::processQuery2() {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
-    cout << "CPU Time: " << cgp->cpu_time << endl;
-    cout << "GPU Time: " << cgp->gpu_time << endl;
-    cout << "Transfer Time: " << cgp->transfer_time << endl;
+    cout << "CPU Time: " << cgp->cpu_time_total << endl;
+    cout << "GPU Time: " << cgp->gpu_time_total << endl;
+    cout << "Transfer Time: " << cgp->transfer_time_total << endl;
+    cout << "Malloc Time: " << cgp->malloc_time_total << endl;
     cout << endl;
   }
 
@@ -1889,6 +1930,13 @@ QueryProcessing::processQueryNP() {
 
   TIME_FUNC(runQueryNP(), time);
 
+  for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
+    cgp->cpu_time_total += cgp->cpu_time[sg];
+    cgp->gpu_time_total += cgp->gpu_time[sg];
+    cgp->transfer_time_total += cgp->transfer_time[sg];
+    cgp->malloc_time_total += cgp->malloc_time[sg];
+  }
+
   if (verbose) {
     cout << "Result:" << endl;
     int res_count = 0;
@@ -1900,9 +1948,10 @@ QueryProcessing::processQueryNP() {
     }
     cout << "Res count = " << res_count << endl;
     cout << "Query Execution Time: " << time << endl;
-    cout << "CPU Time: " << cgp->cpu_time << endl;
-    cout << "GPU Time: " << cgp->gpu_time << endl;
-    cout << "Transfer Time: " << cgp->transfer_time << endl;
+    cout << "CPU Time: " << cgp->cpu_time_total << endl;
+    cout << "GPU Time: " << cgp->gpu_time_total << endl;
+    cout << "Transfer Time: " << cgp->transfer_time_total << endl;
+    cout << "Malloc Time: " << cgp->malloc_time_total << endl;
     cout << endl;
   }
 

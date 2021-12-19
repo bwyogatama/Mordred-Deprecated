@@ -4,7 +4,7 @@ export QUERIES="/home/ubuntu/Implementation-GPUDB/test/ssb/queries/transformed"
 
 ./bin/omnisci_server --num-gpus=1 --enable-cpu-sub-tasks=1
 
-./bin/omnisci_server --num-gpus=1 --enable-cpu-sub-tasks=1 --enable-watchdog=0
+./bin/omnisci_server --num-gpus=1 --enable-cpu-sub-tasks=1 --enable-watchdog=0 --gpu-input-mem-limit=0.95 --allow-cpu-retry=0
 
 rm $MAPD_DATA/*
 ln $SAMPLE_PATH/customer.tbl.p $MAPD_DATA/customer.tbl.p

@@ -21,15 +21,25 @@ public:
   chrono::high_resolution_clock::time_point begin_time;
   bool verbose;
 
-  double transfer_time;
-  double cpu_time;
-  double gpu_time;
+  double transfer_time_total;
+  double cpu_time_total;
+  double gpu_time_total;
+  double malloc_time_total;
 
-  CPUGPUProcessing(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, bool _verbose, bool _custom = true, bool _skipping = true);
+  double* transfer_time;
+  double* cpu_time;
+  double* gpu_time;
+  double* malloc_time;
+
+  CPUGPUProcessing(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, bool _verbose, bool _custom = true, bool _skipping = true, double alpha = 0.1);
 
   ~CPUGPUProcessing() {
     delete[] col_idx;
     // delete[] od_col_idx;
+    delete[] transfer_time;
+    delete[] cpu_time;
+    delete[] gpu_time;
+    delete[] malloc_time;
     delete qo;
   }
 
@@ -42,11 +52,7 @@ public:
     // }
   }
 
-  void resetTime() {
-    cpu_time = 0;
-    gpu_time = 0;
-    transfer_time = 0;
-  }
+  void resetTime();
 
   void switch_device_fact(int** &off_col, int** &h_off_col, int* &d_total, int* h_total, int sg, int mode, int table, cudaStream_t stream);
 
@@ -88,13 +94,13 @@ public:
 
 
 
-  void call_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, cudaStream_t stream);
+  void call_group_by_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, cudaStream_t stream);
 
-  void call_group_by_CPU(QueryParams* params, int** &h_off_col, int* h_total);
+  void call_group_by_CPU(QueryParams* params, int** &h_off_col, int* h_total, int sg);
 
-  void call_aggregation_GPU(QueryParams* params, int* &off_col, int* h_total, cudaStream_t stream);
+  void call_aggregation_GPU(QueryParams* params, int* &off_col, int* h_total, int sg, cudaStream_t stream);
 
-  void call_aggregation_CPU(QueryParams* params, int* &h_off_col, int* h_total);
+  void call_aggregation_CPU(QueryParams* params, int* &h_off_col, int* h_total, int sg);
 
   void call_probe_aggr_GPU(QueryParams* params, int** &off_col, int* h_total, int sg, cudaStream_t stream);
 

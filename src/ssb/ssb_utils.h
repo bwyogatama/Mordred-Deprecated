@@ -7,7 +7,7 @@
 
 using namespace std;
 
-#define SF 10
+#define SF 40
 
 #define BASE_PATH "/home/ubuntu/Implementation-GPUDB/test/ssb/data/"
 
@@ -26,12 +26,19 @@ using namespace std;
 #define S_LEN 20000
 #define C_LEN 300000
 #define D_LEN 2556
-#else // 20
+#elif SF == 20
 #define DATA_DIR BASE_PATH "s20_columnar/"
 #define LO_LEN 119994746
 #define P_LEN 1000000
 #define S_LEN 40000
 #define C_LEN 600000
+#define D_LEN 2556
+#elif SF == 40
+#define DATA_DIR BASE_PATH "s40_columnar/"
+#define LO_LEN 240012412
+#define P_LEN 1200000
+#define S_LEN 80000
+#define C_LEN 1200000
 #define D_LEN 2556
 #endif
 
@@ -54,7 +61,7 @@ string lookup(string col_name) {
 
   if (col_name[0] == 'l') {
     int index = index_of(lineorder, 17, col_name);
-    return "LINEORDER" + to_string(index);
+    return "LINEORDERSORT" + to_string(index);
   } else if (col_name[0] == 's') {
     int index = index_of(supplier, 7, col_name);
     return "SUPPLIER" + to_string(index);

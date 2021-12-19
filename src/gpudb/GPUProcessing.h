@@ -76,17 +76,17 @@ __global__ void filter_probe_group_by_GPU2(
   if (fargs.filter_idx1 != NULL) {
     ptr = gpuCache + filter_segment1 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   if (fargs.filter_idx2 != NULL) {
     ptr = gpuCache + filter_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
 
@@ -150,7 +150,8 @@ __global__ void filter_probe_group_by_GPU2(
         res[hash * 6 + 2] = groupval3[ITEM];
         res[hash * 6 + 3] = groupval4[ITEM];
 
-        int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        int temp = aggrval1[ITEM] - aggrval2[ITEM];
         atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp));
 
         // if (gargs.mode == 0) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM]));
@@ -197,16 +198,16 @@ __global__ void filter_probe_group_by_GPU3(int* gpuCache, struct offsetGPU offse
 
   if (fargs.filter_idx1 != NULL) {
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, fargs.filter_idx1, num_tile_items);
-    // BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   if (fargs.filter_idx2 != NULL) {
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, fargs.filter_idx2, num_tile_items);
-    // BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
 
@@ -276,7 +277,8 @@ __global__ void filter_probe_group_by_GPU3(int* gpuCache, struct offsetGPU offse
         res[hash * 6 + 2] = groupval3[ITEM];
         res[hash * 6 + 3] = groupval4[ITEM];
 
-        int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        int temp = aggrval1[ITEM] - aggrval2[ITEM];
         atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp));
 
         // if (gargs.mode == 0) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM]));
@@ -336,12 +338,6 @@ __global__ void probe_group_by_GPU2(
     if (pargs.key_idx4 != NULL) key_segment4 = pargs.key_idx4[segment_index];
     if (gargs.aggr_idx1 != NULL) aggr_segment1 = gargs.aggr_idx1[segment_index];
     if (gargs.aggr_idx2 != NULL) aggr_segment2 = gargs.aggr_idx2[segment_index];
-    // printf("%d\n", key_segment1);
-    // printf("%d\n", key_segment2);
-    // printf("%d\n", key_segment3);
-    // printf("%d\n", key_segment4);
-    // printf("%d\n", aggr_segment1);
-    // printf("%d\n", aggr_segment2);
   }
 
   __syncthreads();
@@ -408,13 +404,10 @@ __global__ void probe_group_by_GPU2(
         res[hash * 6 + 2] = groupval3[ITEM];
         res[hash * 6 + 3] = groupval4[ITEM];
 
-        int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        int temp = aggrval1[ITEM] - aggrval2[ITEM];
         atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp));
 
-        // if (gargs.mode == 0) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM]));
-        // else if (gargs.mode == 1) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM] - aggrval2[ITEM]));
-        // else if (gargs.mode == 2) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM] * aggrval2[ITEM]));
-        
       }
     }
   }
@@ -517,7 +510,8 @@ __global__ void probe_group_by_GPU3 (int* gpuCache, struct offsetGPU offset, str
         res[hash * 6 + 2] = groupval3[ITEM];
         res[hash * 6 + 3] = groupval4[ITEM];
 
-        int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        int temp = aggrval1[ITEM] - aggrval2[ITEM];
         atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp));
 
         // if (gargs.mode == 0) atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(aggrval1[ITEM]));
@@ -599,17 +593,17 @@ __global__ void filter_probe_GPU2(
   if (fargs.filter_idx1 != NULL) {
     ptr = gpuCache + filter_segment1 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   if (fargs.filter_idx2 != NULL) {
     ptr = gpuCache + filter_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
   // if (pargs.key_idx1 != NULL && pargs.ht1 != NULL) { //we are doing probing for this column (normal operation)
@@ -722,16 +716,16 @@ __global__ void filter_probe_GPU3(
 
   if (fargs.filter_idx1 != NULL) {
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, fargs.filter_idx1, num_tile_items);
-    // BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   if (fargs.filter_idx2 != NULL) {
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, items, gpuCache, fargs.filter_idx2, num_tile_items);
-    // BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
   // if (pargs.key_idx1 != NULL && pargs.ht1 != NULL) { //we are doing probing for this column (normal operation)
@@ -1098,16 +1092,16 @@ __global__ void build_GPU2(
   if (fargs.filter_idx1 != NULL) {
     int* ptr = gpuCache + filter_segment * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // if (fargs.mode1 == 0) { //equal to
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    // } else if (fargs.mode1 == 1) { //between
-    //   BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    //   BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    // } else if (fargs.mode1 == 2) { //equal or equal
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    // }
-    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    if (fargs.mode1 == 0) { //equal to
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    } else if (fargs.mode1 == 1) { //between
+      BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+      BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    } else if (fargs.mode1 == 2) { //equal or equal
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    }
+    // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   cudaAssert(bargs.key_idx != NULL);
@@ -1370,32 +1364,32 @@ __global__ void filter_GPU2(
     int* ptr = gpuCache + filter_segment1 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
 
-    // if (fargs.mode1 == 0) { //equal to
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    // } else if (fargs.mode1 == 1) { //between
-    //   BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    //   BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    // } else if (fargs.mode1 == 2) { //equal or equal
-    //   BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    // }
-    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    if (fargs.mode1 == 0) { //equal to
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    } else if (fargs.mode1 == 1) { //between
+      BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+      BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    } else if (fargs.mode1 == 2) { //equal or equal
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    }
+    // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   if (fargs.filter_idx2 != NULL) {
     int* ptr = gpuCache + filter_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
 
-    // if (fargs.mode2 == 0) { //equal to
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    // } else if (fargs.mode2 == 1) { //between
-    //   BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    //   BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    // } else if (fargs.mode2 == 2) { //equal or equal
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    // }
-    (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    if (fargs.mode2 == 0) { //equal to
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+    } else if (fargs.mode2 == 1) { //between
+      BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+      BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    } else if (fargs.mode2 == 2) { //equal or equal
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    }
+    // (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
   #pragma unroll
@@ -1471,33 +1465,33 @@ __global__ void filter_GPU3(
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, fargs.filter_idx1, num_tile_items);
 
-  //   if (fargs.mode1 == 0) { //equal to
-  //     BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-  //   } else if (fargs.mode1 == 1) { //between
-  //     BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-  //     BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-  //   } else if (fargs.mode1 == 2) { //equal or equal
-  //     BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-  //     BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-  //   }
-     (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    if (fargs.mode1 == 0) { //equal to
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    } else if (fargs.mode1 == 1) { //between
+      BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+      BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    } else if (fargs.mode1 == 2) { //equal or equal
+      BlockPredEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    }
+     // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   if (fargs.filter_idx2 != NULL) {
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(off_col + tile_offset, items_off, num_tile_items);
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_off, items, gpuCache, fargs.filter_idx2, num_tile_items);
 
-    // if (fargs.mode2 == 0) { //equal to
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    // } else if (fargs.mode2 == 1) { //between
-    //   BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    //   BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    // } else if (fargs.mode2 == 2) { //equal or equal
-    //   BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    //   BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    // }
+    if (fargs.mode2 == 0) { //equal to
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+    } else if (fargs.mode2 == 1) { //between
+      BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+      BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    } else if (fargs.mode2 == 2) { //equal or equal
+      BlockPredAndEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+      BlockPredOrEQ<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    }
 
-    (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    // (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
   #pragma unroll
@@ -1623,7 +1617,8 @@ __global__ void groupByGPU(
       // if (gargs.mode == 0) temp = aggrval1[ITEM];
       // else if (gargs.mode == 1) temp = aggrval1[ITEM] - aggrval2[ITEM];
       // else if (gargs.mode == 2) temp = aggrval1[ITEM] * aggrval2[ITEM];
-      int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+      // int temp = (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+      int temp = aggrval1[ITEM] - aggrval2[ITEM];
       atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp));
     }
   }
@@ -1680,7 +1675,8 @@ __global__ void aggregationGPU(
       // if (gargs.mode == 0) sum += aggrval1[ITEM];
       // else if (gargs.mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
       // else if (gargs.mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
-      sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+      // sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+      sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
     }
   }
 
@@ -1801,7 +1797,8 @@ __global__ void probe_aggr_GPU2(
         // if (gargs.mode == 0) sum += aggrval1[ITEM];
         // else if (gargs.mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
         // else if (gargs.mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
-        sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
       }
     }
   }
@@ -1892,7 +1889,8 @@ __global__ void probe_aggr_GPU3(
         // if (gargs.mode == 0) sum += aggrval1[ITEM];
         // else if (gargs.mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
         // else if (gargs.mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
-        sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
       }
     }
   }
@@ -1968,17 +1966,17 @@ __global__ void filter_probe_aggr_GPU2(
   if (fargs.filter_idx1 != NULL) {
     ptr = gpuCache + filter_segment1 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
+    BlockPredGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare1, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare2, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func1))(items, selection_flags, fargs.compare1, fargs.compare2, num_tile_items);
   }
 
   if (fargs.filter_idx2 != NULL) {
     ptr = gpuCache + filter_segment2 * SEGMENT_SIZE;
     BlockLoadCrystal<int, BLOCK_THREADS, ITEMS_PER_THREAD>(ptr + segment_tile_offset, items, num_tile_items);
-    // BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(items, fargs.compare4, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func2))(items, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
   // if (pargs.key_idx1 != NULL && pargs.ht1 != NULL) { //normal operation, here pargs.key_idx will be lo_partkey, lo_suppkey, etc (the join key column) -> no group by attributes
@@ -2019,14 +2017,6 @@ __global__ void filter_probe_aggr_GPU2(
     BlockSetValue<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, aggrval2, 0, num_tile_items);
   }
 
-  // if (gargs.mode == 0) {
-  //   cudaAssert(gargs.aggr_idx1 != NULL);
-  // } else if (gargs.mode == 1) {
-  //   cudaAssert(gargs.aggr_idx1 != NULL && gargs.aggr_idx2 != NULL);
-  // } else if (gargs.mode == 2) {
-  //   cudaAssert(gargs.aggr_idx1 != NULL && gargs.aggr_idx2 != NULL);
-  // }
-
   long long sum = 0;
 
   #pragma unroll
@@ -2036,7 +2026,8 @@ __global__ void filter_probe_aggr_GPU2(
         // if (gargs.mode == 0) sum += aggrval1[ITEM];
         // else if (gargs.mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
         // else if (gargs.mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
-        sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
       }
     }
   }
@@ -2090,9 +2081,9 @@ __global__ void filter_probe_aggr_GPU3(
 
   if (fargs.filter_idx2 != NULL) {
     BlockReadOffsetGPU<BLOCK_THREADS, ITEMS_PER_THREAD>(threadIdx.x, items_lo, temp, gpuCache, fargs.filter_idx2, num_tile_items);
-    // BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, fargs.compare3, selection_flags, num_tile_items);
-    // BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, fargs.compare4, selection_flags, num_tile_items);
-    (*(fargs.d_filter_func2))(temp, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
+    BlockPredAndGTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, fargs.compare3, selection_flags, num_tile_items);
+    BlockPredAndLTE<int, BLOCK_THREADS, ITEMS_PER_THREAD>(temp, fargs.compare4, selection_flags, num_tile_items);
+    // (*(fargs.d_filter_func2))(temp, selection_flags, fargs.compare3, fargs.compare4, num_tile_items);
   }
 
 
@@ -2144,7 +2135,8 @@ __global__ void filter_probe_aggr_GPU3(
         // if (gargs.mode == 0) sum += aggrval1[ITEM];
         // else if (gargs.mode == 1) sum+= (aggrval1[ITEM] - aggrval2[ITEM]);
         // else if (gargs.mode == 2) sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
-        sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // sum += (*(gargs.d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
       }
     }
   }
@@ -2264,7 +2256,8 @@ __global__ void filter_probe_aggr_GPU(
   for (int ITEM = 0; ITEM < ITEMS_PER_THREAD; ++ITEM) {
     if (threadIdx.x + ITEM * BLOCK_THREADS < num_tile_items) {
       if (selection_flags[ITEM]) {
-        sum += (*(d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // sum += (*(d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        sum+= (aggrval1[ITEM] * aggrval2[ITEM]);
       }
     }
   }
@@ -2364,7 +2357,8 @@ __global__ void probe_group_by_GPU(
         res[hash * 6 + 2] = groupval3[ITEM];
         res[hash * 6 + 3] = groupval4[ITEM];
 
-        int temp = (*(d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        // int temp = (*(d_group_func))(aggrval1[ITEM], aggrval2[ITEM]);
+        int temp = aggrval1[ITEM] - aggrval2[ITEM];
         atomicAdd(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp));
         
       }

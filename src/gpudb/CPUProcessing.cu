@@ -53,13 +53,13 @@ void filter_probe_CPU(
               lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
               // if (fargs.filter_col1 != NULL) {
-                // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
               // }
 
               // if (fargs.filter_col2 != NULL) {
-                // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
               // }
 
               // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
@@ -111,13 +111,13 @@ void filter_probe_CPU(
               lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
               // if (fargs.filter_col1 != NULL) {
-                // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
               // }
 
               // if (fargs.filter_col2 != NULL) {
-                // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
               // }
 
               // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
@@ -207,13 +207,13 @@ void filter_probe_CPU2(struct offsetCPU in_off, struct filterArgsCPU fargs, stru
               lo_offset = in_off.h_lo_off[start_offset + i];
 
               // if (fargs.filter_col1 != NULL) {
-                // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
                 // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
               // }
 
               // if (fargs.filter_col2 != NULL) {
-                // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
               // }
 
               // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
@@ -268,13 +268,13 @@ void filter_probe_CPU2(struct offsetCPU in_off, struct filterArgsCPU fargs, stru
             lo_offset = in_off.h_lo_off[start_offset + i];
 
             // if (fargs.filter_col1 != NULL) {
-              // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+              if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
               // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
             // }
 
             // if (fargs.filter_col2 != NULL) {
-              // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-              if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+              // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
             // }
 
             // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
@@ -667,7 +667,8 @@ void probe_group_by_CPU(
               int aggr1 = 0; int aggr2 = 0;
               if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              int temp = aggr1 - aggr2;
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
             }
@@ -719,7 +720,8 @@ void probe_group_by_CPU(
             int aggr1 = 0; int aggr2 = 0;
             if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
             if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-            int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+            // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+            int temp = aggr1 - aggr2;
 
             __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
           }
@@ -806,7 +808,8 @@ void probe_group_by_CPU2(struct offsetCPU offset,
               int aggr1 = 0; int aggr2 = 0;
               if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              int temp = aggr1 - aggr2;
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
             }
@@ -870,7 +873,8 @@ void probe_group_by_CPU2(struct offsetCPU offset,
               int aggr1 = 0; int aggr2 = 0;
               if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              int temp = aggr1 - aggr2;
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
           }
@@ -910,21 +914,21 @@ void filter_probe_group_by_CPU(
 
               lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
-              // if (fargs.filter_col1 != NULL) {
-              //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-              // }
-
-              // if (fargs.filter_col2 != NULL) {
-              //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-              // }
-
               if (fargs.filter_col1 != NULL) {
-                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
               }
 
               if (fargs.filter_col2 != NULL) {
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
               }
+
+              // if (fargs.filter_col1 != NULL) {
+              //   if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+              // }
+
+              // if (fargs.filter_col2 != NULL) {
+              //   if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              // }
 
               if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
                 hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
@@ -965,7 +969,8 @@ void filter_probe_group_by_CPU(
               int aggr1 = 0; int aggr2 = 0;
               if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              int temp = (aggr1 - aggr2);
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
             }
@@ -980,21 +985,21 @@ void filter_probe_group_by_CPU(
 
             lo_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
-            // if (fargs.filter_col1 != NULL) {
-            //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-            // }
-
-            // if (fargs.filter_col2 != NULL) {
-            //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-            // }
-
             if (fargs.filter_col1 != NULL) {
-              if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+              if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
             }
 
             if (fargs.filter_col2 != NULL) {
-              if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
             }
+
+            // if (fargs.filter_col1 != NULL) {
+            //   if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+            // }
+
+            // if (fargs.filter_col2 != NULL) {
+            //   if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+            // }
 
             if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
               hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
@@ -1035,7 +1040,8 @@ void filter_probe_group_by_CPU(
             int aggr1 = 0; int aggr2 = 0;
             if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
             if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-            int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+            // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+            int temp = (aggr1 - aggr2);
 
             __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
 
@@ -1073,21 +1079,21 @@ void filter_probe_group_by_CPU2(struct offsetCPU offset,
 
               lo_offset = offset.h_lo_off[start_offset + i];
 
-              // if (fargs.filter_col1 != NULL) {
-              //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-              // }
-
-              // if (fargs.filter_col2 != NULL) {
-              //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-              // }
-
               if (fargs.filter_col1 != NULL) {
-                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
               }
 
               if (fargs.filter_col2 != NULL) {
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
               }
+
+              // if (fargs.filter_col1 != NULL) {
+              //   if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+              // }
+
+              // if (fargs.filter_col2 != NULL) {
+              //   if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              // }
 
               if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
                 hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
@@ -1138,7 +1144,8 @@ void filter_probe_group_by_CPU2(struct offsetCPU offset,
               int aggr1 = 0; int aggr2 = 0;
               if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              int temp = aggr1 - aggr2;
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
             }
@@ -1153,21 +1160,21 @@ void filter_probe_group_by_CPU2(struct offsetCPU offset,
 
               lo_offset = offset.h_lo_off[start_offset + i];
 
-              // if (fargs.filter_col1 != NULL) {
-              //   if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-              // }
-
-              // if (fargs.filter_col2 != NULL) {
-              //   if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-              // }
-
               if (fargs.filter_col1 != NULL) {
-                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
               }
 
               if (fargs.filter_col2 != NULL) {
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
               }
+
+              // if (fargs.filter_col1 != NULL) {
+              //   if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+              // }
+
+              // if (fargs.filter_col2 != NULL) {
+              //   if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              // }
 
               if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
                 hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
@@ -1218,7 +1225,8 @@ void filter_probe_group_by_CPU2(struct offsetCPU offset,
               int aggr1 = 0; int aggr2 = 0;
               if (gargs.aggr_col1 != NULL) aggr1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggr2 = gargs.aggr_col2[lo_offset];
-              int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              // int temp = (*(gargs.h_group_func))(aggr1, aggr2);
+              int temp = aggr1 - aggr2;
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
           }
@@ -1258,8 +1266,11 @@ void build_CPU(struct filterArgsCPU fargs,
               table_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
               if (fargs.filter_col1 != NULL) {
-                flag = (*(fargs.h_filter_func1))(fargs.filter_col1[table_offset], fargs.compare1, fargs.compare2);
-
+                // flag = (*(fargs.h_filter_func1))(fargs.filter_col1[table_offset], fargs.compare1, fargs.compare2);
+                if (fargs.mode1 == 1)
+                  flag = (fargs.filter_col1[table_offset] >= fargs.compare1 && fargs.filter_col1[table_offset] <= fargs.compare2);
+                else if (fargs.mode1 == 2)
+                  flag = (fargs.filter_col1[table_offset] == fargs.compare1 || fargs.filter_col1[table_offset] == fargs.compare2);
               }
 
               if (flag) {
@@ -1279,7 +1290,11 @@ void build_CPU(struct filterArgsCPU fargs,
             table_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
             if (fargs.filter_col1 != NULL) {
-              flag = (*(fargs.h_filter_func1))(fargs.filter_col1[table_offset], fargs.compare1, fargs.compare2);
+              // flag = (*(fargs.h_filter_func1))(fargs.filter_col1[table_offset], fargs.compare1, fargs.compare2);
+              if (fargs.mode1 == 1)
+                flag = (fargs.filter_col1[table_offset] >= fargs.compare1 && fargs.filter_col1[table_offset] <= fargs.compare2);
+              else if (fargs.mode1 == 2)
+                flag = (fargs.filter_col1[table_offset] == fargs.compare1 || fargs.filter_col1[table_offset] == fargs.compare2);
             }
 
             if (flag) {
@@ -1392,11 +1407,19 @@ void filter_CPU(struct filterArgsCPU fargs,
               col_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
               if (fargs.filter_col1 != NULL) {
-                selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                // selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                if (fargs.mode1 == 1)
+                  selection_flag = (fargs.filter_col1[col_offset] >= fargs.compare1 && fargs.filter_col1[col_offset] <= fargs.compare2);
+                else if (fargs.mode1 == 2)
+                  selection_flag = (fargs.filter_col1[col_offset] == fargs.compare1 || fargs.filter_col1[col_offset] == fargs.compare2);
               }
 
               if (fargs.filter_col2 != NULL) {
-                selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                // selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                if (fargs.mode2 == 1)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] >= fargs.compare3 && fargs.filter_col2[col_offset] <= fargs.compare4);
+                else if (fargs.mode2 == 2)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] == fargs.compare3 || fargs.filter_col2[col_offset] == fargs.compare4);
               }
 
               if (selection_flag) {
@@ -1413,11 +1436,19 @@ void filter_CPU(struct filterArgsCPU fargs,
             col_offset = segment_idx * SEGMENT_SIZE + (i % SEGMENT_SIZE);
 
               if (fargs.filter_col1 != NULL) {
-                selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                // selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                if (fargs.mode1 == 1)
+                  selection_flag = (fargs.filter_col1[col_offset] >= fargs.compare1 && fargs.filter_col1[col_offset] <= fargs.compare2);
+                else if (fargs.mode1 == 2)
+                  selection_flag = (fargs.filter_col1[col_offset] == fargs.compare1 || fargs.filter_col1[col_offset] == fargs.compare2);
               }
 
               if (fargs.filter_col2 != NULL) {
-                selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                // selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                if (fargs.mode2 == 1)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] >= fargs.compare3 && fargs.filter_col2[col_offset] <= fargs.compare4);
+                else if (fargs.mode2 == 2)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] == fargs.compare3 || fargs.filter_col2[col_offset] == fargs.compare4);
               }
 
             if (selection_flag) {
@@ -1468,11 +1499,19 @@ void filter_CPU2(int* off_col, struct filterArgsCPU fargs,
               col_offset = off_col[start_offset + i];
 
               if (fargs.filter_col1 != NULL) {
-                  selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                  // selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                if (fargs.mode1 == 1)
+                  selection_flag = (fargs.filter_col1[col_offset] >= fargs.compare1 && fargs.filter_col1[col_offset] <= fargs.compare2);
+                else if (fargs.mode1 == 2)
+                  selection_flag = (fargs.filter_col1[col_offset] == fargs.compare1 || fargs.filter_col1[col_offset] == fargs.compare2);
               }
 
               if (fargs.filter_col2 != NULL) {
-                selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                // selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                if (fargs.mode2 == 1)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] >= fargs.compare3 && fargs.filter_col2[col_offset] <= fargs.compare4);
+                else if (fargs.mode2 == 2)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] == fargs.compare3 || fargs.filter_col2[col_offset] == fargs.compare4);
               }
 
               if (selection_flag) {
@@ -1489,11 +1528,19 @@ void filter_CPU2(int* off_col, struct filterArgsCPU fargs,
             col_offset = off_col[start_offset + i];
 
               if (fargs.filter_col1 != NULL) {
-                  selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                  // selection_flag = (*(fargs.h_filter_func1))(fargs.filter_col1[col_offset], fargs.compare1, fargs.compare2);
+                if (fargs.mode1 == 1)
+                  selection_flag = (fargs.filter_col1[col_offset] >= fargs.compare1 && fargs.filter_col1[col_offset] <= fargs.compare2);
+                else if (fargs.mode1 == 2)
+                  selection_flag = (fargs.filter_col1[col_offset] == fargs.compare1 || fargs.filter_col1[col_offset] == fargs.compare2);
               }
 
               if (fargs.filter_col2 != NULL) {
-                selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                // selection_flag = selection_flag && (*(fargs.h_filter_func2))(fargs.filter_col2[col_offset], fargs.compare3, fargs.compare4);
+                if (fargs.mode2 == 1)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] >= fargs.compare3 && fargs.filter_col2[col_offset] <= fargs.compare4);
+                else if (fargs.mode2 == 2)
+                  selection_flag = selection_flag && (fargs.filter_col2[col_offset] == fargs.compare3 || fargs.filter_col2[col_offset] == fargs.compare4);
               }
 
             if (selection_flag) {
@@ -1567,7 +1614,8 @@ void groupByCPU(struct offsetCPU offset,
 
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[offset.h_lo_off[i]];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[offset.h_lo_off[i]];
-              int temp = (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // int temp = (*(gargs.h_group_func))(aggrval1, aggrval2);
+              int temp = aggrval1 - aggrval2;
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
             }
@@ -1609,7 +1657,8 @@ void groupByCPU(struct offsetCPU offset,
 
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[offset.h_lo_off[i]];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[offset.h_lo_off[i]];
-              int temp = (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // int temp = (*(gargs.h_group_func))(aggrval1, aggrval2);
+              int temp = aggrval1 - aggrval2;
 
               __atomic_fetch_add(reinterpret_cast<unsigned long long*>(&res[hash * 6 + 4]), (long long)(temp), __ATOMIC_RELAXED);
           }
@@ -1644,7 +1693,8 @@ void aggregationCPU(int* lo_off,
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_off[i]];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_off[i]];
 
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
 
             }
           }
@@ -1655,7 +1705,8 @@ void aggregationCPU(int* lo_off,
             if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_off[i]];
             if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_off[i]];
 
-            local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+            // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+            local_sum += aggrval1 * aggrval2;
 
           }
 
@@ -1725,7 +1776,8 @@ void probe_aggr_CPU(
               int aggrval1 = 0, aggrval2 = 0;
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
             }
           }
 
@@ -1764,7 +1816,8 @@ void probe_aggr_CPU(
             int aggrval1 = 0, aggrval2 = 0;
             if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
             if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-            local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+            // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+            local_sum += aggrval1 * aggrval2;
           }
     }
 
@@ -1830,7 +1883,8 @@ void probe_aggr_CPU2(struct offsetCPU offset,
               int aggrval1 = 0, aggrval2 = 0;
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
 
             }
           }
@@ -1870,7 +1924,8 @@ void probe_aggr_CPU2(struct offsetCPU offset,
               int aggrval1 = 0, aggrval2 = 0;
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
           }
     }
 
@@ -1923,13 +1978,13 @@ void filter_probe_aggr_CPU(
               // if (!(pargs.key_col4[lo_offset] > 19930000 && pargs.key_col4[lo_offset] < 19940000)) continue;
 
               // if (fargs.filter_col1 != NULL) {
-                // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
               // }
 
               // if (fargs.filter_col2 != NULL) {
-                // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
               // }
 
               // if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
@@ -1961,7 +2016,8 @@ void filter_probe_aggr_CPU(
               int aggrval1 = 0, aggrval2 = 0;
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
 
             }
           }
@@ -1986,13 +2042,13 @@ void filter_probe_aggr_CPU(
             // if (!(pargs.key_col4[lo_offset] > 19930000 && pargs.key_col4[lo_offset] < 19940000)) continue;
 
             // if (fargs.filter_col1 != NULL) {
-              // if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-              if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
+              if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
+              // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
             // }
 
             // if (fargs.filter_col2 != NULL) {
-              // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-              if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+              // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
             // }
 
             // if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
@@ -2024,7 +2080,8 @@ void filter_probe_aggr_CPU(
               int aggrval1 = 0, aggrval2 = 0;
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
 
           }
 
@@ -2071,8 +2128,8 @@ void filter_probe_aggr_CPU2(struct offsetCPU offset,
               // }
 
               // if (fargs.filter_col2 != NULL) {
-                // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-                if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+                // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
               // }
 
               // if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
@@ -2102,7 +2159,8 @@ void filter_probe_aggr_CPU2(struct offsetCPU offset,
               int aggrval1 = 0, aggrval2 = 0;
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
             }
           }
 
@@ -2120,8 +2178,8 @@ void filter_probe_aggr_CPU2(struct offsetCPU offset,
             // }
 
             // if (fargs.filter_col2 != NULL) {
-              // if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-              if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
+              if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
+              // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
             // }
 
             // if (pargs.key_col1 != NULL && pargs.ht1 != NULL) {
@@ -2151,7 +2209,8 @@ void filter_probe_aggr_CPU2(struct offsetCPU offset,
               int aggrval1 = 0, aggrval2 = 0;
               if (gargs.aggr_col1 != NULL) aggrval1 = gargs.aggr_col1[lo_offset];
               if (gargs.aggr_col2 != NULL) aggrval2 = gargs.aggr_col2[lo_offset];
-              local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              // local_sum += (*(gargs.h_group_func))(aggrval1, aggrval2);
+              local_sum += aggrval1 * aggrval2;
           }
     }
 

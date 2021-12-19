@@ -36,9 +36,8 @@ public:
 	pair<int, int> yearmonth;
 	pair<int, int> date;
 
-	Zipfian (int N, int Range) {
+	Zipfian (int N, int Range, double alpha) {
 		seed = 123;
-		alpha = 2.0;
 		x = seed;
 		n = N;
 		range = Range;
@@ -259,7 +258,7 @@ public:
 	bool custom;
 	bool skipping;
 
-	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp);
+	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp, double alpha);
 	~QueryOptimizer();
 
 	void parseQuery(int query);
