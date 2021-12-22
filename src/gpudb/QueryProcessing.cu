@@ -88,15 +88,21 @@ QueryProcessing::executeTableFactNP(int sg) {
 
     if (qo->groupbyGPUPipelineCol[sg].size() > 0) {
       if (qo->joinCPUPipelineCol[sg].size() > 0) {
-        if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
-        else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
+        if (qo->groupby_build.size() == 0) {
+          cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+          if (!custom) cudaFreeHost(h_off_col[4]);
+        } else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
       } else {
-        if (qo->groupby_build.size() == 0) cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]);
-        else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
+        if (qo->groupby_build.size() == 0) {
+          cgp->call_aggregation_GPU(params, off_col[0], h_total, sg, streams[sg]);
+          if (!custom) cudaFree(off_col[4]);
+        } else cgp->call_group_by_GPU(params, off_col, h_total, sg, streams[sg]);
       }
     } else {
-      if (qo->groupby_build.size() == 0) cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
-      else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
+      if (qo->groupby_build.size() == 0) {
+        cgp->call_aggregation_CPU(params, h_off_col[0], h_total, sg);
+        if (!custom) cudaFreeHost(h_off_col[4]);
+      } else cgp->call_group_by_CPU(params, h_off_col, h_total, sg);
     }
 }
 
@@ -1649,10 +1655,14 @@ QueryProcessing::processOnDemand() {
   TIME_FUNC(runOnDemand(), time);
 
   for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
-    cgp->cpu_time_total += cgp->cpu_time[sg];
-    cgp->gpu_time_total += cgp->gpu_time[sg];
-    cgp->transfer_time_total += cgp->transfer_time[sg];
-    cgp->malloc_time_total += cgp->malloc_time[sg];
+  //   cgp->cpu_time_total += cgp->cpu_time[sg];
+  //   cgp->gpu_time_total += cgp->gpu_time[sg];
+  //   cgp->transfer_time_total += cgp->transfer_time[sg];
+  //   cgp->malloc_time_total += cgp->malloc_time[sg];
+    cgp->cpu_time_total = max(cgp->cpu_time_total, cgp->cpu_time[sg]);
+    cgp->gpu_time_total = max(cgp->gpu_time_total, cgp->gpu_time[sg]);
+    cgp->transfer_time_total = max(cgp->transfer_time_total, cgp->transfer_time[sg]);
+    cgp->malloc_time_total = max(cgp->malloc_time_total, cgp->malloc_time[sg]);
   }
 
   if (verbose) {
@@ -1703,10 +1713,14 @@ QueryProcessing::processHybridOnDemand(int options) {
   TIME_FUNC(runHybridOnDemand(options), time);
 
   for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
-    cgp->cpu_time_total += cgp->cpu_time[sg];
-    cgp->gpu_time_total += cgp->gpu_time[sg];
-    cgp->transfer_time_total += cgp->transfer_time[sg];
-    cgp->malloc_time_total += cgp->malloc_time[sg];
+    // cgp->cpu_time_total += cgp->cpu_time[sg];
+    // cgp->gpu_time_total += cgp->gpu_time[sg];
+    // cgp->transfer_time_total += cgp->transfer_time[sg];
+    // cgp->malloc_time_total += cgp->malloc_time[sg];
+    cgp->cpu_time_total = max(cgp->cpu_time_total, cgp->cpu_time[sg]);
+    cgp->gpu_time_total = max(cgp->gpu_time_total, cgp->gpu_time[sg]);
+    cgp->transfer_time_total = max(cgp->transfer_time_total, cgp->transfer_time[sg]);
+    cgp->malloc_time_total = max(cgp->malloc_time_total, cgp->malloc_time[sg]);
   }
 
   if (verbose) {
@@ -1778,10 +1792,14 @@ QueryProcessing::processQuery() {
   TIME_FUNC(runQuery(), time);
 
   for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
-    cgp->cpu_time_total += cgp->cpu_time[sg];
-    cgp->gpu_time_total += cgp->gpu_time[sg];
-    cgp->transfer_time_total += cgp->transfer_time[sg];
-    cgp->malloc_time_total += cgp->malloc_time[sg];
+    // cgp->cpu_time_total += cgp->cpu_time[sg];
+    // cgp->gpu_time_total += cgp->gpu_time[sg];
+    // cgp->transfer_time_total += cgp->transfer_time[sg];
+    // cgp->malloc_time_total += cgp->malloc_time[sg];
+    cgp->cpu_time_total = max(cgp->cpu_time_total, cgp->cpu_time[sg]);
+    cgp->gpu_time_total = max(cgp->gpu_time_total, cgp->gpu_time[sg]);
+    cgp->transfer_time_total = max(cgp->transfer_time_total, cgp->transfer_time[sg]);
+    cgp->malloc_time_total = max(cgp->malloc_time_total, cgp->malloc_time[sg]);
   }
 
   if (verbose) {
@@ -1854,10 +1872,14 @@ QueryProcessing::processQuery2() {
   TIME_FUNC(runQuery2(), time);
 
   for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
-    cgp->cpu_time_total += cgp->cpu_time[sg];
-    cgp->gpu_time_total += cgp->gpu_time[sg];
-    cgp->transfer_time_total += cgp->transfer_time[sg];
-    cgp->malloc_time_total += cgp->malloc_time[sg];
+    // cgp->cpu_time_total += cgp->cpu_time[sg];
+    // cgp->gpu_time_total += cgp->gpu_time[sg];
+    // cgp->transfer_time_total += cgp->transfer_time[sg];
+    // cgp->malloc_time_total += cgp->malloc_time[sg];
+    cgp->cpu_time_total = max(cgp->cpu_time_total, cgp->cpu_time[sg]);
+    cgp->gpu_time_total = max(cgp->gpu_time_total, cgp->gpu_time[sg]);
+    cgp->transfer_time_total = max(cgp->transfer_time_total, cgp->transfer_time[sg]);
+    cgp->malloc_time_total = max(cgp->malloc_time_total, cgp->malloc_time[sg]);
   }
 
   if (verbose) {
@@ -1931,10 +1953,14 @@ QueryProcessing::processQueryNP() {
   TIME_FUNC(runQueryNP(), time);
 
   for (int sg = 0 ; sg < MAX_GROUPS; sg++) {
-    cgp->cpu_time_total += cgp->cpu_time[sg];
-    cgp->gpu_time_total += cgp->gpu_time[sg];
-    cgp->transfer_time_total += cgp->transfer_time[sg];
-    cgp->malloc_time_total += cgp->malloc_time[sg];
+    // cgp->cpu_time_total += cgp->cpu_time[sg];
+    // cgp->gpu_time_total += cgp->gpu_time[sg];
+    // cgp->transfer_time_total += cgp->transfer_time[sg];
+    // cgp->malloc_time_total += cgp->malloc_time[sg];
+    cgp->cpu_time_total = max(cgp->cpu_time_total, cgp->cpu_time[sg]);
+    cgp->gpu_time_total = max(cgp->gpu_time_total, cgp->gpu_time[sg]);
+    cgp->transfer_time_total = max(cgp->transfer_time_total, cgp->transfer_time[sg]);
+    cgp->malloc_time_total = max(cgp->malloc_time_total, cgp->malloc_time[sg]);
   }
 
   if (verbose) {

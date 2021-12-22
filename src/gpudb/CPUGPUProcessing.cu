@@ -2006,8 +2006,10 @@ CPUGPUProcessing::call_group_by_GPU(QueryParams* params, int** &off_col, int* h_
   float time;
   cudaEventRecord(start, 0);
 
-  groupByGPU<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
-    cm->gpuCache, offset, gargs, *h_total, params->d_res);
+  if (*h_total > 0) {
+    groupByGPU<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
+      cm->gpuCache, offset, gargs, *h_total, params->d_res);
+  }
 
   CHECK_ERROR_STREAM(stream);
 
@@ -2063,7 +2065,7 @@ CPUGPUProcessing::call_group_by_CPU(QueryParams* params, int** &h_off_col, int* 
   float time;
   cudaEventRecord(start, 0);
 
-  groupByCPU(offset, gargs, *h_total, params->res);
+  if (*h_total > 0) groupByCPU(offset, gargs, *h_total, params->res);
 
   if (!custom) {
     for (int i = 0; i < cm->TOT_TABLE; i++) {
@@ -2105,8 +2107,10 @@ CPUGPUProcessing::call_aggregation_GPU(QueryParams* params, int* &off_col, int* 
   float time;
   cudaEventRecord(start, 0);
 
-  aggregationGPU<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
+  if (*h_total > 0) {
+    aggregationGPU<128,4><<<(*h_total + tile_items - 1)/tile_items, 128, 0, stream>>>(
     cm->gpuCache, off_col, gargs, *h_total, params->d_res);
+  }
 
   CHECK_ERROR_STREAM(stream);
 
@@ -2142,7 +2146,9 @@ CPUGPUProcessing::call_aggregation_CPU(QueryParams* params, int* &h_off_col, int
   float time;
   cudaEventRecord(start, 0);
 
-  aggregationCPU(h_off_col, gargs, *h_total, params->res);
+  // assert(h_off_col != NULL);
+
+  if (*h_total > 0) aggregationCPU(h_off_col, gargs, *h_total, params->res);
 
   if (!custom) cudaFree(h_off_col);
 
@@ -2722,6 +2728,8 @@ CPUGPUProcessing::call_probe_GPUNP(QueryParams* params, int** &off_col, int* &d_
 
   off_col_out = new int*[cm->TOT_TABLE] (); //initialize it to null
 
+  // cout << "start" << endl;
+
   CubDebugExit(cudaMemsetAsync(d_total, 0, sizeof(int), stream));
 
   int table_id = qo->fkey_pkey[column]->table_id;
@@ -2770,6 +2778,7 @@ CPUGPUProcessing::call_probe_GPUNP(QueryParams* params, int** &off_col, int* &d_
   cudaEventElapsedTime(&time, start, stop);
   malloc_time[sg] += time;
   cudaEventRecord(start, 0);
+
 
   if (off_col == NULL) {
 

@@ -15,9 +15,14 @@ int main() {
 
 	unsigned int size = 52428800;
 	double alpha = 0.5;
+	bool custom = true;
+	bool skipping = true;
+
+	//2, 4, 8, 12, 16, 24, 32, 40
+	//4, 10, 20, 30, 40
 	
 	//TODO: make it support cache size > 8 GB (there are lots of integer overflow resulting in negative offset to the gpuCache) should have used unsigned int everywhere
-	CPUGPUProcessing* cgp = new CPUGPUProcessing(size * 16, 0, 52428800 * 15, 52428800 * 20, verbose, true, true, alpha);
+	CPUGPUProcessing* cgp = new CPUGPUProcessing(size * 24, 0, 52428800 * 15, 52428800 * 20, verbose, custom, skipping, alpha);
 	QueryProcessing* qp;
 
 	// cout << "Profiling" << endl;
@@ -88,6 +93,8 @@ int main() {
 	double transfer_time_total1 = 0, transfer_time_total2 = 0;
 	double malloc_time_total1 = 0, malloc_time_total2 = 0;
 	bool skew = true;
+	int processed_segment = 0;
+	int skipped_segment = 0;
 
 	qp = new QueryProcessing(cgp, verbose, skew);
 
@@ -106,6 +113,8 @@ int main() {
 		cout << "11. Exit" << endl;
 		cout << "cache. Cache Specific Column" << endl;
 		cout << "clear. Delete Columns from GPU" << endl;
+		cout << "custom. Toggle custom malloc" << endl;
+		cout << "skipping. Toggle segment skipping" << endl;
 		cout << "Your Input: ";
 		cin >> input;
 
@@ -170,6 +179,8 @@ int main() {
 			cin >> many;
 			many_query = stoi(many);
 			cgp->resetTime();
+			cgp->qo->processed_segment = 0;
+			cgp->qo->skipped_segment = 0;
 			cout << "Executing Random Query" << endl;
 			for (int i = 0; i < many_query; i++) {
 				qp->generate_rand_query();
@@ -194,6 +205,8 @@ int main() {
 				}
 				
 			}
+			processed_segment = cgp->qo->processed_segment;
+			skipped_segment = cgp->qo->skipped_segment;
 			srand(123);
 		} else if (input.compare("4") == 0) {
 			// time = 0; cpu_time_total = 0; gpu_time_total = 0; transfer_time_total = 0;
@@ -211,6 +224,8 @@ int main() {
 			cin >> many;
 			many_query = stoi(many);
 			cgp->resetTime();
+			cgp->qo->processed_segment = 0;
+			cgp->qo->skipped_segment = 0;
 			cout << "Executing Random Query" << endl;
 			for (int i = 0; i < many_query; i++) {
 				qp->generate_rand_query();
@@ -222,36 +237,33 @@ int main() {
 				malloc_time_total += cgp->malloc_time_total;
 				cgp->resetTime();
 			}
+			processed_segment = cgp->qo->processed_segment;
+			skipped_segment = cgp->qo->skipped_segment;
 			srand(123);
 		} else if (input.compare("5") == 0) {
 			cout << "LFU Replacement" << endl;
 			cgp->cm->runReplacement(LFU);
 			qp->percentageData();
-			time = 0;
 			srand(123);
 		} else if (input.compare("6") == 0) {
 			cout << "LRU Replacement" << endl;
 			cgp->cm->runReplacement(LRU);
 			qp->percentageData();
-			time = 0;
 			srand(123);
 		} else if (input.compare("7") == 0) {
 			cout << "LFU Segmented Replacement" << endl;
 			cgp->cm->runReplacement(LFUSegmented);
 			qp->percentageData();
-			time = 0;
 			srand(123);
 		} else if (input.compare("8") == 0) {
 			cout << "LRU Segmented Replacement" << endl;
 			cgp->cm->runReplacement(LRUSegmented);
 			qp->percentageData();
-			time = 0;
 			srand(123);
 		} else if (input.compare("9") == 0) {
 			cout << "Segmented Replacement" << endl;
 			cgp->cm->runReplacement(Segmented);
 			qp->percentageData();
-			time = 0;
 			srand(123);
 		} else if (input.compare("10") == 0) {
 			string filename;
@@ -269,6 +281,20 @@ int main() {
 			} while (ret != 0);
 		} else if (input.compare("clear") == 0) {
 			cgp->cm->deleteAll();
+		} else if (input.compare("skipping") == 0) {
+			skipping = !skipping;
+			cgp->skipping = skipping;
+			cgp->qo->skipping = skipping;
+			qp->skipping = skipping;
+			if (skipping) cout << "Segment skipping is enabled" << endl;
+			else cout << "Segment skipping is disabled" << endl;
+		} else if (input.compare("custom") == 0) {
+			custom = !custom;
+			cgp->custom = custom;
+			cgp->qo->custom = custom;
+			qp->custom = custom;
+			if (custom) cout << "Custom malloc is enabled" << endl;
+			else cout << "Custom malloc is disabled" << endl;		
 		} else {
 			exit = true;
 		}
@@ -279,6 +305,7 @@ int main() {
 		cout << "GPU time: " << gpu_time_total << endl;
 		cout << "Transfer time: " << transfer_time_total << endl;
 		cout << "Malloc time: " << malloc_time_total << endl;
+		cout << "Fraction Skipped Segment: " << skipped_segment * 1.0 /(processed_segment + skipped_segment) << endl;
 		cout << endl;
 
 	}

@@ -45,6 +45,7 @@ public:
 
   void resetCGP() {
     for (int i = 0; i < cm->TOT_COLUMN; i++) {
+      if (col_idx[i] != NULL && !custom) cudaFree(col_idx);
       col_idx[i] = NULL;
     }
     // for (int i = 0; i < cm->TOT_COLUMN; i++) {

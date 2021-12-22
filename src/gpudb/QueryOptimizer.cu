@@ -1445,6 +1445,9 @@ QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile)
 				segment_group[table_id][temp * total_segment + count] = i;
 				segment_group_count[table_id][temp]++;
 				if (!isprofile) updateSegmentStats(table_id, i, query);
+				processed_segment += queryColumn[table_id].size();
+			} else {
+				skipped_segment += queryColumn[table_id].size();
 			}
 		} else {
 			segment_group[table_id][temp * total_segment + count] = i;
@@ -1661,11 +1664,14 @@ QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofil
 				segment_group[table_id][temp * total_segment + count] = i;
 				segment_group_count[table_id][temp]++;
 				if (!isprofile) updateSegmentStats(table_id, i, query);
+				processed_segment += queryColumn[table_id].size();
+			} else {
+				skipped_segment += queryColumn[table_id].size();
 			}			
 		} else {
 			segment_group[table_id][temp * total_segment + count] = i;
 			segment_group_count[table_id][temp]++;
-			if (!isprofile) updateSegmentStats(table_id, i, query);			
+			if (!isprofile) updateSegmentStats(table_id, i, query);	
 		}
 
 
@@ -2794,6 +2800,20 @@ QueryOptimizer::prepareQuery(int query, bool skew) {
 void
 QueryOptimizer::clearPrepare() {
 
+  if (!custom) {
+  	cudaFree(params->d_res);
+  	cudaFreeHost(params->res);
+ 		if (params->ht_GPU[cm->p_partkey] != NULL) cudaFree(params->ht_GPU[cm->p_partkey]);
+ 		if (params->ht_GPU[cm->s_suppkey] != NULL) cudaFree(params->ht_GPU[cm->s_suppkey]);
+ 		if (params->ht_GPU[cm->c_custkey] != NULL) cudaFree(params->ht_GPU[cm->c_custkey]);
+ 		if (params->ht_GPU[cm->d_datekey] != NULL) cudaFree(params->ht_GPU[cm->d_datekey]);
+
+ 		if (params->ht_CPU[cm->p_partkey] != NULL) cudaFreeHost(params->ht_CPU[cm->p_partkey]);
+ 		if (params->ht_CPU[cm->s_suppkey] != NULL) cudaFreeHost(params->ht_CPU[cm->s_suppkey]);
+ 		if (params->ht_CPU[cm->c_custkey] != NULL) cudaFreeHost(params->ht_CPU[cm->c_custkey]);
+ 		if (params->ht_CPU[cm->d_datekey] != NULL) cudaFreeHost(params->ht_CPU[cm->d_datekey]);
+  }
+
   params->min_key.clear();
   params->min_val.clear();
   params->unique_val.clear();
@@ -2812,18 +2832,5 @@ QueryOptimizer::clearPrepare() {
   params->compare2.clear();
   params->mode.clear();
 
-  if (!custom) {
-  	cudaFree(params->d_res);
-  	cudaFreeHost(params->res);
- 		if (params->ht_GPU[cm->p_partkey] != NULL) cudaFree(params->ht_GPU[cm->p_partkey]);
- 		if (params->ht_GPU[cm->s_suppkey] != NULL) cudaFree(params->ht_GPU[cm->s_suppkey]);
- 		if (params->ht_GPU[cm->c_custkey] != NULL) cudaFree(params->ht_GPU[cm->c_custkey]);
- 		if (params->ht_GPU[cm->d_datekey] != NULL) cudaFree(params->ht_GPU[cm->d_datekey]);
 
- 		if (params->ht_CPU[cm->p_partkey] != NULL) cudaFreeHost(params->ht_CPU[cm->p_partkey]);
- 		if (params->ht_CPU[cm->s_suppkey] != NULL) cudaFreeHost(params->ht_CPU[cm->s_suppkey]);
- 		if (params->ht_CPU[cm->c_custkey] != NULL) cudaFreeHost(params->ht_CPU[cm->c_custkey]);
- 		if (params->ht_CPU[cm->d_datekey] != NULL) cudaFreeHost(params->ht_CPU[cm->d_datekey]);
-
-  }
 }
