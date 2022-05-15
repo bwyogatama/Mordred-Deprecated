@@ -6,7 +6,8 @@
 #include "common.h"
 
 #define NUM_QUERIES 13
-#define MAX_GROUPS 128
+// #define MAX_GROUPS 128
+#define MAX_GROUPS 229
 
 class CPUGPUProcessing;
 
@@ -16,6 +17,130 @@ enum OperatorType {
 
 enum DeviceType {
     CPU, GPU
+};
+
+enum Distribution {
+    None, Zipf, Norm
+};
+
+class Normal {
+    default_random_engine generator;
+    normal_distribution<double> distribution;
+    int min;
+    int max;
+    int n;
+    double mean;
+    double stddev;
+public:
+	pair<int, int> year;
+	pair<int, int> yearmonth;
+	pair<int, int> date;
+    Normal(double mean, double stddev, int min, int max): mean(mean), stddev(stddev), min(min), max(max), distribution(mean, stddev)
+    {
+    	n = max-min+1;
+    }
+
+    int norm() {
+        while (true) {
+            double number = this->distribution(generator);
+            if (number >= this->min && number <= this->max) {
+            	number = round(number);
+                return (int) number;
+            }
+        }
+    }
+
+    void reset(double mean, double stddev) {
+    	distribution.reset();
+    	normal_distribution<double> d(mean, stddev);
+    	distribution.param(d.param());
+    }
+
+	void generateNorm() {
+	  	int norm_rv_start, norm_rv_end;               // Zipf random variable
+
+	  	norm_rv_start = norm();
+	  	norm_rv_end = norm();
+
+	  	// cout << norm_rv_start << " " << norm_rv_end << endl;
+
+	  	if (n <= 7) { //possibility #1 (year predicate)
+
+		  	if (norm_rv_start > norm_rv_end) {
+		  		swap(norm_rv_start, norm_rv_end);
+		  	}
+
+		  	// int x = rand() % 2;
+
+		  	// if (x == 0) norm_rv_end = norm_rv_start;
+		  	// else if (x == 1) {
+		  	// 	if (norm_rv_start == min) {
+		  	// 		norm_rv_end = norm_rv_start + 1;
+		  	// 	} else if (norm_rv_start == max) {
+		  	// 		norm_rv_end = norm_rv_start;
+		  	// 		norm_rv_start = norm_rv_start - 1;
+		  	// 	} else {
+		  	// 		int y = rand() % 2;
+		  	// 		if (y == 0) {
+		  	// 			norm_rv_end = norm_rv_start;
+		  	// 			norm_rv_start = norm_rv_start - 1;
+		  	// 		} else {
+		  	// 			norm_rv_end = norm_rv_start + 1;		  				
+		  	// 		}
+		  	// 	}
+		  	// } else if (x == 2) {
+		  	// 	if (norm_rv_start == min) {
+		  	// 		// norm_rv_start = norm_rv_start;
+		  	// 		norm_rv_end = norm_rv_start;
+		  	// 	} else if (norm_rv_start == max) {
+		  	// 		norm_rv_end = norm_rv_start;
+		  	// 		// norm_rv_start = norm_rv_start - 1;
+		  	// 	} else {
+		  	// 		norm_rv_end = norm_rv_start + 1;
+		  	// 		norm_rv_start = norm_rv_start - 1;		  			
+		  	// 	}
+		  	// }
+
+	  		year = make_pair(1992 + norm_rv_start, 1992 + norm_rv_end);
+	  		yearmonth = make_pair(year.first * 100 + 1, year.second * 100 + 12);
+	  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
+	  	} else if (n <= 79) { //possibility #2 (yearmonthnum predicate)
+
+		  	if (norm_rv_start > norm_rv_end) {
+		  		swap(norm_rv_start, norm_rv_end);
+		  	}
+
+	  		int temp_start = norm_rv_start / 12;
+	  		int temp_end = norm_rv_end / 12;
+	  		// year = make_pair(1992 + temp_start, 1992 + temp_end);
+	  		year = make_pair(1992 + temp_start, 1992 + temp_start);
+	  		temp_start = norm_rv_start % 12;
+	  		temp_end = norm_rv_end % 12;
+	  		// yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_end + 1);
+	  		yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_start + 1);
+	  		// date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
+	  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
+	  	} else if (n <= 316) { //possibility #3 (week predicate)
+
+		  	if (norm_rv_start > norm_rv_end) {
+		  		swap(norm_rv_start, norm_rv_end);
+		  	}
+
+	  		int temp_start = norm_rv_start / 48;
+	  		int temp_end = norm_rv_end / 48;
+			// year = make_pair(1992 + temp_start, 1992 + temp_end);
+			year = make_pair(1992 + temp_start, 1992 + temp_start);
+	  		temp_start = (norm_rv_start % 48)/ 4;
+	  		temp_end = (norm_rv_end % 48) / 4;
+			// yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_end + 1);
+			yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_start + 1);
+	  		temp_start = (norm_rv_start % 48) % 4;
+	  		temp_end = (norm_rv_end % 48) % 4;
+			// date = make_pair(yearmonth.first * 100 + temp_start * 7 + 1, yearmonth.second * 100 + temp_end * 7 + 7);
+			date = make_pair(yearmonth.first * 100 + temp_start * 7 + 1, yearmonth.second * 100 + temp_start * 7 + 7);
+	  	}
+
+	 }
 };
 
 class Zipfian {
@@ -46,6 +171,12 @@ public:
 		for (int i=1; i<=N; i++) c = c + (1.0 / pow((double) i, alpha));
 		c = 1.0 / c;
 	};
+
+    void reset(double alpha) {
+	  	c = 0;
+		for (int i=1; i<=n; i++) c = c + (1.0 / pow((double) i, alpha));
+		c = 1.0 / c;
+    }
 
 
 	int zipf()
@@ -215,6 +346,8 @@ public:
 	vector<ColumnInfo*> queryGroupByColumn;
 	vector<ColumnInfo*> queryAggrColumn;
 
+	vector<vector<int>> index_to_sg;
+
 	vector<pair<ColumnInfo*, ColumnInfo*>> join;
 	unordered_map<ColumnInfo*, vector<ColumnInfo*>> aggregation;
 	unordered_map<ColumnInfo*, vector<ColumnInfo*>> groupby_build;
@@ -253,6 +386,7 @@ public:
 	map<int, map<ColumnInfo*, double>> speedup;
 	double** speedup_segment;
 	map<int, Zipfian*> zipfian;
+	map<int, Normal*> normal;
 	QueryParams* params;
 
 	bool custom;
@@ -261,8 +395,11 @@ public:
 	int processed_segment;
 	int skipped_segment;
 
-	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp, double alpha);
+	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp);
 	~QueryOptimizer();
+
+	void setDistributionZipfian(double alpha);
+	void setDistributionNormal(double mean, double stddev);
 
 	void parseQuery(int query);
 	void parseQuery11();
@@ -279,7 +416,7 @@ public:
 	void parseQuery42();
 	void parseQuery43();
 
-	void prepareQuery(int query, bool skew = 0);
+	void prepareQuery(int query, Distribution dist = None);
 
 	void clearParsing();
 	void clearPlacement();
@@ -287,10 +424,15 @@ public:
 
 	void dataDrivenOperatorPlacement(int query, bool isprofile = 0);
 	void prepareOperatorPlacement();
+	void prepareOperatorPlacementEMat();
+	void prepareOperatorPlacementHE();
 	void groupBitmap(bool isprofile = 0);
 	void groupBitmapSegment(int query, bool isprofile = 0);
 	void groupBitmapSegmentTable(int table_id, int query, bool isprofile = 0);
+	void groupBitmapSegmentTableEMat(int table_id, int query, bool isprofile = 0);
 	void groupBitmapSegmentTableOD(int table_id, int query, bool isprofile = 0);
+	void groupBitmapSegmentTableHE(int table_id, int query, bool isprofile = 0);
+
 
 	bool checkPredicate(int table_id, int segment_idx);
 	void updateSegmentStats(int table_id, int segment_idx, int query);

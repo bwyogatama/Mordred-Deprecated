@@ -35,6 +35,7 @@ public:
 	CostModel(int _L, int _total_segment, int _n_group_key, int _n_aggr_key, int _sg, int _table_id, QueryOptimizer* _qo);
 	void clear();
 	void permute_cost();
+	void permute_costHE();
 	double calculate_cost();
 	double probe_cost(double selectivity, bool mat_start, bool mat_end);
 	double transfer_cost(int M = 2);

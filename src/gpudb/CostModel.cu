@@ -142,6 +142,8 @@ CostModel::permute_cost() {
 		// double time_count = timestamp.count();
 		// cout << time_count << endl;
 
+		// if (table_id == 0 && (selectCPU.size() + selectGPU.size()) > 0) cost = default_cost;
+
 		if (cur_op->device == CPU) {
 			cur_op->device = GPU;
 			for (int col = 0; col < cur_op->columns.size(); col++) {
@@ -183,6 +185,101 @@ CostModel::permute_cost() {
 
 }
 
+void
+CostModel::permute_costHE() {
+	for (int i = 0; i < opPipeline.size(); i++) {
+		Operator* op = opPipeline[i];
+		if (op->device == GPU) {
+			if (op->type == Probe) joinGPU.push_back(op->columns[0]);
+			else if (op->type == Filter) selectGPU.push_back(op->columns[0]);
+			else if (op->type == GroupBy || op->type == Aggr) {
+				for (int k = 0; k < op->columns.size(); k++)
+					groupGPU.push_back(op->columns[k]);
+			} else if (op->type == Build) buildGPU.push_back(op->columns[0]);
+		} else {
+			if (op->type == Probe) joinCPU.push_back(op->columns[0]);
+			else if (op->type == Filter) selectCPU.push_back(op->columns[0]);
+			else if (op->type == GroupBy || op->type == Aggr) {
+				for (int k = 0; k < op->columns.size(); k++)
+					groupCPU.push_back(op->columns[k]);
+			} else if (op->type == Build) buildCPU.push_back(op->columns[0]);		
+		}
+	}
+
+	double default_cost = calculate_cost();
+
+	clear();
+
+	for (int i = 0; i < opPipeline.size(); i++) {
+		double cost = 0;
+
+		Operator* cur_op = opPipeline[i];
+		if (cur_op->device == CPU) cur_op->device = GPU;
+		else if (cur_op->device == GPU) cur_op->device = CPU;
+
+		for (int j = 0; j < opPipeline.size(); j++) {
+			Operator* op = opPipeline[j];
+
+			if (op->device == GPU) {
+				if (op->type == Probe) joinGPU.push_back(op->columns[0]);
+				else if (op->type == Filter) selectGPU.push_back(op->columns[0]);
+				else if (op->type == GroupBy || op->type == Aggr) {
+					for (int k = 0; k < op->columns.size(); k++)
+						groupGPU.push_back(op->columns[k]);
+				} else if (op->type == Build) buildGPU.push_back(op->columns[0]);	
+			} else {
+				if (op->type == Probe) joinCPU.push_back(op->columns[0]);
+				else if (op->type == Filter) selectCPU.push_back(op->columns[0]);
+				else if (op->type == GroupBy || op->type == Aggr) {
+					for (int k = 0; k < op->columns.size(); k++)
+						groupCPU.push_back(op->columns[k]);
+				} else if (op->type == Build) buildCPU.push_back(op->columns[0]);			
+			}
+		}
+
+		cost = calculate_cost();
+
+		if (cur_op->device == CPU) {
+			cur_op->device = GPU;
+			for (int col = 0; col < cur_op->columns.size(); col++) {
+				ColumnInfo* column = cur_op->columns[col];
+				for (int seg = 0; seg < qo->segment_group_count[table_id][sg]; seg++) {
+					int seg_id = sg;
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (cost - default_cost) / qo->segment_group_count[table_id][sg] / cur_op->columns.size());
+				}
+			}
+			for (int col = 0; col < cur_op->supporting_columns.size(); col++) {
+				ColumnInfo* column = cur_op->supporting_columns[col];
+				for (int seg_id = 0; seg_id < column->total_segment; seg_id++) {
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (cost - default_cost) / column->total_segment);
+				}
+			}
+		} else if (cur_op->device == GPU) {
+			cur_op->device = CPU;
+			for (int col = 0; col < cur_op->columns.size(); col++) {
+				ColumnInfo* column = cur_op->columns[col];
+				for (int seg = 0; seg < qo->segment_group_count[table_id][sg]; seg++) {
+					int seg_id = sg;
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (default_cost - cost) / qo->segment_group_count[table_id][sg]/ cur_op->columns.size());
+				}
+			}
+			for (int col = 0; col < cur_op->supporting_columns.size(); col++) {
+				ColumnInfo* column = cur_op->supporting_columns[col];
+				for (int seg_id = 0; seg_id < column->total_segment; seg_id++) {
+					Segment* segment = qo->cm->index_to_segment[column->column_id][seg_id];
+					qo->cm->updateSegmentWeightCostDirect(column, segment, (default_cost - cost) / column->total_segment);
+				}
+			}
+		}
+
+		clear();
+	}
+
+}
+
 double 
 CostModel::calculate_cost() {
 	double cost = 0;
@@ -190,7 +287,7 @@ CostModel::calculate_cost() {
 
 	bool fromGPU = false;
 	if (selectGPU.size() > 0 || joinGPU.size() > 0) {
-		for (int i = 0; i < selectGPU.size(); ++i) {	
+		for (int i = 0; i < selectGPU.size(); ++i) {
 			ColumnInfo* col = selectGPU[i];
 			L *= qo->params->real_selectivity[col];
 		}
@@ -199,6 +296,8 @@ CostModel::calculate_cost() {
 			L *= qo->params->real_selectivity[col];
 		}
 		if (selectCPU.size() > 0 || joinCPU.size() > 0 || groupCPU.size() > 0 || buildCPU.size() > 0) {
+			// if (selectGPU.size() == 0) cost += transfer_cost(joinGPU.size() + 1);
+			// else cost += transfer_cost(1);
 			cost += transfer_cost(joinGPU.size() + 1);
 			fromGPU = true;
 		}

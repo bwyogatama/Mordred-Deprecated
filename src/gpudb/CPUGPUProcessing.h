@@ -4,6 +4,7 @@
 #include "QueryOptimizer.h"
 #include "GPUProcessing.h"
 #include "CPUProcessing.h"
+#include "CPUProcessingHE.h"
 #include "common.h"
 
 #define OD_BATCH_SIZE 8
@@ -31,6 +32,16 @@ public:
   double* gpu_time;
   double* malloc_time;
 
+  unsigned long long* cpu_to_gpu;
+  unsigned long long* gpu_to_cpu;
+
+  unsigned long long cpu_to_gpu_total;
+  unsigned long long gpu_to_cpu_total;
+
+  double execution_total;
+  double optimization_total;
+  double merging_total;
+
   CPUGPUProcessing(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, bool _verbose, bool _custom = true, bool _skipping = true, double alpha = 0.1);
 
   ~CPUGPUProcessing() {
@@ -40,6 +51,9 @@ public:
     delete[] cpu_time;
     delete[] gpu_time;
     delete[] malloc_time;
+
+    delete[] cpu_to_gpu;
+    delete[] gpu_to_cpu;
     delete qo;
   }
 
@@ -129,6 +143,56 @@ public:
   void call_pfilter_GPUNP(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, cudaStream_t stream, ColumnInfo* column);
 
   void call_pfilter_CPUNP(QueryParams* params, int** &h_off_col, int* h_total, int sg, ColumnInfo* column);
+
+
+
+  void call_pfilter_probe_group_by_GPUHE(QueryParams* params, int** &off_col, int* h_total, int sg, int select_so_far, cudaStream_t stream);
+
+  void call_pfilter_probe_group_by_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
+
+  void call_pfilter_probe_GPUHE(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far, cudaStream_t stream);
+
+  void call_pfilter_probe_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
+
+  void call_probe_group_by_GPUHE(QueryParams* params, int** &off_col, int* h_total, int sg, cudaStream_t stream);
+
+  void call_probe_group_by_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg);
+
+  void call_probe_GPUHE(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, cudaStream_t stream);
+
+  void call_probe_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg);
+
+  void call_pfilter_GPUHE(QueryParams* params, int** &off_col, int* &d_total, int* h_total, int sg, int select_so_far, cudaStream_t stream);
+
+  void call_pfilter_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
+
+  void call_bfilter_build_GPUHE(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table, cudaStream_t stream);
+
+  void call_bfilter_build_CPUHE(QueryParams* params, int* &h_off_col, int* h_total, int sg, int table);
+
+  void call_build_GPUHE(QueryParams* params, int* &d_off_col, int* h_total, int sg, int table, cudaStream_t stream);
+
+  void call_build_CPUHE(QueryParams* params, int* &h_off_col, int* h_total, int sg, int table);
+
+  void call_bfilter_GPUHE(QueryParams* params, int* &d_off_col, int* &d_total, int* h_total, int sg, int table, cudaStream_t stream);
+
+  void call_bfilter_CPUHE(QueryParams* params, int* &h_off_col, int* h_total, int sg, int table);
+
+  void call_group_by_GPUHE(QueryParams* params, int** &off_col, int* h_total, int sg, cudaStream_t stream);
+
+  void call_group_by_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg);
+
+  void call_aggregation_GPUHE(QueryParams* params, int* &off_col, int* h_total, int sg, cudaStream_t stream);
+
+  void call_aggregation_CPUHE(QueryParams* params, int* &h_off_col, int* h_total, int sg);
+
+  void call_probe_aggr_GPUHE(QueryParams* params, int** &off_col, int* h_total, int sg, cudaStream_t stream);
+
+  void call_probe_aggr_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg);
+
+  void call_pfilter_probe_aggr_GPUHE(QueryParams* params, int** &off_col, int* h_total, int sg, int select_so_far, cudaStream_t stream);
+
+  void call_pfilter_probe_aggr_CPUHE(QueryParams* params, int** &h_off_col, int* h_total, int sg, int select_so_far);
 
 };
 

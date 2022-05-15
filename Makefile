@@ -1,3 +1,10 @@
+
+PAPI_INCLUDE = -I tools/papi/src #-I$(datadir) #-I$(testlibdir) #-I$(validationlibdir)
+PAPILIB = tools/papi/src/libpapi.a
+CUDALIBS = -lcudart -lcupti -lcuda
+PAPI_INCLUDE += -I tools/pcm/src/ #-I$(PAPI_CUPTI_ROOT)/include
+PAPILIB += -L tools/papi/src/libpfm4/lib -lpfm -L tools/pcm/build/lib -lpcm
+
 CUDA_PATH       ?= /usr/local/cuda
 CUDA_INC_PATH   ?= $(CUDA_PATH)/include
 CUDA_BIN_PATH   ?= $(CUDA_PATH)/bin
@@ -32,10 +39,10 @@ CINCLUDES = -I$(INC)
 CXX = clang++
 
 $(OBJ)/%.o: $(SRC)/%.cu
-	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) $(PAPI_INCLUDE) -O3 -dc $< -o $@
 
 $(BIN)/%: $(OBJ)/%.o
-	$(NVCC) -ltbb $(SM_TARGETS) -lcurand $^ -o $@
+	$(NVCC) $(PAPILIB) $(CUDALIBS) -ltbb $(SM_TARGETS) -lcurand $^ -o $@
 
 $(OBJ)/cpu/%.o: $(SRC)/cpu/%.cpp
 	$(NVCC) -lcurand $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
@@ -59,26 +66,32 @@ $(OBJ)/gpudb/QueryOptimizer.o: $(SRC)/gpudb/QueryOptimizer.cu
 $(OBJ)/gpudb/QueryProcessing.o: $(SRC)/gpudb/QueryProcessing.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
-$(OBJ)/gpudb/CPUGPUProcessing.o: $(SRC)/gpudb/CPUGPUProcessing.cu
+$(OBJ)/gpudb/CPUGPUProcessing.o: $(SRC)/gpudb/CPUGPUProcessing2.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
 $(OBJ)/gpudb/CPUProcessing.o: $(SRC)/gpudb/CPUProcessing.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
-$(OBJ)/gpudb/main.o: $(SRC)/gpudb/testqo.cu
+$(OBJ)/gpudb/CPUProcessingHE.o: $(SRC)/gpudb/CPUProcessingHE.cu
+	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+
+$(OBJ)/gpudb/main.o: $(SRC)/gpudb/main.cu
+	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
+
+$(OBJ)/gpudb/maintraffic.o: $(SRC)/gpudb/maintraffic.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
 $(OBJ)/gpudb/ondemand.o: $(SRC)/gpudb/ondemand.cu
 	$(NVCC) -lcurand -ltbb $(SM_TARGETS) $(NVCCFLAGS) $(CPU_ARCH) $(INCLUDES) $(LIBS) -O3 -dc $< -o $@
 
-# $(BIN)/gpudb/final: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o
-# 	$(NVCC) $(SM_TARGETS) -ltbb -lcurand --device-link $^ -o $@
+$(BIN)/gpudb/main: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUProcessingHE.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
+	$(NVCC) $(SM_TARGETS) $(CUDALIBS) -ltbb -lcurand $^ -o $@
 
-$(BIN)/gpudb/main: $(OBJ)/gpudb/main.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
-	$(NVCC) $(SM_TARGETS) -ltbb -lcurand $^ -o $@
+$(BIN)/gpudb/maintraffic: $(OBJ)/gpudb/maintraffic.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUProcessingHE.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
+	$(NVCC) $(SM_TARGETS) $(CUDALIBS) -ltbb -lcurand $^ -o $@
 
-$(BIN)/gpudb/ondemand: $(OBJ)/gpudb/ondemand.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
-	$(NVCC) $(SM_TARGETS) -ltbb -lcurand $^ -o $@
+$(BIN)/gpudb/ondemand: $(OBJ)/gpudb/ondemand.o $(OBJ)/gpudb/CacheManager.o $(OBJ)/gpudb/QueryOptimizer.o $(OBJ)/gpudb/CPUProcessing.o $(OBJ)/gpudb/CPUProcessingHE.o$(OBJ)/gpudb/CPUGPUProcessing.o $(OBJ)/gpudb/QueryProcessing.o $(OBJ)/gpudb/CostModel.o
+	$(NVCC) $(SM_TARGETS) $(CUDALIBS) -ltbb -lcurand $^ -o $@
 
 sort: test/ssb/sort.c
 	gcc -o sort $< -std=c99 

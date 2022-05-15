@@ -2424,4 +2424,5 @@ void build_CPU_minmax2(int *dim_off, struct filterArgsCPU fargs,
 
   }, simple_partitioner());
 }
+
 // #endif

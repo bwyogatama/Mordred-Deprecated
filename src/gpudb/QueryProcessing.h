@@ -18,19 +18,23 @@ public:
   // map<int, int> query_freq;
   int query;
   bool verbose;
-  bool skew;
   bool custom;
   bool skipping;
 
-  QueryProcessing(CPUGPUProcessing* _cgp, bool _verbose, bool _skew = false) {
+  double logical_time;
+
+  Distribution dist;
+
+  QueryProcessing(CPUGPUProcessing* _cgp, bool _verbose, Distribution _dist = None) {
     cgp = _cgp;
     qo = cgp->qo;
     cm = cgp->cm;
     // query_freq[_query] = 0;
     verbose = _verbose;
-    skew = _skew;
+    dist = _dist;
     custom = cgp->custom;
     skipping = cgp->skipping;
+    logical_time = 0;
   }
 
   ~QueryProcessing() {
@@ -47,11 +51,15 @@ public:
     query = _query;
   }
 
-  void runQuery();
+  void runQuery(CUcontext ctx = NULL);
 
-  void runQuery2();
+  void runQuery2(CUcontext ctx = NULL);
 
-  void runQueryNP();
+  void runQueryNP(CUcontext ctx = NULL);
+
+  void runQueryHE(CUcontext ctx = NULL);
+
+  // void runQueryEMat(CUcontext ctx = NULL);
 
   void runOnDemand();
 
@@ -61,11 +69,15 @@ public:
 
   void updateStatsQuery();
 
-  double processQuery();
+  double processQuery(CUcontext ctx = NULL);
 
-  double processQuery2();
+  double processQuery2(CUcontext ctx = NULL);
 
-  double processQueryNP();
+  double processQueryNP(CUcontext ctx = NULL);
+
+  double processQueryEMat(CUcontext ctx = NULL);
+
+  double processQueryHE(CUcontext ctx = NULL);
 
   double processOnDemand();
 
@@ -81,9 +93,13 @@ public:
 
   void executeTableDim(int table_id, int sg);
 
+  void executeTableDim_HE(int table_id, int sg);
+
   void executeTableFact_v1(int sg);
 
   void executeTableFact_v2(int sg);
+
+  void executeTableFact_HE(int sg);
 
   void executeTableDimOD(int table_id, int sg);
 
@@ -94,6 +110,11 @@ public:
   void executeTableDimNP(int table_id, int sg);
 
   void executeTableFactNP(int sg);
+
+  // void executeTableDimEMat(int table_id, int sg);
+
+  // void executeTableFactEMat(int sg);
+
 
 };
 

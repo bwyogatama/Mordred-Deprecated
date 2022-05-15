@@ -36,7 +36,7 @@ class priority_stack;
 class custom_priority_queue;
 
 enum ReplacementPolicy {
-    LRU, LFU, LRU_v2, LFU_v2, LFUSegmented, LRUSegmented, New, New_v2, Segmented
+    LRU, LFU, LFUSegmented, LRUSegmented, Segmented, LRU2, LRU2Segmented
 };
 
 class Statistics{
@@ -45,10 +45,14 @@ public:
 		col_freq = 0;
 		timestamp = 0;
 		speedup = 0;
+		backward_t = 0;
+		// real_timestamp = 0;
 	};
 	double col_freq;
 	double timestamp;
 	double speedup;
+	double backward_t;
+	// double real_timestamp;
 };
 
 class Segment {
@@ -235,27 +239,33 @@ public:
 
 	void weightAdjustment();
 
-	void runReplacement(ReplacementPolicy strategy);
+	float runReplacement(ReplacementPolicy strategy, unsigned long long* traffic = NULL);
 
-	void LFUReplacement();
+	unsigned long long LFUReplacement();
 
-	void LFU2Replacement();
+	unsigned long long LFU2Replacement();
 
-	void LFUSegmentedReplacement();
+	unsigned long long LFUSegmentedReplacement();
 
-	void LRUReplacement();
+	unsigned long long LRUReplacement();
 
-	void LRUSegmentedReplacement();
+	unsigned long long LRUSegmentedReplacement();
 
-	void LRU2Replacement();
+	unsigned long long LRU2Replacement();
 
-	void NewReplacement();
+	unsigned long long NewReplacement();
 
-	void New2Replacement();
+	unsigned long long New2Replacement();
 
-	void SegmentReplacement();
+	unsigned long long LRU_2Replacement();
+
+	unsigned long long LRU_2SegmentedReplacement();
+
+	unsigned long long SegmentReplacement();
 
 	void loadColumnToCPU();
+
+	void newEpoch(double param = 0.75);
 
 	template <typename T>
 	T* customMalloc(int size);
