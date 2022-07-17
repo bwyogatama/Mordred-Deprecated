@@ -19,11 +19,7 @@ int main(int argc, char** argv) {
   cout << atoi(argv[2]) << endl;
 
   uint *raw = loadColumn<uint>(col_name, len);
-  // if (len == LO_LEN && SF == 20) {
-  //   for (int j = 104857600; j < 104858624; j++) {
-  //     raw[j] = raw[104857599];
-  //   }
-  // }
+
   cout << "Loaded Column " << col_name << endl;
 
   ofstream myfile;
@@ -52,44 +48,3 @@ int main(int argc, char** argv) {
 
   return 0;
 }
-
-// void tokenize(string s, string del = " ")
-// {
-//     int start = 0;
-//     int end = s.find(del);
-//     while (end != -1) {
-//         string minstring = s.substr(start, end - start);
-//         cout << stoi(minstring) << endl;
-//         start = end + del.size();
-//         end = s.find(del, start);
-//     }
-//     string maxstring = s.substr(start, end - start);
-//     cout << stoi(maxstring) << endl;
-// }
-
-// int main(int argc, char** argv) {
-
-//   if (argc != 2) {
-//     cout << "col-name" << endl;
-//     return 1;
-//   }
-
-//   string col_name = argv[1];
-
-//   string line;
-//   ifstream myfile (DATA_DIR + col_name + "minmax");
-//   if (myfile.is_open())
-//   {
-//     while ( getline (myfile,line) )
-//     {
-//       cout << line << '\n';
-//       tokenize(line);
-//     }
-//     myfile.close();
-//   } else {
-//     cout << "Unable to open file"; 
-//     assert(0);
-//   }
-
-//   return 0;
-// }

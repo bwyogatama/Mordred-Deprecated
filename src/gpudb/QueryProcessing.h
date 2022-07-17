@@ -111,10 +111,6 @@ public:
 
   void executeTableFactNP(int sg);
 
-  // void executeTableDimEMat(int table_id, int sg);
-
-  // void executeTableFactEMat(int sg);
-
 
 };
 

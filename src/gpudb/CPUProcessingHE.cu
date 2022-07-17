@@ -9,54 +9,21 @@ void filter_probe_CPUHE(
           for (int i = 0; i < num_tuples; i++) {
               int hash;
               long long slot;
-              // int slot1 = 1, slot2 = 1, slot3 = 1;
               int slot4 = 1;
               int lo_offset;
 
               lo_offset = start_offset + i;
 
-              // if (fargs.filter_col1 != NULL) {
-                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-                // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
-              // }
+              if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
 
-              // if (fargs.filter_col2 != NULL) {
-                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-                // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
-              // }
+              if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
 
-              // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
-              //   hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
-              //   slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
-              //   if (slot == 0) continue;
-              //   slot1 = slot >> 32;
-              // }
-
-              // if (pargs.ht2 != NULL && pargs.key_col2 != NULL) {
-              //   hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
-              //   slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
-              //   if (slot == 0) continue;
-              //   slot2 = slot >> 32;
-              // }
-
-              // if (pargs.ht3 != NULL && pargs.key_col3 != NULL) {
-              //   hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
-              //   slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
-              //   if (slot == 0) continue;
-              //   slot3 = slot >> 32;
-              // }
-
-              // if (pargs.ht4 != NULL && pargs.key_col4 != NULL) {
-                hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
-                slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
-                if (slot == 0) continue;
-                slot4 = slot >> 32;
-              // }
+              hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+              slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+              if (slot == 0) continue;
+              slot4 = slot >> 32;
 
               if (out_off.h_lo_off != NULL) out_off.h_lo_off[count] = lo_offset;
-              // if (out_off.h_dim_off1 != NULL) out_off.h_dim_off1[thread_off+i] = temp[1][i];
-              // if (out_off.h_dim_off2 != NULL) out_off.h_dim_off2[thread_off+i] = temp[2][i];
-              // if (out_off.h_dim_off3 != NULL) out_off.h_dim_off3[thread_off+i] = temp[3][i];
               if (out_off.h_dim_off4 != NULL) out_off.h_dim_off4[count] = slot4-1;
 
               count++;
@@ -77,57 +44,21 @@ void filter_probe_CPU2HE(struct offsetCPU in_off, struct filterArgsCPU fargs, st
           for (int i = 0; i < num_tuples; i++) {
               int hash;
               long long slot;
-              // int slot1 = 1, slot2 = 1, slot3 = 1;
               int slot4 = 1;
               int lo_offset;
 
               lo_offset = in_off.h_lo_off[start_offset + i];
 
-              // if (fargs.filter_col1 != NULL) {
-                if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
-                // if (!(*(fargs.h_filter_func1))(fargs.filter_col1[lo_offset], fargs.compare1, fargs.compare2)) continue;
-              // }
+              if (!(fargs.filter_col1[lo_offset] >= fargs.compare1 && fargs.filter_col1[lo_offset] <= fargs.compare2)) continue; //only for Q1.x
 
-              // if (fargs.filter_col2 != NULL) {
-                if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
-                // if (!(*(fargs.h_filter_func2))(fargs.filter_col2[lo_offset], fargs.compare3, fargs.compare4)) continue;
-              // }
+              if (!(fargs.filter_col2[lo_offset] >= fargs.compare3 && fargs.filter_col2[lo_offset] <= fargs.compare4)) continue; //only for Q1.x
 
-              // if (pargs.ht1 != NULL && pargs.key_col1 != NULL) {
-              //   hash = HASH(pargs.key_col1[lo_offset], pargs.dim_len1, pargs.min_key1);
-              //   slot = reinterpret_cast<long long*>(pargs.ht1)[hash];
-              //   if (slot == 0) continue;
-              //   slot1 = slot >> 32;
-              // } else if (in_off.h_dim_off1 != NULL) slot1 = in_off.h_dim_off1[start_offset + i] + 1;
-
-
-              // if (pargs.ht2 != NULL && pargs.key_col2 != NULL) {
-              //   hash = HASH(pargs.key_col2[lo_offset], pargs.dim_len2, pargs.min_key2);
-              //   slot = reinterpret_cast<long long*>(pargs.ht2)[hash];
-              //   if (slot == 0) continue;
-              //   slot2 = slot >> 32;
-              // } else if (in_off.h_dim_off2 != NULL) slot2 = in_off.h_dim_off2[start_offset + i] + 1;
-
-
-              // if (pargs.ht3 != NULL && pargs.key_col3 != NULL) {
-              //   hash = HASH(pargs.key_col3[lo_offset], pargs.dim_len3, pargs.min_key3);
-              //   slot = reinterpret_cast<long long*>(pargs.ht3)[hash];
-              //   if (slot == 0) continue;
-              //   slot3 = slot >> 32;
-              // } else if (in_off.h_dim_off3 != NULL) slot3 = in_off.h_dim_off3[start_offset + i] + 1;
-
-
-              // if (pargs.ht4 != NULL && pargs.key_col4 != NULL) {
-                hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
-                slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
-                if (slot == 0) continue;
-                slot4 = slot >> 32;
-              // } else if (in_off.h_dim_off4 != NULL) slot4 = in_off.h_dim_off4[start_offset + i] + 1;
+              hash = HASH(pargs.key_col4[lo_offset], pargs.dim_len4, pargs.min_key4);
+              slot = reinterpret_cast<long long*>(pargs.ht4)[hash];
+              if (slot == 0) continue;
+              slot4 = slot >> 32;
 
               if (out_off.h_lo_off != NULL) out_off.h_lo_off[count] = lo_offset;
-              // if (out_off.h_dim_off1 != NULL) out_off.h_dim_off1[thread_off+i] = temp[1][i];
-              // if (out_off.h_dim_off2 != NULL) out_off.h_dim_off2[thread_off+i] = temp[2][i];
-              // if (out_off.h_dim_off3 != NULL) out_off.h_dim_off3[thread_off+i] = temp[3][i];
               if (out_off.h_dim_off4 != NULL) out_off.h_dim_off4[count] = slot4-1;
 
               count++;

@@ -1,6 +1,8 @@
 Mordred
 =================
 
+Mordred is a research prototype of a heterogeneous CPU-GPU DBMS engine.
+
 Usage
 ----
 
@@ -24,6 +26,8 @@ cd ../../
 # Substitute <SF> with appropriate scale factor (eg: 1)
 python util.py ssb <SF> gen
 python util.py ssb <SF> transform
+cd ../../
+./minmax.sh
 ```
 
 * Configure the benchmark settings

@@ -18,8 +18,6 @@ QueryProcessing::executeTableDimNP(int table_id, int sg) {
     if (custom) d_total = (int*) cm->customCudaMalloc<int>(1);
     else CubDebugExit(cudaMalloc((void**) &d_total, 1 * sizeof(int)));
 
-    // cout << "dim " << sg << endl;
-
     if (sg == 0 || sg == 1) {
 
       if (qo->joinCPUcheck[table_id] && qo->joinGPUcheck[table_id]) {

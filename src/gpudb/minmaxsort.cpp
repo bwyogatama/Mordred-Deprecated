@@ -19,11 +19,7 @@ int main(int argc, char** argv) {
   cout << atoi(argv[2]) << endl;
 
   uint *raw = loadColumnSort<uint>(col_name, len);
-  // if (len == LO_LEN && SF == 20) {
-  //   for (int j = 104857600; j < 104858624; j++) {
-  //     raw[j] = raw[104857599];
-  //   }
-  // }
+
   cout << "Loaded Column " << col_name << endl;
 
   ofstream myfile;
