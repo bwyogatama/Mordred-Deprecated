@@ -387,7 +387,7 @@ int main() {
 						opt = "logs/runs/opt/Skipping" + to_string(size / (1048576) * 4);
 
 					if (custom && skipping && !nopipe && !emat && HE) {
-						opt = "logs/runs/opt/HetExchange" + to_string(size / (1048576) * 4);
+						opt = "logs/runs/opt/NonSegmentGrouping" + to_string(size / (1048576) * 4);
 					}
 
 				    fptr = fopen(opt.c_str(), "w");
@@ -466,7 +466,7 @@ int main() {
 			else cout << "Pipelining is enabled" << endl;		
 		} else if (input.compare("HE") == 0) {
 			HE = !HE;
-			if (HE) cout << "HetExchange execution" << endl;
+			if (HE) cout << "Non Segment-grouping execution" << endl;
 			else cout << "Segment level query execution" << endl;		
 		} else {
 			exit = true;

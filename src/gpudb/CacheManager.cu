@@ -55,9 +55,7 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
 
-	// next_seg_to_cache.resize(TOT_COLUMN);
 	index_to_segment.resize(TOT_COLUMN);
-	// special_segment.resize(TOT_COLUMN);
 
 	for(int i = 0; i < cache_total_seg; i++) {
 		empty_gpu_segment.push(i);
@@ -74,7 +72,6 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		int n = allColumn[i]->total_segment;
 		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
-		//segment_list[i] = (int*) malloc(n * sizeof(int));
 		CubDebugExit(cudaHostAlloc((void**) &(segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
 		CubDebugExit(cudaHostAlloc((void**) &(od_segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
 
@@ -83,8 +80,6 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 
 		memset(segment_bitmap[i], 0, n * sizeof(char));
 		memset(segment_list[i], -1, n * sizeof(int));
-
-		//for (int x = 0; x < n; x++) cout << segment_list[i][x] << endl;
 	}
 
 	readSegmentMinMax();
@@ -185,20 +180,14 @@ CacheManager::readSegmentMinMax() {
 			assert(0);
 		}
 
-		// cout << allColumn[i]->column_name << endl;
-		// for (int j = 0; j < allColumn[i]->total_segment; j++) {
-		// 	cout << segment_min[i][j] << " " << segment_max[i][j] << endl;
-		// }
 	}
 }
 
 template <typename T>
 T*
 CacheManager::customMalloc(int size) {
-	// printf("%d\n", size);
 	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
 	int start = __atomic_fetch_add(&cpuPointer, alloc, __ATOMIC_RELAXED);
-	// printf("%d\n", start + size);
 	assert((start + alloc) < processing_size);
 	return reinterpret_cast<T*>(cpuProcessing + start);
 };
@@ -206,11 +195,9 @@ CacheManager::customMalloc(int size) {
 template <typename T>
 T*
 CacheManager::customCudaMalloc(int size) {
-	// cout << size * sizeof(T) << endl;
 	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
 	int start = __atomic_fetch_add(&gpuPointer, alloc, __ATOMIC_RELAXED);
 	assert((start + alloc) < processing_size);
-	// cout << size << " " << start << endl;
 	return reinterpret_cast<T*>(gpuProcessing + start);
 };
 
@@ -219,36 +206,10 @@ T*
 CacheManager::customCudaHostAlloc(int size) {
 	int alloc = ((size * sizeof(T)) + sizeof(uint64_t) - 1)/ sizeof(uint64_t);
 	int start = __atomic_fetch_add(&pinnedPointer, alloc, __ATOMIC_RELAXED);
-	// cout << "alloc " << start << " " << alloc << " " << processing_size << endl;
 	assert((start + alloc) < processing_size);
 	return reinterpret_cast<T*>(pinnedMemory + start);
 };
 
-// template <typename T>
-// T*
-// CacheManager::customMalloc(int size) {
-//   // printf("%d\n", size);
-//   int start = __atomic_fetch_add(&cpuPointer, size, __ATOMIC_RELAXED);
-//   // printf("%d\n", start + size);
-//   assert(start + size < processing_size);
-//   return reinterpret_cast<T*>(cpuProcessing + start);
-// };
-
-// template <typename T>
-// T*
-// CacheManager::customCudaMalloc(int size) {
-//   int start = __atomic_fetch_add(&gpuPointer, size, __ATOMIC_RELAXED);
-//   assert(start + size < processing_size);
-//   return reinterpret_cast<T*>(gpuProcessing + start);
-// };
-
-// template <typename T>
-// T*
-// CacheManager::customCudaHostAlloc(int size) {
-//   int start = __atomic_fetch_add(&pinnedPointer, size, __ATOMIC_RELAXED);
-//   assert(start + size < processing_size);
-//   return reinterpret_cast<T*>(pinnedMemory + start);
-// };
 
 void
 CacheManager::copySegmentList() {
@@ -327,36 +288,18 @@ void
 CacheManager::cacheColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 	assert(column->tot_seg_in_GPU + total_segment <= column->total_segment);
 	for (int i = 0; i < total_segment; i++) {
-		// if (!next_seg_to_cache[column->column_id].empty()) {
-		// 	cacheSegmentFromQueue(column);
-		// } else {
 			int segment_idx = (column->seg_ptr - column->col_ptr)/SEGMENT_SIZE;
-			//cout << segment_idx << endl;
 			if (segment_idx >= column->total_segment) {
 				segment_idx = 0;
 				column->seg_ptr = column->col_ptr;
 			}
-			// while (special_segment[column->column_id].find(segment_idx) != special_segment[column->column_id].end()) { //selama next segment pointer masih termasuk special segment
-			// 	assert(cache_mapper.find(index_to_segment[column->column_id][segment_idx]) != cache_mapper.end());
-			// 	assert(segment_idx < column->total_segment); //will have to delete this later
-			// 	segment_idx++;
-			// 	column->seg_ptr += SEGMENT_SIZE;
-			// 	if (segment_idx >= column->total_segment) {
-			// 		segment_idx = 0;
-			// 		column->seg_ptr = column->col_ptr;
-			// 	}
-			// }
-			// Segment* seg = new Segment(column, column->seg_ptr);
 			assert(index_to_segment[column->column_id][segment_idx] != NULL);
 			Segment* seg = index_to_segment[column->column_id][segment_idx];
 			assert(segment_idx == seg->segment_id);
 			assert(seg->priority == 0);
-			// index_to_segment[column->column_id][seg->segment_id] = seg;
 			column->seg_ptr += SEGMENT_SIZE;
-			// printf("%d\n", i);
 			cacheSegmentInGPU(seg);
 			cached_seg_in_GPU[column->column_id].push(seg);
-		// }
 	}
 }
 
@@ -370,20 +313,10 @@ CacheManager::cacheSegmentInGPU(Segment* seg) {
 	segment_bitmap[seg->column->column_id][seg->segment_id] = 0x01;
 	assert(segment_list[seg->column->column_id][seg->segment_id] == -1);
 	segment_list[seg->column->column_id][seg->segment_id] = idx;
-	// cout << idx << " " << idx * SEGMENT_SIZE << endl;
 	CubDebugExit(cudaMemcpy(&gpuCache[idx * SEGMENT_SIZE], seg->seg_ptr, SEGMENT_SIZE * sizeof(int), cudaMemcpyHostToDevice));
-	// cout << idx << " " << idx * SEGMENT_SIZE << endl;
 	allColumn[seg->column->column_id]->tot_seg_in_GPU++;
 	assert(allColumn[seg->column->column_id]->tot_seg_in_GPU <= allColumn[seg->column->column_id]->total_segment);
 }
-
-// void
-// CacheManager::cacheSegmentFromQueue(ColumnInfo* column) {
-// 	Segment* seg = next_seg_to_cache[column->column_id].front();
-// 	next_seg_to_cache[column->column_id].pop();
-// 	assert(special_segment[column->column_id].find(seg->segment_id) != special_segment[column->column_id].end());
-// 	cacheSegmentInGPU(seg);
-// }
 
 void
 CacheManager::cacheListSegmentInGPU(vector<Segment*> v_seg) {
@@ -399,29 +332,16 @@ CacheManager::deleteColumnSegmentInGPU(ColumnInfo* column, int total_segment) {
 		Segment* seg = cached_seg_in_GPU[column->column_id].top();
 		cached_seg_in_GPU[column->column_id].pop();
 		deleteSegmentInGPU(seg);
-		// if (special_segment[column->column_id].find(seg->segment_id) != special_segment[column->column_id].end()) {
-		// 	assert(seg->priority > 0);
-		// 	next_seg_to_cache[column->column_id].push(seg);
-		// } else {
 			assert(seg->priority == 0);
-			// delete seg;
 			column->seg_ptr -= SEGMENT_SIZE;
 			int segment_idx = (column->seg_ptr - SEGMENT_SIZE - column->col_ptr)/SEGMENT_SIZE;
-			// while (special_segment[column->column_id].find(segment_idx) != special_segment[column->column_id].end()) { //selama next segment pointer masih termasuk special segment
-			// 	segment_idx--;
-			// 	column->seg_ptr -= SEGMENT_SIZE;
-			// 	assert(segment_idx >= 0);
-			// }
-			// cout << segment_idx << endl;
 			if (segment_idx < 0) {
 				column->seg_ptr = column->col_ptr;
 				segment_idx = 0;
 			} else {
 				assert(cache_mapper.find(index_to_segment[column->column_id][segment_idx]) != cache_mapper.end());
 			}
-			//cout << segment_idx << endl;
 
-		// }
 	}
 }
 
@@ -447,99 +367,10 @@ CacheManager::deleteListSegmentInGPU(vector<Segment*> v_seg) {
 	}
 }
 
-// void
-// CacheManager::constructListSegmentInGPU(ColumnInfo* column) {
-// 	vector<Segment*> temp = cached_seg_in_GPU[column->column_id].return_stack();
-// 	delete segment_list[column->column_id];
-// 	//segment_list[column->column_id] = (int*) malloc(temp.size() * sizeof(int));
-// 	segment_list[column->column_id] = (int*) malloc(cache_total_seg * sizeof(int));
-// 	for (int i = 0; i < temp.size(); i++) {
-// 		segment_list[column->column_id][i] = cache_mapper[temp[i]];
-// 	}
-// }
-
-// void
-// CacheManager::updateSegmentTablePriority(int table_id, int segment_idx, int priority) {
-// 	for (int i = 0; i < TOT_COLUMN; i++) {
-// 		int column_id = allColumn[i]->column_id;
-// 		if (allColumn[i]->table_id == table_id) {
-// 			if (index_to_segment[column_id].find(segment_idx) != index_to_segment[column_id].end()) { // the segment is created already
-// 				Segment* seg = index_to_segment[column_id][segment_idx]; //get the segment
-// 				if (special_segment[column_id].find(segment_idx) == special_segment[column_id].end()) { // kalau segment sudah dibuat tapi bukan special segment (segment biasa yg udah dicache)
-// 					assert(cache_mapper.find(seg) != cache_mapper.end());
-// 					assert(priority > 0);
-// 					special_segment[column_id][segment_idx] = seg; //is a special segment now
-// 				}
-// 				updateSegmentPriority(seg, priority); //update priority of that segment (either in the queue or the stack)
-// 				updateSegmentInColumn(allColumn[i]); //check the stack and update it accordingly
-// 			} else { //the segment is not created already
-// 				Segment* seg = allColumn[i]->getSegment(segment_idx);
-// 				index_to_segment[column_id][segment_idx] = seg; //mark the segment is created
-// 				assert(priority > 0);
-// 				next_seg_to_cache[column_id].push(seg); //push it to next seg to cache
-// 				special_segment[column_id][segment_idx] = seg; //is a special segment now
-// 				updateSegmentInColumn(allColumn[i]); //check the stack and update it accordingly
-// 			}
-// 		}
-// 	}
-// }
-
-// void
-// CacheManager::updateSegmentPriority(Segment* seg, int priority) {
-// 	assert(special_segment[seg->column->column_id].find(seg->segment_id) != special_segment[seg->column->column_id].end());
-// 	if (cache_mapper.find(seg) != cache_mapper.end()) { // the segment is created and mapped to GPU
-// 		if (priority > seg->priority) { //if the priority increase, do percolateDown
-// 			seg->priority = priority;
-// 			cached_seg_in_GPU[seg->column->column_id].percolateDown();
-// 		} else if (priority < seg->priority) { //if the priority decrease, do percolateUp
-// 			seg->priority = priority;
-// 			cached_seg_in_GPU[seg->column->column_id].percolateUp();
-// 		}
-// 		if (priority == 0) { //priority diturunkan jadi segment biasa
-// 			special_segment[seg->column->column_id].erase(seg->segment_id);
-// 		}
-// 	} else { //the segment is created but not mapped to GPU (sit on the next_seg_to_cache queue), in this case just update the priority
-// 		if (priority == 0) { //if the priority becomes 0, we need to get rid of this segment from next seg to cache queue
-// 			priority = 100000; // assign a very big number
-// 		}
-
-// 		if (priority > seg->priority) { //if the priority increase, do percolateDown
-// 			seg->priority = priority;
-// 			next_seg_to_cache[seg->column->column_id].percolateDown();
-// 		} else if (priority < seg->priority) { //if the priority decrease, do percolateUp
-// 			seg->priority = priority;
-// 			next_seg_to_cache[seg->column->column_id].percolateUp();
-// 		}
-// 		if (priority == 100000) { //priority diturunkan jadi segment biasa
-// 			special_segment[seg->column->column_id].erase(seg->segment_id);
-// 			next_seg_to_cache[seg->column->column_id].pop();
-// 		}
-// 	}
-
-// }
-
-// void
-// CacheManager::updateSegmentInColumn(ColumnInfo* column) {
-// 	if (next_seg_to_cache[column->column_id].empty()) return; //if no segment in the queue
-// 	Segment* seg1 = next_seg_to_cache[column->column_id].front();
-// 	Segment* seg2 = cached_seg_in_GPU[column->column_id].top();
-// 	if (seg1->priority > seg2->priority) { //if the priority of segment in the queue is higher than the stack
-// 		deleteColumnSegmentInGPU(column, 1); //delete segment in the stack, push it to the queue
-// 		cacheSegmentFromQueue(column); //pop segment in the queue, push it to the stack
-// 	}
-// }
-
 void
 CacheManager::updateColumnFrequency(ColumnInfo* column) {
 	column->stats->col_freq+=(1.0 / column->total_segment);
-	// cout << column->column_name << " " << column->stats->col_freq << " " << (1 / column->total_segment) << endl;
 }
-
-// void
-// CacheManager::updateColumnWeight(ColumnInfo* column, int freq, double speedup, double selectivity) {
-// 	column->stats->speedup += speedup/column->total_segment;
-// 	column->weight += speedup / (selectivity * column->total_segment);
-// }
 
 void
 CacheManager::updateColumnWeightDirect(ColumnInfo* column, double speedup) {
@@ -555,9 +386,7 @@ CacheManager::updateColumnWeightDirect(ColumnInfo* column, double speedup) {
 
 void
 CacheManager::updateSegmentWeightDirect(ColumnInfo* column, Segment* segment, double speedup) {
-	// cout << segment->segment_id << endl;
 	if (speedup > 0) {
-		// cout << column->column_name << endl;
 		if (column->table_id == 0) {
 			segment->stats->speedup += speedup/column->total_segment;
 			segment->weight += speedup/column->total_segment;
@@ -566,19 +395,12 @@ CacheManager::updateSegmentWeightDirect(ColumnInfo* column, Segment* segment, do
 			segment->weight += speedup*3/column->total_segment;
 		}
 	}
-	// cout << column->column_name << " " << segment->weight << endl;
 }
 
 void
 CacheManager::updateSegmentWeightCostDirect(ColumnInfo* column, Segment* segment, double speedup) {
-	// cout << segment->segment_id << endl;
 	if (speedup > 0) {
-		// cout << column->column_name << endl;
 		if (column->table_id == 0) {
-			// if (column->column_name.compare("lo_quantity") == 0 || column->column_name.compare("lo_discount") == 0) {
-				// cout << "hello" << endl;
-				// speedup = speedup * 0.2;
-			// }
 			segment->stats->speedup += (speedup/column->total_segment);
 			segment->weight += (speedup/column->total_segment);
 		} else {
@@ -586,7 +408,6 @@ CacheManager::updateSegmentWeightCostDirect(ColumnInfo* column, Segment* segment
 			segment->weight += (speedup/column->total_segment);
 		}
 	}
-	// cout << column->column_name << " " << segment->weight << endl;
 }
 
 void
@@ -597,17 +418,13 @@ CacheManager::updateSegmentFreqDirect(ColumnInfo* column, Segment* segment) {
 void
 CacheManager::updateSegmentTimeDirect(ColumnInfo* column, Segment* segment, double timestamp) {
 	segment->stats->backward_t = timestamp - (segment->stats->timestamp * column->total_segment);
-	// cout << timestamp << " " << (segment->stats->timestamp * column->total_segment) << endl;
 	segment->stats->timestamp = (timestamp/ column->total_segment);
 }
 
 void
 CacheManager::updateColumnTimestamp(ColumnInfo* column, double timestamp) {
-	// cout << column->column_name << " " << timestamp << endl;
 	column->stats->backward_t = timestamp - (column->stats->timestamp * column->total_segment);
-	// cout << column->column_name << " " << timestamp << " " << (column->stats->timestamp * column->total_segment) << endl;
 	column->stats->timestamp = (timestamp/ column->total_segment);
-	// cout << column->column_name << " " << column->stats->timestamp << endl;
 }
 
 void
@@ -786,18 +603,13 @@ CacheManager::LRUReplacement() {
         if(temp_buffer_size + cit->second->total_segment < cache_total_seg && cit->first>0){
             temp_buffer_size+=cit->second->total_segment;
             columns_to_place.insert(cit->second);
-            // cout << "Should place ";
-            // cout << cit->second->column_name << endl;
         }
     }
 
-    // cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
 		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
-			// cout << "Deleting column ";
-			// cout << allColumn[i]->column_name << endl;
 			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
 		}
     }
@@ -805,10 +617,7 @@ CacheManager::LRUReplacement() {
     set<ColumnInfo*>::const_iterator cit2;
     for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
     	if ((*cit2)->tot_seg_in_GPU == 0) {
-				// cout << "Caching column ";
-				// cout << (*cit2)->column_name << endl;
     		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
-    		// cout << "Successfully cached" << endl;
     		traffic += (*cit2)->total_segment * SEGMENT_SIZE * sizeof(int);
     	}
     }
@@ -825,7 +634,6 @@ CacheManager::LRUSegmentedReplacement() {
 		for (int j = 0; j < allColumn[i]->total_segment; j++) {
 			Segment* segment = index_to_segment[i][j];
 			access_timestamp_map.insert({segment->stats->timestamp, segment});
-			// cout << allColumn[i]->column_name << " " << segment->stats->timestamp << endl;
 		}
 	}
 
@@ -837,12 +645,9 @@ CacheManager::LRUSegmentedReplacement() {
         if(temp_buffer_size + 1 < cache_total_seg && cit->first > 0){
             temp_buffer_size+=1;
             segments_to_place.insert(cit->second);
-            // cout << "Should place ";
-            // cout << cit->second->column->column_name << " segment " << cit->second->segment_id << endl;
         }
     }
 
-    // cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
@@ -850,8 +655,6 @@ CacheManager::LRUSegmentedReplacement() {
     		Segment* segment = index_to_segment[i][j];
 				if (segments_to_place.find(segment) == segments_to_place.end()) {
 					if (segment_bitmap[i][j]) {
-						// cout << "Deleting segment ";
-						// cout << segment->column->column_name << " segment " << segment->segment_id << endl;
 						deleteSegmentInGPU(segment);
 					}
 				}
@@ -861,13 +664,10 @@ CacheManager::LRUSegmentedReplacement() {
     set<Segment*>::const_iterator cit2;
     for(cit2 = segments_to_place.cbegin();cit2 != segments_to_place.cend(); ++cit2){
     	if (segment_bitmap[(*cit2)->column->column_id][(*cit2)->segment_id] == 0) {
-				// cout << "Caching segment ";
-				// cout << (*cit2)->column->column_name << " " << (*cit2)->segment_id << endl;
 				cacheSegmentInGPU(*cit2);
 				traffic += SEGMENT_SIZE * sizeof(int);
     	}
     }
-    // cout << "Successfully cached" << endl;
 
     return traffic;
 }
@@ -879,10 +679,7 @@ CacheManager::LRU_2Replacement() {
 
 	for (int i = TOT_COLUMN-1; i >= 0; i--) {
 		access_backward_map.insert({allColumn[i]->stats->backward_t, allColumn[i]});
-		// cout << allColumn[i]->column_name << ": " << allColumn[i]->stats->backward_t << endl;
 	}
-
-	// cout << endl;
 
 	int temp_buffer_size = 0; // in segment
 	set<ColumnInfo*> columns_to_place;
@@ -892,18 +689,13 @@ CacheManager::LRU_2Replacement() {
         if(temp_buffer_size + cit->second->total_segment < cache_total_seg && cit->first>0){
             temp_buffer_size+=cit->second->total_segment;
             columns_to_place.insert(cit->second);
-            // cout << "Should place ";
-            // cout << cit->second->column_name << endl;
         }
     }
 
-    // cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
 		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
-			// cout << "Deleting column ";
-			// cout << allColumn[i]->column_name << endl;
 			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
 		}
     }
@@ -911,10 +703,7 @@ CacheManager::LRU_2Replacement() {
     set<ColumnInfo*>::const_iterator cit2;
     for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
     	if ((*cit2)->tot_seg_in_GPU == 0) {
-				// cout << "Caching column ";
-				// cout << (*cit2)->column_name << endl;
     		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
-    		// cout << "Successfully cached" << endl;
     		traffic += (*cit2)->total_segment * SEGMENT_SIZE * sizeof(int);
     	}
     }
@@ -931,8 +720,6 @@ CacheManager::LRU_2SegmentedReplacement() {
 		for (int j = 0; j < allColumn[i]->total_segment; j++) {
 			Segment* segment = index_to_segment[i][j];
 			access_backward_map.insert({segment->stats->backward_t, segment});
-			// cout << allColumn[i]->column_name << " " << segment->stats->backward_t << endl;
-			// printf("%.4f\n", segment->stats->backward_t);
 		}
 	}
 
@@ -944,12 +731,9 @@ CacheManager::LRU_2SegmentedReplacement() {
         if(temp_buffer_size + 1 < cache_total_seg && cit->first > 0){
             temp_buffer_size+=1;
             segments_to_place.insert(cit->second);
-            // cout << "Should place ";
-            // cout << cit->second->column->column_name << " segment " << cit->second->segment_id << endl;
         }
     }
 
-    // cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
@@ -957,8 +741,6 @@ CacheManager::LRU_2SegmentedReplacement() {
     		Segment* segment = index_to_segment[i][j];
 				if (segments_to_place.find(segment) == segments_to_place.end()) {
 					if (segment_bitmap[i][j]) {
-						// cout << "Deleting segment ";
-						// cout << segment->column->column_name << " segment " << segment->segment_id << endl;
 						deleteSegmentInGPU(segment);
 					}
 				}
@@ -968,13 +750,10 @@ CacheManager::LRU_2SegmentedReplacement() {
     set<Segment*>::const_iterator cit2;
     for(cit2 = segments_to_place.cbegin();cit2 != segments_to_place.cend(); ++cit2){
     	if (segment_bitmap[(*cit2)->column->column_id][(*cit2)->segment_id] == 0) {
-				// cout << "Caching segment ";
-				// cout << (*cit2)->column->column_name << " " << (*cit2)->segment_id << endl;
 				cacheSegmentInGPU(*cit2);
 				traffic += SEGMENT_SIZE * sizeof(int);
     	}
     }
-    // cout << "Successfully cached" << endl;
 
     return traffic;
 }
@@ -988,7 +767,6 @@ CacheManager::LFUSegmentedReplacement() {
 		for (int j = 0; j < allColumn[i]->total_segment; j++) {
 			Segment* segment = index_to_segment[i][j];
 			access_frequency_map.insert({segment->stats->col_freq, segment});
-			// cout << allColumn[i]->column_name << " " << segment->stats->col_freq << endl;
 		}
 	}
 
@@ -1000,12 +778,9 @@ CacheManager::LFUSegmentedReplacement() {
         if(temp_buffer_size + 1 < cache_total_seg && cit->first > 0){
             temp_buffer_size+=1;
             segments_to_place.insert(cit->second);
-            // cout << "Should place ";
-            // cout << cit->second->column->column_name << " segment " << cit->second->segment_id << endl;
         }
     }
 
-    // cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
     assert(temp_buffer_size <= cache_total_seg);
 
     for (int i = 0; i < TOT_COLUMN; i++) {
@@ -1013,8 +788,6 @@ CacheManager::LFUSegmentedReplacement() {
     		Segment* segment = index_to_segment[i][j];
 				if (segments_to_place.find(segment) == segments_to_place.end()) {
 					if (segment_bitmap[i][j]) {
-						// cout << "Deleting segment ";
-						// cout << segment->column->column_name << " segment " << segment->segment_id << endl;
 						deleteSegmentInGPU(segment);
 					}
 				}
@@ -1024,13 +797,10 @@ CacheManager::LFUSegmentedReplacement() {
     set<Segment*>::const_iterator cit2;
     for(cit2 = segments_to_place.cbegin();cit2 != segments_to_place.cend(); ++cit2){
     	if (segment_bitmap[(*cit2)->column->column_id][(*cit2)->segment_id] == 0) {
-				// cout << "Caching segment ";
-				// cout << (*cit2)->column->column_name << " " << (*cit2)->segment_id << endl;
 				cacheSegmentInGPU(*cit2);
 				traffic += SEGMENT_SIZE * sizeof(int);
     	}
     }
-    // cout << "Successfully cached" << endl;
 
     return traffic;
 }
@@ -1062,21 +832,8 @@ CacheManager::LFUReplacement() {
   	multimap<double, ColumnInfo*> access_timestamp_map;
 		multimap<double, ColumnInfo*>::iterator it;
  		for (it=access_frequency_map.equal_range(*acc_it).first; it!=access_frequency_map.equal_range(*acc_it).second; ++it) {
- 			// cout << it->second->column_name << " " << it->first << endl;
  			if ((*acc_it) > 0) access_timestamp_map.insert({it->second->stats->timestamp, it->second});
  		}	
-
- 		// multimap<double, ColumnInfo*>::reverse_iterator cit_time;
-
- 		//IF FREQ THE SAME, USE LRU
- 		// for(cit_time=access_timestamp_map.rbegin(); cit_time!=access_timestamp_map.rend(); ++cit_time){
-   //    if(temp_buffer_size + cit_time->second->total_segment < cache_total_seg){
-   //        temp_buffer_size+=cit_time->second->total_segment;
-   //        columns_to_place.insert(cit_time->second);
-   //        cout << "Should place ";
-   //        cout << cit_time->second->column_name << endl;
-   //    }
- 		// }
 
  		multimap<double, ColumnInfo*>::iterator cit_time;
 
@@ -1085,19 +842,14 @@ CacheManager::LFUReplacement() {
       if(temp_buffer_size + cit_time->second->total_segment < cache_total_seg){
           temp_buffer_size+=cit_time->second->total_segment;
           columns_to_place.insert(cit_time->second);
-          // cout << "Should place ";
-          // cout << cit_time->second->column_name << endl;
       }
  		}
   }
 
-  // cout << "Cached segment: " << temp_buffer_size << " Cache total: " << cache_total_seg << endl;
   assert(temp_buffer_size <= cache_total_seg);
 
   for (int i = 0; i < TOT_COLUMN; i++) {
 		if (allColumn[i]->tot_seg_in_GPU > 0 && columns_to_place.find(allColumn[i]) == columns_to_place.end()) {
-			// cout << "Deleting column ";
-			// cout << allColumn[i]->column_name << endl;
 			deleteColumnSegmentInGPU(allColumn[i], allColumn[i]->tot_seg_in_GPU);
 		}
   }
@@ -1105,10 +857,7 @@ CacheManager::LFUReplacement() {
   set<ColumnInfo*>::const_iterator cit2;
   for(cit2 = columns_to_place.cbegin();cit2 != columns_to_place.cend(); ++cit2){
   	if ((*cit2)->tot_seg_in_GPU == 0) {
-			// cout << "Caching column ";
-			// cout << (*cit2)->column_name << endl;
   		cacheColumnSegmentInGPU(*cit2, (*cit2)->total_segment);
-  		// cout << "Successfully cached" << endl;
   		traffic += (*cit2)->total_segment * SEGMENT_SIZE * sizeof(int);
   	}
   }
@@ -1374,16 +1123,6 @@ CacheManager::New2Replacement() {
 void
 CacheManager::newEpoch(double param) {
 
-	// for (int i = 0; i < TOT_COLUMN; i++) {
-	// 	for (int j = 0; j < allColumn[i]->total_segment; j++) {
-	// 		Segment* segment = index_to_segment[i][j];
-	// 		cout << allColumn[i]->column_name << " " << j << " " << segment->weight << endl;
-	// 	}
-	// }
-
-	// cout << endl;
-	// cout << endl;
-
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		for (int j = 0; j < allColumn[i]->total_segment; j++) {
 			Segment* segment = index_to_segment[allColumn[i]->column_id][j];
@@ -1405,12 +1144,6 @@ CacheManager::newEpoch(double param) {
 		}
 	}
 
-	// for (int i = 0; i < TOT_COLUMN; i++) {
-	// 	for (int j = 0; j < allColumn[i]->total_segment; j++) {
-	// 		Segment* segment = index_to_segment[i][j];
-	// 		cout << allColumn[i]->column_name << " " << j << " " << segment->weight << endl;
-	// 	}
-	// }
 };
 
 int
@@ -1476,35 +1209,6 @@ CacheManager::deleteAll() {
 
 void
 CacheManager::loadColumnToCPU() {
-	// h_lo_orderkey = loadColumn<int>("lo_orderkey", LO_LEN);
-	// h_lo_suppkey = loadColumn<int>("lo_suppkey", LO_LEN);
-	// h_lo_custkey = loadColumn<int>("lo_custkey", LO_LEN);
-	// h_lo_partkey = loadColumn<int>("lo_partkey", LO_LEN);
-	// h_lo_orderdate = loadColumn<int>("lo_orderdate", LO_LEN);
-	// h_lo_revenue = loadColumn<int>("lo_revenue", LO_LEN);
-	// h_lo_discount = loadColumn<int>("lo_discount", LO_LEN);
-	// h_lo_quantity = loadColumn<int>("lo_quantity", LO_LEN);
-	// h_lo_extendedprice = loadColumn<int>("lo_extendedprice", LO_LEN);
-	// h_lo_supplycost = loadColumn<int>("lo_supplycost", LO_LEN);
-
-	// h_c_custkey = loadColumn<int>("c_custkey", C_LEN);
-	// h_c_nation = loadColumn<int>("c_nation", C_LEN);
-	// h_c_region = loadColumn<int>("c_region", C_LEN);
-	// h_c_city = loadColumn<int>("c_city", C_LEN);
-
-	// h_s_suppkey = loadColumn<int>("s_suppkey", S_LEN);
-	// h_s_nation = loadColumn<int>("s_nation", S_LEN);
-	// h_s_region = loadColumn<int>("s_region", S_LEN);
-	// h_s_city = loadColumn<int>("s_city", S_LEN);
-
-	// h_p_partkey = loadColumn<int>("p_partkey", P_LEN);
-	// h_p_brand1 = loadColumn<int>("p_brand1", P_LEN);
-	// h_p_category = loadColumn<int>("p_category", P_LEN);
-	// h_p_mfgr = loadColumn<int>("p_mfgr", P_LEN);
-
-	// h_d_datekey = loadColumn<int>("d_datekey", D_LEN);
-	// h_d_year = loadColumn<int>("d_year", D_LEN);
-	// h_d_yearmonthnum = loadColumn<int>("d_yearmonthnum", D_LEN);
 
 	h_lo_orderkey = loadColumnPinnedSort<int>("lo_orderkey", LO_LEN);
 	h_lo_suppkey = loadColumnPinnedSort<int>("lo_suppkey", LO_LEN);
@@ -1536,17 +1240,6 @@ CacheManager::loadColumnToCPU() {
 	h_d_year = loadColumnPinned<int>("d_year", D_LEN);
 	h_d_yearmonthnum = loadColumnPinned<int>("d_yearmonthnum", D_LEN);
 
-	// lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, 0, h_lo_orderkey);
-	// lo_custkey = new ColumnInfo("lo_custkey", "lo", LO_LEN, 1, 0, h_lo_custkey);
-	// lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 2, 0, h_lo_suppkey);
-	// lo_orderdate = new ColumnInfo("lo_orderdate", "lo", LO_LEN, 3, 0, h_lo_orderdate);
-	// lo_partkey = new ColumnInfo("lo_partkey", "lo", LO_LEN, 4, 0, h_lo_partkey);
-	// lo_revenue = new ColumnInfo("lo_revenue", "lo", LO_LEN, 5, 0, h_lo_revenue);
-	// lo_discount = new ColumnInfo("lo_discount", "lo", LO_LEN, 6, 0, h_lo_discount);
-	// lo_quantity = new ColumnInfo("lo_quantity", "lo", LO_LEN, 7, 0, h_lo_quantity);
-	// lo_extendedprice = new ColumnInfo("lo_extendedprice", "lo", LO_LEN, 8, 0, h_lo_extendedprice);
-	// lo_supplycost = new ColumnInfo("lo_supplycost", "lo", LO_LEN, 9, 0, h_lo_supplycost);
-
 	lo_orderkey = new ColumnInfo("lo_orderkey", "lo", LO_LEN, 0, 0, h_lo_orderkey);
 	lo_suppkey = new ColumnInfo("lo_suppkey", "lo", LO_LEN, 1, 0, h_lo_suppkey);
 	lo_custkey = new ColumnInfo("lo_custkey", "lo", LO_LEN, 2, 0, h_lo_custkey);
@@ -1576,18 +1269,6 @@ CacheManager::loadColumnToCPU() {
 	d_datekey = new ColumnInfo("d_datekey", "d", D_LEN, 22, 4, h_d_datekey);
 	d_year = new ColumnInfo("d_year", "d", D_LEN, 23, 4, h_d_year);
 	d_yearmonthnum = new ColumnInfo("d_yearmonthnum", "d", D_LEN, 24, 4, h_d_yearmonthnum);
-
-
-	// allColumn[0] = lo_orderkey;
-	// allColumn[1] = lo_custkey;
-	// allColumn[2] = lo_suppkey;
-	// allColumn[3] = lo_orderdate;
-	// allColumn[4] = lo_partkey;
-	// allColumn[5] = lo_revenue;
-	// allColumn[6] = lo_discount;
-	// allColumn[7] = lo_quantity;
-	// allColumn[8] = lo_extendedprice;
-	// allColumn[9] = lo_supplycost;
 
 	allColumn[0] = lo_orderkey;
 	allColumn[1] = lo_suppkey;
@@ -1630,36 +1311,6 @@ CacheManager::~CacheManager() {
 	CubDebugExit(cudaFree(gpuProcessing));
 	delete[] cpuProcessing;
 	CubDebugExit(cudaFreeHost(pinnedMemory));
-
-	// delete[] h_lo_orderkey;
-	// delete[] h_lo_suppkey;
-	// delete[] h_lo_custkey;
-	// delete[] h_lo_partkey;
-	// delete[] h_lo_orderdate;
-	// delete[] h_lo_revenue;
-	// delete[] h_lo_discount; 
-	// delete[] h_lo_quantity;
-	// delete[] h_lo_extendedprice;
-	// delete[] h_lo_supplycost;
-
-	// delete[] h_c_custkey;
-	// delete[] h_c_nation;
-	// delete[] h_c_region;
-	// delete[] h_c_city;
-
-	// delete[] h_s_suppkey;
-	// delete[] h_s_nation;
-	// delete[] h_s_region;
-	// delete[] h_s_city;
-
-	// delete[] h_p_partkey;
-	// delete[] h_p_brand1;
-	// delete[] h_p_category;
-	// delete[] h_p_mfgr;
-
-	// delete[] h_d_datekey;
-	// delete[] h_d_year;
-	// delete[] h_d_yearmonthnum;
 
 	CubDebugExit(cudaFreeHost(h_lo_orderkey));
 	CubDebugExit(cudaFreeHost(h_lo_suppkey));
