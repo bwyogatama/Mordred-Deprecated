@@ -26,7 +26,7 @@ cd ../../
 # Substitute <SF> with appropriate scale factor (eg: 1)
 python util.py ssb <SF> gen
 python util.py ssb <SF> transform
-cd ../../
+cd ../
 ./minmax.sh
 ```
 
