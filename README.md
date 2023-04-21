@@ -34,11 +34,16 @@ cd ../
 ```
 cd src/ssb/
 # Edit SF and BASE_PATH in ssb_utils.h
+# Edit SF and BASE_PATH in common.h
+# Edit SF in minmax.sh
 ```
 
 * To compile and run Mordred
 ```
 make setup
+make bin/gpudb/minmax
+make bin/gpudb/minmaxsort
+./minmax.sh
 make bin/gpudb/main
 ./bin/gpudb/main
 ```
