@@ -2,6 +2,28 @@ Mordred
 =================
 
 Mordred is a research prototype of a heterogeneous CPU-GPU DBMS engine.
+The work was presented at VLDB '22. Please read the [paper](https://dl.acm.org/doi/abs/10.14778/3551793.3551809) for more details. 
+
+```
+@article{10.14778/3551793.3551809,
+author = {Yogatama, Bobbi W. and Gong, Weiwei and Yu, Xiangyao},
+title = {Orchestrating Data Placement and Query Execution in Heterogeneous CPU-GPU DBMS},
+year = {2022},
+issue_date = {July 2022},
+publisher = {VLDB Endowment},
+volume = {15},
+number = {11},
+issn = {2150-8097},
+url = {https://doi.org/10.14778/3551793.3551809},
+doi = {10.14778/3551793.3551809},
+journal = {Proc. VLDB Endow.},
+month = {jul},
+pages = {2491–2503},
+numpages = {13}
+}
+```
+
+Mordred is currently under development. New version and bug fixes will be released soon!
 
 Usage
 ----
