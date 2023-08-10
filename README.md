@@ -24,6 +24,7 @@ numpages = {13}
 ```
 
 **Mordred is currently under development. Bug fixes will be released soon!!!**
+
 **Reach out to bwyogatama@cs.wisc.edu for more details.**
 
 Usage
