@@ -23,7 +23,7 @@ numpages = {13}
 }
 ```
 
-Mordred is currently under development. New version and bug fixes will be released soon!
+**Mordred is currently under development. Bug fixes will be released soon!**
 
 Usage
 ----
