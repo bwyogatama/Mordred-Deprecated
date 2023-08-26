@@ -30,6 +30,14 @@ numpages = {13}
 Usage
 ----
 
+*Dependencies:
+```
+Ubuntu > 20.04
+GCC > 9.4
+CUDA > 11.0
+IntelTBB
+```
+
 To use Mordred:
 
 To run the Star Schema Benchmark implementation:
@@ -50,16 +58,19 @@ cd ../../
 # Substitute <SF> with appropriate scale factor (eg: 1)
 python util.py ssb <SF> gen
 python util.py ssb <SF> transform
-cd ../
-./minmax.sh
+
+#Sort the LINEORDER table if you want to enable segment skipping
+cd ssb/loader
+make sort
+./columnSort ../data/s{SF}_columnar/LINEORDER ../data/s{SF}_columnar/LINEORDERSORT 5 16 {COLUMN_SIZE}
 ```
 
 * Configure the benchmark settings
 ```
-cd src/ssb/
-# Edit SF and BASE_PATH in ssb_utils.h
-# Edit SF and BASE_PATH in common.h
-# Edit SF in minmax.sh
+# Edit SF and BASE_PATH in src/ssb/ssb_utils.h
+# Edit SF and BASE_PATH in src/ssb/common.h
+# Edit file path in src/ssb/minmax.cpp and src/ssb/minmaxsort.cpp
+# Edit SF and table size in minmax.sh
 ```
 
 * To compile and run Mordred

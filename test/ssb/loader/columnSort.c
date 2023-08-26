@@ -119,6 +119,7 @@ static void primarySort(struct sortObject * obj, int num){
  * 	@inputPrefix: the name of the table after sorting.
  *	@index:	the index of the column that will be sorted.
  *	@columnNum: the total number of columns in the table.
+ *  @columnSize: the size of the column.
  *
  * Prerequisite:
  * 	The memory is large enough to hold each column.	

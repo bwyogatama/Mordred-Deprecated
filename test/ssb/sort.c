@@ -23,7 +23,7 @@
 #include "loader/include/common.h"
 
 /*
- * @file columnSort.c
+ * @file sort.c
  * Sort foreign key columns in LINEORDER table.
  */
 

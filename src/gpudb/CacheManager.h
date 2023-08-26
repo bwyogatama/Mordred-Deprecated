@@ -135,9 +135,9 @@ class CacheManager {
 public:
 	int* gpuCache;
 	uint64_t* gpuProcessing, *cpuProcessing, *pinnedMemory;
-	unsigned int gpuPointer, cpuPointer, pinnedPointer, onDemandPointer;
-	int cache_total_seg, ondemand_segment;
-	size_t cache_size, processing_size, pinned_memsize, ondemand_size;
+	unsigned int gpuPointer, cpuPointer, pinnedPointer;
+	int cache_total_seg;
+	size_t cache_size, processing_size, pinned_memsize;
 	int TOT_COLUMN;
 	int TOT_TABLE;
 	vector<ColumnInfo*> allColumn;
@@ -145,11 +145,8 @@ public:
 	queue<int> empty_gpu_segment; //free list
 	vector<priority_stack> cached_seg_in_GPU; //track segments that are already cached in GPU
 	int** segment_list; //segment list in GPU for each column
-	int** od_segment_list;
 	unordered_map<Segment*, int> cache_mapper; //map segment to index in GPU
-	// vector<custom_priority_queue> next_seg_to_cache; //a priority queue to store the special segment to be cached to GPU
 	vector<vector<Segment*>> index_to_segment; //track which segment has been created from a particular segment id
-	// vector<unordered_map<int, Segment*>> special_segment; //special segment id (segment with priority) to segment itself
 	char** segment_bitmap; //bitmap to store information which segment is in GPU
 
 	vector<vector<int>> columns_in_table;
@@ -168,9 +165,9 @@ public:
 	ColumnInfo *p_partkey, *p_brand1, *p_category, *p_mfgr;
 	ColumnInfo *d_datekey, *d_year, *d_yearmonthnum;
 
-	CacheManager(size_t cache_size, size_t ondemand_size, size_t _processing_size, size_t _pinned_memsize);
+	CacheManager(size_t cache_size, size_t _processing_size, size_t _pinned_memsize);
 
-	void resetCache(size_t cache_size, size_t ondemand_size, size_t _processing_size, size_t _pinned_memsize);
+	void resetCache(size_t cache_size, size_t _processing_size, size_t _pinned_memsize);
 
 	~CacheManager();
 
@@ -182,13 +179,9 @@ public:
 
 	void deleteSegmentInGPU(Segment* seg);
 
-	// void cacheSegmentFromQueue(ColumnInfo* column);
-
 	void cacheListSegmentInGPU(vector<Segment*> v_seg);
 
 	void deleteListSegmentInGPU(vector<Segment*> v_seg);
-
-	//void constructListSegmentInGPU(ColumnInfo* column);
 
 	void SegmentTablePriority(int table_id, int segment_idx, int priority);
 
@@ -253,21 +246,11 @@ public:
 	template <typename T>
 	T* customCudaHostAlloc(int size);
 
-	int* onDemandTransfer(int* data_ptr, int size, cudaStream_t stream);
-
 	void indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream, bool custom = true);
 
 	void resetPointer();
 
-	void resetOnDemand();
-
 	void readSegmentMinMax();
-
-	void copySegmentList();
-
-	void onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, cudaStream_t stream);
-
-	void indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream, bool custom = true);
 
 	int cacheSpecificColumn(string column_name);
 

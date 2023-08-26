@@ -51,37 +51,17 @@ public:
     query = _query;
   }
 
-  void runQuery(CUcontext ctx = NULL);
+  void runQuery();
 
-  void runQuery2(CUcontext ctx = NULL);
-
-  void runQueryNP(CUcontext ctx = NULL);
-
-  void runQueryHE(CUcontext ctx = NULL);
-
-  // void runQueryEMat(CUcontext ctx = NULL);
-
-  void runOnDemand();
-
-  void runHybridOnDemand(int options = 1);
+  void runQuery2();
 
   void endQuery();
 
   void updateStatsQuery();
 
-  double processQuery(CUcontext ctx = NULL);
+  double processQuery();
 
-  double processQuery2(CUcontext ctx = NULL);
-
-  double processQueryNP(CUcontext ctx = NULL);
-
-  double processQueryEMat(CUcontext ctx = NULL);
-
-  double processQueryHE(CUcontext ctx = NULL);
-
-  double processOnDemand();
-
-  double processHybridOnDemand(int options = 1);
+  double processQuery2();
 
   void profile();
 
@@ -93,23 +73,9 @@ public:
 
   void executeTableDim(int table_id, int sg);
 
-  void executeTableDim_HE(int table_id, int sg);
-
   void executeTableFact_v1(int sg);
 
   void executeTableFact_v2(int sg);
-
-  void executeTableFact_HE(int sg);
-
-  void executeTableDimOD(int table_id, int sg);
-
-  void executeTableFactOD(int sg);
-
-  void executeTableFactOD2(int sg);
-
-  void executeTableDimNP(int table_id, int sg);
-
-  void executeTableFactNP(int sg);
 
 
 };

@@ -31,18 +31,16 @@ ColumnInfo::getSegment(int index) {
 	return seg;
 }
 
-CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize) {
+CacheManager::CacheManager(size_t _cache_size, size_t _processing_size, size_t _pinned_memsize) {
 	cache_size = _cache_size;
-	ondemand_size = _ondemand_size;
 	cache_total_seg = _cache_size/SEGMENT_SIZE;
-	ondemand_segment = _ondemand_size/SEGMENT_SIZE;
 	processing_size = _processing_size;
 	pinned_memsize = _pinned_memsize;
 	TOT_COLUMN = 25;
 	TOT_TABLE = 5;
 
-	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size + ondemand_size) * sizeof(int)));
-	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size + ondemand_size) * sizeof(int)));
+	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size) * sizeof(int)));
+	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size) * sizeof(int)));
 	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(uint64_t)));
 
 	cpuProcessing = (uint64_t*) malloc(_processing_size * sizeof(uint64_t));
@@ -50,7 +48,6 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 	gpuPointer = 0;
 	cpuPointer = 0;
 	pinnedPointer = 0;
-	onDemandPointer = cache_size;
 
 	cached_seg_in_GPU.resize(TOT_COLUMN);
 	allColumn.resize(TOT_COLUMN);
@@ -65,7 +62,6 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 
 	segment_bitmap = (char**) malloc (TOT_COLUMN * sizeof(char*));
 	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
-	od_segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
 	segment_min = (int**) malloc (TOT_COLUMN * sizeof(int*));
 	segment_max = (int**) malloc (TOT_COLUMN * sizeof(int*));
 
@@ -73,7 +69,6 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 		int n = allColumn[i]->total_segment;
 		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
 		CubDebugExit(cudaHostAlloc((void**) &(segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
-		CubDebugExit(cudaHostAlloc((void**) &(od_segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
 
 		segment_min[i] = (int*) malloc(n * sizeof(int));
 		segment_max[i] = (int*) malloc(n * sizeof(int));
@@ -90,13 +85,11 @@ CacheManager::CacheManager(size_t _cache_size, size_t _ondemand_size, size_t _pr
 			index_to_segment[i][j] = allColumn[i]->getSegment(j);
 		}
 	}
-
-	cout << cache_size << endl;
 	
 }
 
 void
-CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize) {
+CacheManager::resetCache(size_t _cache_size, size_t _processing_size, size_t _pinned_memsize) {
 
 	CubDebugExit(cudaFree(gpuCache));
 	CubDebugExit(cudaFree(gpuProcessing));
@@ -111,16 +104,12 @@ CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _proc
 	free(segment_bitmap);
 
 	cache_size = _cache_size;
-	ondemand_size = _ondemand_size;
 	cache_total_seg = _cache_size/SEGMENT_SIZE;
-	ondemand_segment = _ondemand_size/SEGMENT_SIZE;
 	processing_size = _processing_size;
 	pinned_memsize = _pinned_memsize;
 
-	cout << cache_size << " " << ondemand_size << endl;
-
-	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size + ondemand_size) * sizeof(int)));
-	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size + ondemand_size) * sizeof(int)));
+	CubDebugExit(cudaMalloc((void**) &gpuCache, (cache_size) * sizeof(int)));
+	CubDebugExit(cudaMemset(gpuCache, 0, (cache_size) * sizeof(int)));
 	CubDebugExit(cudaMalloc((void**) &gpuProcessing, _processing_size * sizeof(uint64_t)));
 
 	cpuProcessing = (uint64_t*) malloc(_processing_size * sizeof(uint64_t));
@@ -128,7 +117,6 @@ CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _proc
 	gpuPointer = 0;
 	cpuPointer = 0;
 	pinnedPointer = 0;
-	onDemandPointer = cache_size;
 
 	while (!empty_gpu_segment.empty()) {
 		empty_gpu_segment.pop();
@@ -140,12 +128,10 @@ CacheManager::resetCache(size_t _cache_size, size_t _ondemand_size, size_t _proc
 
 	segment_bitmap = (char**) malloc (TOT_COLUMN * sizeof(char*));
 	segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
-	od_segment_list = (int**) malloc (TOT_COLUMN * sizeof(int*));
 	for (int i = 0; i < TOT_COLUMN; i++) {
 		int n = allColumn[i]->total_segment;
 		segment_bitmap[i] = (char*) malloc(n * sizeof(char));
 		CubDebugExit(cudaHostAlloc((void**) &(segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
-		CubDebugExit(cudaHostAlloc((void**) &(od_segment_list[i]), n * sizeof(int), cudaHostAllocDefault));
 		memset(segment_bitmap[i], 0, n * sizeof(char));
 		memset(segment_list[i], -1, n * sizeof(int));
 	}
@@ -212,38 +198,6 @@ CacheManager::customCudaHostAlloc(int size) {
 
 
 void
-CacheManager::copySegmentList() {
-	for (int i = 0; i < TOT_COLUMN; i++) {
-		memcpy(od_segment_list[allColumn[i]->column_id], segment_list[allColumn[i]->column_id], allColumn[i]->total_segment * sizeof(int));
-	}
-}
-
-int*
-CacheManager::onDemandTransfer(int* data_ptr, int size, cudaStream_t stream) {
-	assert(data_ptr != NULL);
-	if (data_ptr != NULL) {
-		int start = __atomic_fetch_add(&onDemandPointer, SEGMENT_SIZE, __ATOMIC_RELAXED);
-		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
-		CubDebugExit(cudaStreamSynchronize(stream));
-		return gpuCache + start;
-	} else {
-		return NULL;
-	}
-};
-
-void
-CacheManager::onDemandTransfer2(ColumnInfo* column, int segment_idx, int size, cudaStream_t stream) {
-	if (segment_bitmap[column->column_id][segment_idx] == 0) {
-		int* data_ptr = column->col_ptr + segment_idx * SEGMENT_SIZE;
-		int start = __atomic_fetch_add(&onDemandPointer, SEGMENT_SIZE, __ATOMIC_RELAXED);
-		// CubDebugExit(cudaStreamSynchronize(stream));
-		CubDebugExit(cudaMemcpyAsync(gpuCache + start, data_ptr, size * sizeof(int), cudaMemcpyHostToDevice, stream));
-		CubDebugExit(cudaStreamSynchronize(stream));
-		od_segment_list[column->column_id][segment_idx] = start / SEGMENT_SIZE;
-	}
-};
-
-void
 CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stream, bool custom) {
     if (col_idx[column->column_id] == NULL) {
       int* desired;
@@ -256,32 +210,12 @@ CacheManager::indexTransfer(int** col_idx, ColumnInfo* column, cudaStream_t stre
     }
 };
 
-void
-CacheManager::indexTransferOD(int** od_col_idx, ColumnInfo* column, cudaStream_t stream, bool custom) {
-    if (od_col_idx[column->column_id] == NULL) {
-    	// cout << "doing index transfer " << column->column_name << endl;
-      int* desired;
-      if (custom) desired = (int*) customCudaMalloc<int>(column->total_segment); 
-      else CubDebugExit(cudaMalloc((void**) &desired, column->total_segment * sizeof(int)));
-      int* expected = NULL;
-      CubDebugExit(cudaMemcpyAsync(desired, od_segment_list[column->column_id], column->total_segment * sizeof(int), cudaMemcpyHostToDevice, stream));
-      CubDebugExit(cudaStreamSynchronize(stream));
-      __atomic_compare_exchange_n(&(od_col_idx[column->column_id]), &expected, desired, false, __ATOMIC_RELAXED, __ATOMIC_RELAXED);
-    }
-};
-
 
 void
 CacheManager::resetPointer() {
 	gpuPointer = 0;
 	cpuPointer = 0;
 	pinnedPointer = 0;
-	onDemandPointer = cache_size;
-};
-
-void
-CacheManager::resetOnDemand() {
-	onDemandPointer = cache_size;
 };
 
 void

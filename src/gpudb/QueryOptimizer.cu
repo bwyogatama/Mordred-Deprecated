@@ -3,8 +3,8 @@
 #include "CacheManager.h"
 #include "CPUGPUProcessing.h"
 
-QueryOptimizer::QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp) {
-	cm = new CacheManager(_cache_size, _ondemand_size, _processing_size, _pinned_memsize);
+QueryOptimizer::QueryOptimizer(size_t _cache_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp) {
+	cm = new CacheManager(_cache_size, _processing_size, _pinned_memsize);
 	cgp = _cgp;
 	custom = cgp->custom;
 	skipping = cgp->skipping;
@@ -168,7 +168,7 @@ QueryOptimizer::clearParsing() {
 	queryGroupByColumn.clear();
 	queryAggrColumn.clear();
 
-  queryColumn.clear();
+	queryColumn.clear();
 
 	opParsed.clear();
 }
@@ -176,14 +176,14 @@ QueryOptimizer::clearParsing() {
 void 
 QueryOptimizer::parseQuery11() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_discount);
-  queryColumn[0].push_back(cm->lo_quantity);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_extendedprice);
-  queryColumn[0].push_back(cm->lo_discount);
-  queryColumn[4].push_back(cm->d_year);
-  queryColumn[4].push_back(cm->d_datekey);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_discount);
+	queryColumn[0].push_back(cm->lo_quantity);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_extendedprice);
+	queryColumn[0].push_back(cm->lo_discount);
+	queryColumn[4].push_back(cm->d_year);
+	queryColumn[4].push_back(cm->d_datekey);
 
 	querySelectColumn.push_back(cm->lo_discount);
 	querySelectColumn.push_back(cm->lo_quantity);
@@ -238,14 +238,14 @@ QueryOptimizer::parseQuery11() {
 void 
 QueryOptimizer::parseQuery12() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_discount);
-  queryColumn[0].push_back(cm->lo_quantity);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_extendedprice);
-  queryColumn[0].push_back(cm->lo_discount);
-  queryColumn[4].push_back(cm->d_yearmonthnum);
-  queryColumn[4].push_back(cm->d_datekey);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_discount);
+	queryColumn[0].push_back(cm->lo_quantity);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_extendedprice);
+	queryColumn[0].push_back(cm->lo_discount);
+	queryColumn[4].push_back(cm->d_yearmonthnum);
+	queryColumn[4].push_back(cm->d_datekey);
 
 	querySelectColumn.push_back(cm->lo_discount);
 	querySelectColumn.push_back(cm->lo_quantity);
@@ -301,13 +301,13 @@ QueryOptimizer::parseQuery12() {
 void 
 QueryOptimizer::parseQuery13() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_discount);
-  queryColumn[0].push_back(cm->lo_quantity);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_extendedprice);
-  queryColumn[0].push_back(cm->lo_discount);
-  queryColumn[4].push_back(cm->d_datekey);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_discount);
+	queryColumn[0].push_back(cm->lo_quantity);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_extendedprice);
+	queryColumn[0].push_back(cm->lo_discount);
+	queryColumn[4].push_back(cm->d_datekey);
 
 	querySelectColumn.push_back(cm->lo_discount);
 	querySelectColumn.push_back(cm->lo_quantity);
@@ -362,18 +362,18 @@ QueryOptimizer::parseQuery13() {
 void 
 QueryOptimizer::parseQuery21() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_partkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_region);
-  queryColumn[3].push_back(cm->p_partkey);
-  queryColumn[3].push_back(cm->p_category);
-  queryColumn[3].push_back(cm->p_brand1);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_partkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_region);
+	queryColumn[3].push_back(cm->p_partkey);
+	queryColumn[3].push_back(cm->p_category);
+	queryColumn[3].push_back(cm->p_brand1);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->p_category);
 	querySelectColumn.push_back(cm->s_region);
@@ -447,17 +447,17 @@ QueryOptimizer::parseQuery21() {
 void 
 QueryOptimizer::parseQuery22() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_partkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_region);
-  queryColumn[3].push_back(cm->p_partkey);
-  queryColumn[3].push_back(cm->p_brand1);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_partkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_region);
+	queryColumn[3].push_back(cm->p_partkey);
+	queryColumn[3].push_back(cm->p_brand1);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->p_brand1);
 	querySelectColumn.push_back(cm->s_region);
@@ -531,17 +531,17 @@ QueryOptimizer::parseQuery22() {
 void 
 QueryOptimizer::parseQuery23() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_partkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_region);
-  queryColumn[3].push_back(cm->p_partkey);
-  queryColumn[3].push_back(cm->p_brand1);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_partkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_region);
+	queryColumn[3].push_back(cm->p_partkey);
+	queryColumn[3].push_back(cm->p_brand1);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->p_brand1);
 	querySelectColumn.push_back(cm->s_region);
@@ -615,19 +615,19 @@ QueryOptimizer::parseQuery23() {
 void 
 QueryOptimizer::parseQuery31() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_custkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_region);
-  queryColumn[1].push_back(cm->s_nation);
-  queryColumn[2].push_back(cm->c_custkey);
-  queryColumn[2].push_back(cm->c_region);
-  queryColumn[2].push_back(cm->c_nation);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_custkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_region);
+	queryColumn[1].push_back(cm->s_nation);
+	queryColumn[2].push_back(cm->c_custkey);
+	queryColumn[2].push_back(cm->c_region);
+	queryColumn[2].push_back(cm->c_nation);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->d_year);
 	querySelectColumn.push_back(cm->c_region);
@@ -710,19 +710,19 @@ QueryOptimizer::parseQuery31() {
 void 
 QueryOptimizer::parseQuery32() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_custkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_city);
-  queryColumn[1].push_back(cm->s_nation);
-  queryColumn[2].push_back(cm->c_custkey);
-  queryColumn[2].push_back(cm->c_city);
-  queryColumn[2].push_back(cm->c_nation);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_custkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_city);
+	queryColumn[1].push_back(cm->s_nation);
+	queryColumn[2].push_back(cm->c_custkey);
+	queryColumn[2].push_back(cm->c_city);
+	queryColumn[2].push_back(cm->c_nation);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->d_year);
 	querySelectColumn.push_back(cm->c_nation);
@@ -805,19 +805,19 @@ QueryOptimizer::parseQuery32() {
 void 
 QueryOptimizer::parseQuery33() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_custkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_city);
-  queryColumn[1].push_back(cm->s_nation);
-  queryColumn[2].push_back(cm->c_custkey);
-  queryColumn[2].push_back(cm->c_city);
-  queryColumn[2].push_back(cm->c_nation);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_custkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_city);
+	queryColumn[1].push_back(cm->s_nation);
+	queryColumn[2].push_back(cm->c_custkey);
+	queryColumn[2].push_back(cm->c_city);
+	queryColumn[2].push_back(cm->c_nation);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->d_year);
 	querySelectColumn.push_back(cm->c_city);
@@ -900,19 +900,19 @@ QueryOptimizer::parseQuery33() {
 void 
 QueryOptimizer::parseQuery34() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_custkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_city);
-  queryColumn[1].push_back(cm->s_nation);
-  queryColumn[2].push_back(cm->c_custkey);
-  queryColumn[2].push_back(cm->c_city);
-  queryColumn[2].push_back(cm->c_nation);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_yearmonthnum);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_custkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_city);
+	queryColumn[1].push_back(cm->s_nation);
+	queryColumn[2].push_back(cm->c_custkey);
+	queryColumn[2].push_back(cm->c_city);
+	queryColumn[2].push_back(cm->c_nation);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_yearmonthnum);
 
 	querySelectColumn.push_back(cm->d_yearmonthnum);
 	querySelectColumn.push_back(cm->c_city);
@@ -995,22 +995,22 @@ QueryOptimizer::parseQuery34() {
 void 
 QueryOptimizer::parseQuery41() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_custkey);
-  queryColumn[0].push_back(cm->lo_partkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_supplycost);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_region);
-  queryColumn[2].push_back(cm->c_custkey);
-  queryColumn[2].push_back(cm->c_region);
-  queryColumn[2].push_back(cm->c_nation);
-  queryColumn[3].push_back(cm->p_partkey);
-  queryColumn[3].push_back(cm->p_mfgr);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_custkey);
+	queryColumn[0].push_back(cm->lo_partkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_supplycost);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_region);
+	queryColumn[2].push_back(cm->c_custkey);
+	queryColumn[2].push_back(cm->c_region);
+	queryColumn[2].push_back(cm->c_nation);
+	queryColumn[3].push_back(cm->p_partkey);
+	queryColumn[3].push_back(cm->p_mfgr);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->p_mfgr);
 	querySelectColumn.push_back(cm->c_region);
@@ -1105,23 +1105,23 @@ QueryOptimizer::parseQuery41() {
 void 
 QueryOptimizer::parseQuery42() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_custkey);
-  queryColumn[0].push_back(cm->lo_partkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_supplycost);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_region);
-  queryColumn[1].push_back(cm->s_nation);
-  queryColumn[2].push_back(cm->c_custkey);
-  queryColumn[2].push_back(cm->c_region);
-  queryColumn[3].push_back(cm->p_partkey);
-  queryColumn[3].push_back(cm->p_mfgr);
-  queryColumn[3].push_back(cm->p_category);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_custkey);
+	queryColumn[0].push_back(cm->lo_partkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_supplycost);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_region);
+	queryColumn[1].push_back(cm->s_nation);
+	queryColumn[2].push_back(cm->c_custkey);
+	queryColumn[2].push_back(cm->c_region);
+	queryColumn[3].push_back(cm->p_partkey);
+	queryColumn[3].push_back(cm->p_mfgr);
+	queryColumn[3].push_back(cm->p_category);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->p_mfgr);
 	querySelectColumn.push_back(cm->c_region);
@@ -1224,23 +1224,23 @@ QueryOptimizer::parseQuery42() {
 void 
 QueryOptimizer::parseQuery43() {
 
-  queryColumn.resize(cm->TOT_TABLE);
-  queryColumn[0].push_back(cm->lo_suppkey);
-  queryColumn[0].push_back(cm->lo_custkey);
-  queryColumn[0].push_back(cm->lo_partkey);
-  queryColumn[0].push_back(cm->lo_orderdate);
-  queryColumn[0].push_back(cm->lo_supplycost);
-  queryColumn[0].push_back(cm->lo_revenue);
-  queryColumn[1].push_back(cm->s_suppkey);
-  queryColumn[1].push_back(cm->s_city);
-  queryColumn[1].push_back(cm->s_nation);
-  queryColumn[2].push_back(cm->c_custkey);
-  queryColumn[2].push_back(cm->c_region);
-  queryColumn[3].push_back(cm->p_partkey);
-  queryColumn[3].push_back(cm->p_brand1);
-  queryColumn[3].push_back(cm->p_category);
-  queryColumn[4].push_back(cm->d_datekey);
-  queryColumn[4].push_back(cm->d_year);
+	queryColumn.resize(cm->TOT_TABLE);
+	queryColumn[0].push_back(cm->lo_suppkey);
+	queryColumn[0].push_back(cm->lo_custkey);
+	queryColumn[0].push_back(cm->lo_partkey);
+	queryColumn[0].push_back(cm->lo_orderdate);
+	queryColumn[0].push_back(cm->lo_supplycost);
+	queryColumn[0].push_back(cm->lo_revenue);
+	queryColumn[1].push_back(cm->s_suppkey);
+	queryColumn[1].push_back(cm->s_city);
+	queryColumn[1].push_back(cm->s_nation);
+	queryColumn[2].push_back(cm->c_custkey);
+	queryColumn[2].push_back(cm->c_region);
+	queryColumn[3].push_back(cm->p_partkey);
+	queryColumn[3].push_back(cm->p_brand1);
+	queryColumn[3].push_back(cm->p_category);
+	queryColumn[4].push_back(cm->d_datekey);
+	queryColumn[4].push_back(cm->d_year);
 
 	querySelectColumn.push_back(cm->p_category);
 	querySelectColumn.push_back(cm->c_region);
@@ -1392,10 +1392,6 @@ QueryOptimizer::prepareOperatorPlacement() {
 		memset(joinCPU[i], 0, MAX_GROUPS * sizeof(bool));
 		memset(segment_group_count[i], 0, MAX_GROUPS * sizeof(short));
 		memset(par_segment[i], 0, MAX_GROUPS * sizeof(short));
-
-		// CubDebugExit(cudaHostAlloc((void**) &(segment_group_temp[i]), MAX_GROUPS * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
-		// segment_group_temp_count[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
-		// memset(segment_group_temp_count[i], 0, MAX_GROUPS * sizeof(short));
 	}
 
 	last_segment = new int[cm->TOT_TABLE];
@@ -1419,7 +1415,6 @@ QueryOptimizer::prepareOperatorPlacement() {
 
 	joinGPUall = true;
 	for (int i = 0; i < join.size(); i++) {
-		// cout << i << endl;
 		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
 			joinCPUcheck[join[i].second->table_id] = true;
 			joinGPUcheck[join[i].second->table_id] = false;
@@ -1438,202 +1433,6 @@ QueryOptimizer::prepareOperatorPlacement() {
 		}
 	}
 
-
-}
-
-void
-QueryOptimizer::prepareOperatorPlacementEMat() {
-
-	opRoots.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) opRoots[i].resize(MAX_GROUPS);
-	opCPUPipeline.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		opCPUPipeline[i].resize(MAX_GROUPS);
-		for (int j = 0; j < MAX_GROUPS; j++) {
-			opCPUPipeline[i][j].resize(1);
-		}
-	}
-	opGPUPipeline.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		opGPUPipeline[i].resize(MAX_GROUPS);
-		for (int j = 0; j < MAX_GROUPS; j++) {
-			opGPUPipeline[i][j].resize(1);
-		}
-	}
-
-	selectGPUPipelineCol.resize(MAX_GROUPS);
-	selectCPUPipelineCol.resize(MAX_GROUPS);
-	joinGPUPipelineCol.resize(MAX_GROUPS);
-	joinCPUPipelineCol.resize(MAX_GROUPS);
-	groupbyGPUPipelineCol.resize(MAX_GROUPS);
-	groupbyCPUPipelineCol.resize(MAX_GROUPS);
-
-	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
-	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
-
-	memset(joinGPUcheck, 0, cm->TOT_TABLE * sizeof(bool));
-	memset(joinCPUcheck, 0, cm->TOT_TABLE * sizeof(bool));
-
-	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
-	// segment_group_temp = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	// segment_group_temp_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), MAX_GROUPS * cm->lo_orderdate->total_segment * sizeof(short), cudaHostAllocDefault));
-		segment_group_count[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
-		par_segment[i] = (short*) malloc (MAX_GROUPS * sizeof(short));
-		joinGPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
-		joinCPU[i] = (bool*) malloc(MAX_GROUPS * sizeof(bool));
-		memset(joinGPU[i], 0, MAX_GROUPS * sizeof(bool));
-		memset(joinCPU[i], 0, MAX_GROUPS * sizeof(bool));
-		memset(segment_group_count[i], 0, MAX_GROUPS * sizeof(short));
-		memset(par_segment[i], 0, MAX_GROUPS * sizeof(short));
-	}
-
-	last_segment = new int[cm->TOT_TABLE];
-	par_segment_count = new short[cm->TOT_TABLE];
-	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
-
-	groupGPUcheck = true;
-
-	for (int i = 0; i < join.size(); i++) {
-		if (groupby_build.size() > 0) {
-			for (int j = 0; j < groupby_build[join[i].second].size(); j++) {
-				int tot_seg_in_GPU = groupby_build[join[i].second][j]->tot_seg_in_GPU;
-				int total_segment = groupby_build[join[i].second][j]->total_segment;
-				if (tot_seg_in_GPU < total_segment) {
-					groupGPUcheck = false;
-					break;
-				}
-			}
-		}
-	}
-
-	joinGPUall = true;
-	for (int i = 0; i < join.size(); i++) {
-		// cout << i << endl;
-		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
-			joinCPUcheck[join[i].second->table_id] = true;
-			joinGPUcheck[join[i].second->table_id] = false;
-			joinGPUall = false;
-		} else {
-			if (pkey_fkey[join[i].second]->tot_seg_in_GPU == 0) {
-				joinCPUcheck[join[i].second->table_id] = true;
-				joinGPUcheck[join[i].second->table_id] = false;
-			} else {
-				joinCPUcheck[join[i].second->table_id] = true;
-				joinGPUcheck[join[i].second->table_id] = true;	
-			}
-		}
-	}
-
-
-}
-
-void
-QueryOptimizer::prepareOperatorPlacementHE() {
-
-	int total_segment = cm->lo_orderdate->total_segment;
-
-	opRoots.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) opRoots[i].resize(total_segment);
-	opCPUPipeline.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		opCPUPipeline[i].resize(total_segment);
-		for (int j = 0; j < total_segment; j++) {
-			opCPUPipeline[i][j].resize(1);
-		}
-	}
-	opGPUPipeline.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		opGPUPipeline[i].resize(total_segment);
-		for (int j = 0; j < total_segment; j++) {
-			opGPUPipeline[i][j].resize(1);
-		}
-	}
-
-	selectGPUPipelineCol.resize(total_segment);
-	selectCPUPipelineCol.resize(total_segment);
-	joinGPUPipelineCol.resize(total_segment);
-	joinCPUPipelineCol.resize(total_segment);
-	groupbyGPUPipelineCol.resize(total_segment);
-	groupbyCPUPipelineCol.resize(total_segment);
-
-	joinGPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinCPUcheck = (bool*) malloc(cm->TOT_TABLE * sizeof(bool));
-	joinGPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
-	joinCPU = (bool**) malloc(cm->TOT_TABLE * sizeof(bool*));
-
-	memset(joinGPUcheck, 0, cm->TOT_TABLE * sizeof(bool));
-	memset(joinCPUcheck, 0, cm->TOT_TABLE * sizeof(bool));
-
-	segment_group_count = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-
-	segment_group = (short**) malloc (cm->TOT_TABLE * sizeof(short*)); //4 tables, 64 possible segment group
-	par_segment = (short**) malloc (cm->TOT_TABLE * sizeof(short*));
-
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		segment_group_count[i] = (short*) malloc (total_segment * sizeof(short));
-		joinGPU[i] = (bool*) malloc(total_segment * sizeof(bool));
-		joinCPU[i] = (bool*) malloc(total_segment * sizeof(bool));
-		memset(joinGPU[i], 0, total_segment * sizeof(bool));
-		memset(joinCPU[i], 0, total_segment * sizeof(bool));
-		memset(segment_group_count[i], 0, total_segment * sizeof(short));
-
-
-		CubDebugExit(cudaHostAlloc((void**) &(segment_group[i]), 2 * sizeof(short), cudaHostAllocDefault));
-		par_segment[i] = (short*) malloc (2 * sizeof(short));
-		memset(par_segment[i], 0, 2 * sizeof(short));
-	}
-
-	last_segment = new int[cm->TOT_TABLE];
-
-	par_segment_count = new short[cm->TOT_TABLE];
-	memset(par_segment_count, 0, cm->TOT_TABLE * sizeof(short));
-
-	groupGPUcheck = true;
-
-	for (int i = 0; i < join.size(); i++) {
-		if (groupby_build.size() > 0) {
-			for (int j = 0; j < groupby_build[join[i].second].size(); j++) {
-				int tot_seg_in_GPU = groupby_build[join[i].second][j]->tot_seg_in_GPU;
-				int total_segment = groupby_build[join[i].second][j]->total_segment;
-				if (tot_seg_in_GPU < total_segment) {
-					groupGPUcheck = false;
-					break;
-				}
-			}
-		}
-	}
-
-	joinGPUall = true;
-	for (int i = 0; i < join.size(); i++) {
-		// cout << i << endl;
-		if (join[i].second->tot_seg_in_GPU < join[i].second->total_segment) {
-			joinCPUcheck[join[i].second->table_id] = true;
-			joinGPUcheck[join[i].second->table_id] = false;
-			joinGPUall = false;
-		} else {
-			if (pkey_fkey[join[i].second]->tot_seg_in_GPU == pkey_fkey[join[i].second]->total_segment) {
-				joinCPUcheck[join[i].second->table_id] = false;
-				joinGPUcheck[join[i].second->table_id] = true;
-			} else if (pkey_fkey[join[i].second]->tot_seg_in_GPU == 0) {
-				joinCPUcheck[join[i].second->table_id] = true;
-				joinGPUcheck[join[i].second->table_id] = false;
-			} else {
-				joinCPUcheck[join[i].second->table_id] = true;
-				joinGPUcheck[join[i].second->table_id] = true;	
-			}
-		}
-	}
-
-	index_to_sg.resize(cm->TOT_TABLE);
-	for (int i = 0; i < cm->TOT_TABLE; i++) {
-		index_to_sg[i].resize(total_segment);
-	}
 
 }
 
@@ -1648,9 +1447,6 @@ QueryOptimizer::checkPredicate(int table_id, int segment_idx) {
 			int compare2 = params->compare2[cm->allColumn[column]];
 
 			assert(compare1 <= compare2);
-			// cout << cm->allColumn[column]->column_name << endl;
-			// cout << segment_idx << endl;
-			// cout << cm->segment_min[column][segment_idx] << " " << cm->segment_max[column][segment_idx] << endl;
 			assert(cm->segment_min[column][segment_idx] <= cm->segment_max[column][segment_idx]);
 
 			if (compare2 < cm->segment_min[column][segment_idx] || compare1 > cm->segment_max[column][segment_idx]) {
@@ -1676,7 +1472,6 @@ QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile)
 	int LEN = cm->allColumn[cm->columns_in_table[table_id][0]]->LEN;
 	int total_segment = cm->allColumn[cm->columns_in_table[table_id][0]]->total_segment;
 
-	// cout << "Table id " << table_id << endl;
 	for (int i = 0; i < total_segment; i++) {
 		unsigned short temp = 0;
 
@@ -1735,240 +1530,6 @@ QueryOptimizer::groupBitmapSegmentTable(int table_id, int query, bool isprofile)
 					(bit) ? (op->device = GPU):(op->device = CPU); 		
 				} else if (op->type == Probe) {	
 					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					// (bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
-				} else if (op->type == Filter) {
-					(bit) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Build) {
-					// (bit & joinGPUcheck[op->columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);	
-					(bit) ? (op->device = GPU):(op->device = CPU);
-				}
-
-				sg = sg >> op->columns.size();
-			}
-
-			Operator* build_op = NULL;
-
-			for (int j = 0; j < opParsed[table_id].size(); j++) {
-				Operator* op = opParsed[table_id][j];
-				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
-					if (op->device == GPU) {
-						opGPUPipeline[table_id][i][0].push_back(op);
-					} else if (op->device == CPU) {
-						opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == GroupBy || op->type == Aggr) {
-					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
-						opCPUPipeline[table_id][i][0].push_back(op);
-					} else {
-						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == Build) { //TODO!! FIX THIS (ONLY WORKS FOR CURRENT KERNEL MATCHING)
-					build_op = op;
-				}
-			}
-
-			Operator* op = NULL;
-
-			//TODO! FIX THIS (ONLY WORKS FOR SSB)
-			if (opGPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];	
-				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opGPUPipeline[table_id][i][0][j]);
-					op = opGPUPipeline[table_id][i][0][j];
-				}
-				if (opCPUPipeline[table_id][i][0].size() > 0) {
-					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-					op->addChild(transferOp);
-					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-					transferOp->addChild(matOp);
-					op = matOp;
-					for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
-						op->addChild(opCPUPipeline[table_id][i][0][j]);
-						op = opCPUPipeline[table_id][i][0][j];
-					}
-				}
-				op->addChild(NULL);
-			} else if (opCPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opCPUPipeline[table_id][i][0][j]);
-					op = opCPUPipeline[table_id][i][0][j];
-				}
-				op->addChild(NULL);
-			}
-
-			// Operator* t = opRoots[table_id][i];
-			// while (t != NULL) {
-			// 	cout << "yow " << t->type << endl;
-			// 	t = t->children;
-			// }
-
-			if (build_op != NULL) {
-				if (op == NULL) {
-					opRoots[table_id][i] = build_op;
-				} else if (build_op->device != op->device) {
-					if (build_op->device == GPU) {
-						Operator* transferOp = new Operator(CPU, i, table_id, CPUtoGPU);
-						op->addChild(transferOp);
-						Operator* matOp = new Operator(GPU, i, table_id, Materialize);
-						transferOp->addChild(matOp);
-						op = matOp;
-						op->addChild(build_op);
-					} else {
-						Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-						op->addChild(transferOp);
-						Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-						transferOp->addChild(matOp);
-						op = matOp;
-						op->addChild(build_op);
-					}
-				} else if (build_op->device == op->device) {
-					op->addChild(build_op);
-				}
-				op = build_op;
-				op->addChild(NULL);
-			}
-
-			int length = segment_group_count[table_id][i] * SEGMENT_SIZE;
-			CostModel* cost = new CostModel(length, total_segment, queryGroupByColumn.size(), queryAggrColumn.size(), i, table_id, this);
-			cost->permute_cost();
-			delete cost;
-
-		}
-	}
-
-	//TODO!! FIX THIS (NOT ELEGANT)
-	if (table_id == 0) {
-		for (int i = 0; i < MAX_GROUPS/2; i++) {
-			if (segment_group_count[table_id][i] > 0) {
-				for (int j = 0; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					Operator* op = opGPUPipeline[table_id][i][0][j];
-					if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == GroupBy || op->type == Aggr) {
-						for (int k = 0; k < op->columns.size(); k++)
-							groupbyGPUPipelineCol[i].push_back(op->columns[k]);
-					}
-				}
-				for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					Operator* op = opCPUPipeline[table_id][i][0][j];
-					if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == GroupBy || op->type == Aggr) {
-						for (int k = 0; k < op->columns.size(); k++)
-							groupbyCPUPipelineCol[i].push_back(op->columns[k]);
-					}
-				}
-			}
-		}
-	}
-
-
-	// for (int sg = 0; sg < MAX_GROUPS/2; sg++) {
-	// 	if (segment_group_count[table_id][sg] > 0) {
-	// 		int length;
-	// 		// if (last_segment[table_id] == sg) 
-	// 		// 	length = (segment_group_count[table_id][sg] - 1) * SEGMENT_SIZE + (LEN % SEGMENT_SIZE);
-	// 		// else 
-	// 			length = segment_group_count[table_id][sg] * SEGMENT_SIZE;
-	// 		CostModel* cost = new CostModel(length, total_segment, queryGroupByColumn.size(), queryAggrColumn.size(), sg, table_id, this);
-	// 		cost->permute_cost();
-	// 		delete cost;
-	// 	}
-	// }
-
-	short count = 0;
-	for (int sg = 0; sg < MAX_GROUPS; sg++) {
-		if (segment_group_count[table_id][sg] > 0) {
-			par_segment[table_id][count] = sg;
-			count++;
-		}
-	}
-	par_segment_count[table_id] = count;
-}
-
-void
-QueryOptimizer::groupBitmapSegmentTableEMat(int table_id, int query, bool isprofile) {
-
-	int LEN = cm->allColumn[cm->columns_in_table[table_id][0]]->LEN;
-	int total_segment = cm->allColumn[cm->columns_in_table[table_id][0]]->total_segment;
-
-	for (int i = 0; i < total_segment; i++) {
-		unsigned short temp = 0;
-
-		for (int j = 0; j < opParsed[table_id].size(); j++) {
-			Operator* op = opParsed[table_id][j];
-			temp = temp << op->columns.size();
-			for (int k = 0; k < op->columns.size(); k++) {
-				ColumnInfo* column = op->columns[k];
-				bool isGPU = cm->segment_bitmap[column->column_id][i];
-				temp = temp | (isGPU << k);
-			}
-		}
-
-		if (table_id == 0) {
-	    if (queryColumn[table_id].size() == 4) {
-	      if (temp != 15) temp = 0;
-	    } else if (queryColumn[table_id].size() == 5) {
-	      if (temp != 31) temp = 0;
-	    } else if (queryColumn[table_id].size() == 6) {
-	      if (temp != 63) temp = 0;
-	    }		
-		} else {
-	    if (temp == 0 || temp == 2) temp = 0;
-	    else if (temp == 1) {
-	      if (queryColumn[table_id].size() > 1) temp = 0; 
-	    }
-		}
-
-		int count = segment_group_count[table_id][temp];
-
-		if (skipping) {
-			if (checkPredicate(table_id, i)) { //DISABLE SEGMENT SKIPPING
-				segment_group[table_id][temp * total_segment + count] = i;
-				segment_group_count[table_id][temp]++;
-				if (!isprofile) updateSegmentStats(table_id, i, query);
-				processed_segment += queryColumn[table_id].size();
-			} else {
-				skipped_segment += queryColumn[table_id].size();
-			}
-		} else {
-			segment_group[table_id][temp * total_segment + count] = i;
-			segment_group_count[table_id][temp]++;
-			if (!isprofile) updateSegmentStats(table_id, i, query);
-		}
-
-
-		if (i == total_segment - 1) {
-			if (LEN % SEGMENT_SIZE != 0) {
-				last_segment[table_id] = temp;
-			}
-		}
-	}
-
-	for (unsigned short i = 0; i < MAX_GROUPS/2; i++) { //64 segment groups
-		if (segment_group_count[table_id][i] > 0) {
-
-			unsigned short sg = i;
-
-			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
-
-				Operator* op = opParsed[table_id][j];
-				unsigned short  bit = 1;
-				for (int k = 0; k < op->columns.size(); k++) {
-					bit = (sg & (1 << k)) >> k;
-					if (!bit) break;
-				}
-
-				if (op->type == GroupBy) {
-					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Aggr) {
-					(bit) ? (op->device = GPU):(op->device = CPU); 		
-				} else if (op->type == Probe) {	
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);		
 				} else if (op->type == Filter) {
 					(bit) ? (op->device = GPU):(op->device = CPU);
 				} else if (op->type == Build) {
@@ -2066,7 +1627,6 @@ QueryOptimizer::groupBitmapSegmentTableEMat(int table_id, int query, bool isprof
 		}
 	}
 
-	//TODO!! FIX THIS (NOT ELEGANT)
 	if (table_id == 0) {
 		for (int i = 0; i < MAX_GROUPS/2; i++) {
 			if (segment_group_count[table_id][i] > 0) {
@@ -2100,452 +1660,6 @@ QueryOptimizer::groupBitmapSegmentTableEMat(int table_id, int query, bool isprof
 		}
 	}
 	par_segment_count[table_id] = count;
-}
-
-void
-QueryOptimizer::groupBitmapSegmentTableOD(int table_id, int query, bool isprofile) {
-
-	int LEN = cm->allColumn[cm->columns_in_table[table_id][0]]->LEN;
-	int total_segment = cm->allColumn[cm->columns_in_table[table_id][0]]->total_segment;
-	// cout << "Table id " << table_id << endl;
-	for (int i = 0; i < total_segment; i++) {
-		unsigned short temp = 0;
-
-		for (int j = 0; j < opParsed[table_id].size(); j++) {
-			Operator* op = opParsed[table_id][j];
-			temp = temp << op->columns.size();
-			for (int k = 0; k < op->columns.size(); k++) {
-				ColumnInfo* column = op->columns[k];
-				bool isGPU = cm->segment_bitmap[column->column_id][i];
-				temp = temp | (isGPU << k);
-			}
-		}
-
-		int count = segment_group_count[table_id][temp];
-
-		if (skipping) {
-			if (checkPredicate(table_id, i)) {
-				segment_group[table_id][temp * total_segment + count] = i;
-				segment_group_count[table_id][temp]++;
-				if (!isprofile) updateSegmentStats(table_id, i, query);
-				processed_segment += queryColumn[table_id].size();
-			} else {
-				skipped_segment += queryColumn[table_id].size();
-			}			
-		} else {
-			segment_group[table_id][temp * total_segment + count] = i;
-			segment_group_count[table_id][temp]++;
-			if (!isprofile) updateSegmentStats(table_id, i, query);	
-		}
-
-
-		if (i == total_segment - 1) {
-			if (LEN % SEGMENT_SIZE != 0) {
-				last_segment[table_id] = temp;
-			}
-		}
-	}
-
-	for (unsigned short i = 0; i < MAX_GROUPS/2; i++) { //64 segment groups
-		if (segment_group_count[table_id][i] > 0) {
-
-			unsigned short sg = i;
-
-			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
-
-				Operator* op = opParsed[table_id][j];
-				unsigned short  bit = 1;
-				for (int k = 0; k < op->columns.size(); k++) {
-					bit = (sg & (1 << k)) >> k;
-					if (!bit) break;
-				}
-
-				if (op->type == GroupBy) {
-					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Aggr) {
-					(bit) ? (op->device = GPU):(op->device = CPU); 		
-				} else if (op->type == Probe) {	
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					// (bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
-				} else if (op->type == Filter) {
-					(bit) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Build) {
-					// (bit & joinGPUcheck[op->columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					(bit) ? (op->device = GPU):(op->device = CPU);		
-				}
-
-				sg = sg >> op->columns.size();
-			}
-
-			Operator* build_op = NULL;
-
-			for (int j = 0; j < opParsed[table_id].size(); j++) {
-				Operator* op = opParsed[table_id][j];
-				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
-					if (op->device == GPU) {
-						opGPUPipeline[table_id][i][0].push_back(op);
-					} else if (op->device == CPU) {
-						opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == GroupBy || op->type == Aggr) {
-					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
-						opCPUPipeline[table_id][i][0].push_back(op);
-					} else {
-						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == Build) { //TODO!! FIX THIS (ONLY WORKS FOR CURRENT KERNEL MATCHING)
-					build_op = op;
-				}
-			}
-
-			Operator* op = NULL;
-
-			//TODO! FIX THIS (ONLY WORKS FOR SSB)
-			if (opGPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];	
-				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opGPUPipeline[table_id][i][0][j]);
-					op = opGPUPipeline[table_id][i][0][j];
-				}
-				if (opCPUPipeline[table_id][i][0].size() > 0) {
-					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-					op->addChild(transferOp);
-					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-					transferOp->addChild(matOp);
-					op = matOp;
-					for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
-						op->addChild(opCPUPipeline[table_id][i][0][j]);
-						op = opCPUPipeline[table_id][i][0][j];
-					}
-				}
-				op->addChild(NULL);
-			} else {
-				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opCPUPipeline[table_id][i][0][j]);
-					op = opCPUPipeline[table_id][i][0][j];
-				}
-				op->addChild(NULL);
-			}
-
-			if (build_op != NULL) {
-				if (op == NULL) {
-					opRoots[table_id][i] = build_op;
-				} else if (build_op->device != op->device) {
-					if (build_op->device == GPU) {
-						Operator* transferOp = new Operator(CPU, i, table_id, CPUtoGPU);
-						op->addChild(transferOp);
-						Operator* matOp = new Operator(GPU, i, table_id, Materialize);
-						transferOp->addChild(matOp);
-						op = matOp;
-						op->addChild(build_op);
-					} else {
-						Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-						op->addChild(transferOp);
-						Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-						transferOp->addChild(matOp);
-						op = matOp;
-						op->addChild(build_op);
-					}
-				} else if (build_op->device == op->device) {
-					op->addChild(build_op);
-				}
-				op = build_op;
-				op->addChild(NULL);
-			}
-
-			int length = segment_group_count[table_id][i] * SEGMENT_SIZE;
-			CostModel* cost = new CostModel(length, total_segment, queryGroupByColumn.size(), queryAggrColumn.size(), i, table_id, this);
-			cost->permute_cost();
-			delete cost;
-
-		}
-	}
-
-	if (table_id == 0) {
-		for (int i = 0; i < MAX_GROUPS/2; i++) { //64 segment groups
-			if (segment_group_count[table_id][i] > 0) {
-				// cout << i << endl;
-				if (groupGPUcheck && joinGPUall) {
-					if ((segment_group_count[table_id][i] > 12) && opCPUPipeline[table_id][i][0].size() > 0) {
-						int OD = segment_group_count[table_id][i] / 4;
-						// if (OD > 8) OD = 8;
-						// int OD = segment_group_count[table_id][i];
-						if (query == 32 || query == 33 || query == 43) OD = 0;
-						cout << "sg: " << i << " total member: " << segment_group_count[table_id][i] << " on demand portion: " << OD << endl;
-						segment_group_count[table_id][i] -= OD;
-						// short OD_sg = i | 0x40;
-						short OD_sg = 0x40;
-						int start = segment_group_count[table_id][i];
-						int start_OD = segment_group_count[table_id][OD_sg];
-						if (last_segment[table_id] == i && OD > 0) last_segment[table_id] = OD_sg; //TODO: THIS WON'T WORK IF OPTIMIZER IS PARALLELIZED
-						for (int j = 0; j < OD; j++) {
-							segment_group[table_id][OD_sg * total_segment + start_OD + j] = segment_group[table_id][i * total_segment + start + j];
-						}
-						segment_group_count[table_id][OD_sg] += OD;
-					}
-				}
-			}
-		}
-	}
-
-	//TODO!! FIX THIS (NOT ELEGANT)
-	if (table_id == 0) {
-		for (int i = 0; i < MAX_GROUPS/2; i++) {
-			if (segment_group_count[table_id][i] > 0) {
-				for (int j = 0; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					Operator* op = opGPUPipeline[table_id][i][0][j];
-					if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == GroupBy || op->type == Aggr) {
-						for (int k = 0; k < op->columns.size(); k++)
-							groupbyGPUPipelineCol[i].push_back(op->columns[k]);
-					}
-				}
-				for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					Operator* op = opCPUPipeline[table_id][i][0][j];
-					if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == GroupBy || op->type == Aggr) {
-						for (int k = 0; k < op->columns.size(); k++)
-							groupbyCPUPipelineCol[i].push_back(op->columns[k]);
-					}
-				}
-			}
-		}
-	}
-
-	// for (int sg = 0; sg < MAX_GROUPS/2; sg++) {
-	// 	if (segment_group_count[table_id][sg] > 0) {
-	// 		int length;
-	// 		// if (last_segment[table_id] == sg) 
-	// 		// 	length = (segment_group_count[table_id][sg] - 1) * SEGMENT_SIZE + (LEN % SEGMENT_SIZE);
-	// 		// else 
-	// 		length = segment_group_count[table_id][sg] * SEGMENT_SIZE;
-	// 		CostModel* cost = new CostModel(length, total_segment, queryGroupByColumn.size(), queryAggrColumn.size(), sg, table_id, this);
-	// 		cost->permute_cost();
-	// 		delete cost;
-	// 	}
-	// }
-
-	short count = 0;
-	for (int sg = 0; sg < MAX_GROUPS; sg++) {
-		if (segment_group_count[table_id][sg] > 0) {
-			par_segment[table_id][count] = sg;
-			count++;
-		}
-	}
-	par_segment_count[table_id] = count;
-}
-
-void
-QueryOptimizer::groupBitmapSegmentTableHE(int table_id, int query, bool isprofile) {
-
-	int LEN = cm->allColumn[cm->columns_in_table[table_id][0]]->LEN;
-	int total_segment = cm->allColumn[cm->columns_in_table[table_id][0]]->total_segment;
-
-	// cout << "Table id " << table_id << endl;
-	for (int i = 0; i < total_segment; i++) {
-		unsigned short temp = 0;
-
-		for (int j = 0; j < opParsed[table_id].size(); j++) {
-			Operator* op = opParsed[table_id][j];
-			temp = temp << op->columns.size();
-			for (int k = 0; k < op->columns.size(); k++) {
-				ColumnInfo* column = op->columns[k];
-				bool isGPU = cm->segment_bitmap[column->column_id][i];
-				temp = temp | (isGPU << k);
-			}
-		}
-
-		int count = segment_group_count[table_id][i];
-
-		if (skipping) {
-			if (checkPredicate(table_id, i)) { //DISABLE SEGMENT SKIPPING
-				// segment_group[table_id][i * total_segment + count] = i;
-				index_to_sg[table_id][i] = temp;
-				segment_group_count[table_id][i]++;
-				if (!isprofile) updateSegmentStats(table_id, i, query);
-				processed_segment += queryColumn[table_id].size();
-			} else {
-				skipped_segment += queryColumn[table_id].size();
-			}
-		} else {
-			// segment_group[table_id][i * total_segment + count] = i;
-			segment_group_count[table_id][i]++;
-			if (!isprofile) updateSegmentStats(table_id, i, query);
-		}
-
-
-		if (i == total_segment - 1) {
-			if (LEN % SEGMENT_SIZE != 0) {
-				last_segment[table_id] = i;
-			}
-		}
-	}
-
-	for (unsigned short i = 0; i < total_segment; i++) { //64 segment groups
-		if (segment_group_count[table_id][i] > 0) {
-
-			int sg = index_to_sg[table_id][i];
-
-			for (int j = opParsed[table_id].size()-1; j >= 0; j--) {
-
-				Operator* op = opParsed[table_id][j];
-				unsigned short  bit = 1;
-				for (int k = 0; k < op->columns.size(); k++) {
-					bit = (sg & (1 << k)) >> k;
-					if (!bit) break;
-				}
-
-				if (op->type == GroupBy) {
-					(bit & groupGPUcheck) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Aggr) {
-					(bit) ? (op->device = GPU):(op->device = CPU); 		
-				} else if (op->type == Probe) {	
-					(bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);
-					// (bit & joinGPUcheck[op->supporting_columns[0]->table_id]) ? (joinGPU[op->supporting_columns[0]->table_id][i] = 1):(joinCPU[op->supporting_columns[0]->table_id][i] = 1); 			
-				} else if (op->type == Filter) {
-					(bit) ? (op->device = GPU):(op->device = CPU);
-				} else if (op->type == Build) {
-					// (bit & joinGPUcheck[op->columns[0]->table_id]) ? (op->device = GPU):(op->device = CPU);	
-					(bit) ? (op->device = GPU):(op->device = CPU);
-				}
-
-				sg = sg >> op->columns.size();
-			}
-
-			Operator* build_op = NULL;
-
-			for (int j = 0; j < opParsed[table_id].size(); j++) {
-				Operator* op = opParsed[table_id][j];
-				if (op->type != Aggr && op->type != GroupBy && op->type != Build) {
-					if (op->device == GPU) {
-						opGPUPipeline[table_id][i][0].push_back(op);
-					} else if (op->device == CPU) {
-						opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == GroupBy || op->type == Aggr) {
-					if ((opCPUPipeline[table_id][i][0].size() > 0) && !isprofile) { //TODO!! FIX THIS
-						opCPUPipeline[table_id][i][0].push_back(op);
-					} else {
-						if (op->device == GPU) opGPUPipeline[table_id][i][0].push_back(op);
-						else if (op->device == CPU) opCPUPipeline[table_id][i][0].push_back(op);
-					}
-				} else if (op->type == Build) { //TODO!! FIX THIS (ONLY WORKS FOR CURRENT KERNEL MATCHING)
-					build_op = op;
-				}
-			}
-
-			Operator* op = NULL;
-
-			//TODO! FIX THIS (ONLY WORKS FOR SSB)
-			if (opGPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opGPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];	
-				for (int j = 1; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opGPUPipeline[table_id][i][0][j]);
-					op = opGPUPipeline[table_id][i][0][j];
-				}
-				if (opCPUPipeline[table_id][i][0].size() > 0) {
-					Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-					op->addChild(transferOp);
-					Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-					transferOp->addChild(matOp);
-					op = matOp;
-					for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
-						op->addChild(opCPUPipeline[table_id][i][0][j]);
-						op = opCPUPipeline[table_id][i][0][j];
-					}
-				}
-				op->addChild(NULL);
-			} else if (opCPUPipeline[table_id][i][0].size() > 0) {
-				opRoots[table_id][i] = opCPUPipeline[table_id][i][0][0];
-				op = opRoots[table_id][i];
-				for (int j = 1; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					op->addChild(opCPUPipeline[table_id][i][0][j]);
-					op = opCPUPipeline[table_id][i][0][j];
-				}
-				op->addChild(NULL);
-			}
-
-			// Operator* t = opRoots[table_id][i];
-			// while (t != NULL) {
-			// 	cout << "yow " << t->type << endl;
-			// 	t = t->children;
-			// }
-
-			if (build_op != NULL) {
-				if (op == NULL) {
-					opRoots[table_id][i] = build_op;
-				} else if (build_op->device != op->device) {
-					if (build_op->device == GPU) {
-						Operator* transferOp = new Operator(CPU, i, table_id, CPUtoGPU);
-						op->addChild(transferOp);
-						Operator* matOp = new Operator(GPU, i, table_id, Materialize);
-						transferOp->addChild(matOp);
-						op = matOp;
-						op->addChild(build_op);
-					} else {
-						Operator* transferOp = new Operator(GPU, i, table_id, GPUtoCPU);
-						op->addChild(transferOp);
-						Operator* matOp = new Operator(CPU, i, table_id, Materialize);
-						transferOp->addChild(matOp);
-						op = matOp;
-						op->addChild(build_op);
-					}
-				} else if (build_op->device == op->device) {
-					op->addChild(build_op);
-				}
-				op = build_op;
-				op->addChild(NULL);
-			}
-
-			int length = segment_group_count[table_id][i] * SEGMENT_SIZE;
-			CostModel* cost = new CostModel(length, total_segment, queryGroupByColumn.size(), queryAggrColumn.size(), i, table_id, this);
-			cost->permute_costHE();
-			delete cost;
-
-		}
-	}
-
-	//TODO!! FIX THIS (NOT ELEGANT)
-	if (table_id == 0) {
-		for (int i = 0; i < total_segment; i++) {
-			if (segment_group_count[table_id][i] > 0) {
-				for (int j = 0; j < opGPUPipeline[table_id][i][0].size(); j++) {
-					Operator* op = opGPUPipeline[table_id][i][0][j];
-					if (op->type == Probe) joinGPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == Filter) selectGPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == GroupBy || op->type == Aggr) {
-						for (int k = 0; k < op->columns.size(); k++)
-							groupbyGPUPipelineCol[i].push_back(op->columns[k]);
-					}
-				}
-				for (int j = 0; j < opCPUPipeline[table_id][i][0].size(); j++) {
-					Operator* op = opCPUPipeline[table_id][i][0][j];
-					if (op->type == Probe) joinCPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == Filter) selectCPUPipelineCol[i].push_back(op->columns[0]);
-					else if (op->type == GroupBy || op->type == Aggr) {
-						for (int k = 0; k < op->columns.size(); k++)
-							groupbyCPUPipelineCol[i].push_back(op->columns[k]);
-					}
-				}
-			}
-		}
-	}
-
-	// short count = 0;
-	// for (int sg = 0; sg < MAX_GROUPS; sg++) {
-	// 	if (segment_group_count[table_id][sg] > 0) {
-	// 		par_segment[table_id][count] = sg;
-	// 		count++;
-	// 	}
-	// }
-	// par_segment_count[table_id] = count;
 }
 
 void
@@ -3253,9 +2367,9 @@ QueryOptimizer::prepareQuery(int query, Distribution dist) {
 			CubDebugExit(cudaMalloc((void**) &params->ht_GPU[cm->d_datekey], 2 * params->dim_len[cm->d_datekey] * sizeof(int)));					
 		}
 		cudaEventRecord(stop, 0);
-	  cudaEventSynchronize(stop);
-	  cudaEventElapsedTime(&time, start, stop);
-	  cgp->malloc_time_total += time;		
+		cudaEventSynchronize(stop);
+		cudaEventElapsedTime(&time, start, stop);
+		cgp->malloc_time_total += time;		
 
 		memset(params->ht_CPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
 		memset(params->ht_CPU[cm->s_suppkey], 0, 2 * params->dim_len[cm->s_suppkey] * sizeof(int));
@@ -3514,9 +2628,9 @@ QueryOptimizer::prepareQuery(int query, Distribution dist) {
 			CubDebugExit(cudaMalloc((void**) &params->ht_GPU[cm->d_datekey], 2 * params->dim_len[cm->d_datekey] * sizeof(int)));					
 		}
 		cudaEventRecord(stop, 0);
-	  cudaEventSynchronize(stop);
-	  cudaEventElapsedTime(&time, start, stop);
-	  cgp->malloc_time_total += time;	
+		cudaEventSynchronize(stop);
+		cudaEventElapsedTime(&time, start, stop);
+		cgp->malloc_time_total += time;	
 
 		memset(params->ht_CPU[cm->d_datekey], 0, 2 * params->dim_len[cm->d_datekey] * sizeof(int));
 		memset(params->ht_CPU[cm->p_partkey], 0, 2 * params->dim_len[cm->p_partkey] * sizeof(int));
@@ -3561,10 +2675,10 @@ QueryOptimizer::prepareQuery(int query, Distribution dist) {
 	if (custom) params->d_res = (int*) cm->customCudaMalloc<int>(res_array_size);
 	else CubDebugExit(cudaMalloc((void**) &params->d_res, res_array_size * sizeof(int)));
 	cudaEventRecord(stop, 0);
-  cudaEventSynchronize(stop);
-  cudaEventElapsedTime(&time, start, stop);
-  cgp->malloc_time_total += time;
-  // cout << "malloc time: " << cgp->malloc_time_total << endl;
+	cudaEventSynchronize(stop);
+	cudaEventElapsedTime(&time, start, stop);
+	cgp->malloc_time_total += time;
+	// cout << "malloc time: " << cgp->malloc_time_total << endl;
 
   memset(params->res, 0, res_array_size * sizeof(int));
 	CubDebugExit(cudaMemset(params->d_res, 0, res_array_size * sizeof(int)));
@@ -3592,11 +2706,6 @@ QueryOptimizer::clearPrepare() {
   params->min_val.clear();
   params->unique_val.clear();
   params->dim_len.clear();
-
-  // unordered_map<ColumnInfo*, int*>::iterator it;
-  // for (it = cgp->col_idx.begin(); it != cgp->col_idx.end(); it++) {
-  //   it->second = NULL;
-  // }
 
   params->ht_CPU.clear();
   params->ht_GPU.clear();

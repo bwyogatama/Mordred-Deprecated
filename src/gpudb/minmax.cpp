@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
   cout << "Loaded Column " << col_name << endl;
 
   ofstream myfile;
-  myfile.open ("/home/ubuntu/Implementation-GPUDB/test/ssb/data/s" + sf + "_columnar/" + col_name + "minmax");
+  myfile.open ("/home/ubuntu/Mordred/test/ssb/data/s" + sf + "_columnar/" + col_name + "minmax");
 
   int total_segment = ((len + SEGMENT_SIZE - 1)/SEGMENT_SIZE);
 

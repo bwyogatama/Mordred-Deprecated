@@ -21,16 +21,15 @@
 #include "crystal/crystal.cuh"
 
 #include "tbb/tbb.h"
-#include "PerfEvent.hpp"
 
 using namespace cub;
 using namespace std;
 using namespace tbb;
 
-#define SF 40
+#define SF 1
 #define NUM_EVENTS 2
 
-#define BASE_PATH "/home/ubuntu/Implementation-GPUDB/test/ssb/data/"
+#define BASE_PATH "/home/ubuntu/Mordred/test/ssb/data/"
 
 #if SF == 1
 #define DATA_DIR BASE_PATH "s1_columnar/"

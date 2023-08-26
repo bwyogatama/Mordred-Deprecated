@@ -30,14 +30,6 @@ void probe_group_by_CPU2(struct offsetCPU offset,
   struct probeArgsCPU pargs,  struct groupbyArgsCPU gargs, int num_tuples,
   int* res, int start_offset);
 
-void filter_probe_group_by_CPU(
-  struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct groupbyArgsCPU gargs,
-  int num_tuples, int* res, int start_offset, short* segment_group);
-
-void filter_probe_group_by_CPU2(struct offsetCPU offset,
-  struct filterArgsCPU fargs, struct probeArgsCPU pargs, struct groupbyArgsCPU gargs,
-  int num_tuples, int* res, int start_offset);
-
 void build_CPU(struct filterArgsCPU fargs,
   struct buildArgsCPU bargs, int num_tuples, int* hash_table,
   int start_offset, short* segment_group);

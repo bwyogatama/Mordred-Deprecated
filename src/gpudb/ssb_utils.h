@@ -12,9 +12,9 @@
 
 using namespace std;
 
-#define SF 20
+#define SF 1
 
-#define BASE_PATH "/home/ubuntu/Implementation-GPUDB/test/ssb/data/"
+#define BASE_PATH "/home/ubuntu/Mordred/test/ssb/data/"
 
 #if SF == 1
 #define DATA_DIR BASE_PATH "s1_columnar/"

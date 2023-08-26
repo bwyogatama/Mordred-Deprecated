@@ -62,44 +62,11 @@ public:
 	  	norm_rv_start = norm();
 	  	norm_rv_end = norm();
 
-	  	// cout << norm_rv_start << " " << norm_rv_end << endl;
-
 	  	if (n <= 7) { //possibility #1 (year predicate)
 
 		  	if (norm_rv_start > norm_rv_end) {
 		  		swap(norm_rv_start, norm_rv_end);
 		  	}
-
-		  	// int x = rand() % 2;
-
-		  	// if (x == 0) norm_rv_end = norm_rv_start;
-		  	// else if (x == 1) {
-		  	// 	if (norm_rv_start == min) {
-		  	// 		norm_rv_end = norm_rv_start + 1;
-		  	// 	} else if (norm_rv_start == max) {
-		  	// 		norm_rv_end = norm_rv_start;
-		  	// 		norm_rv_start = norm_rv_start - 1;
-		  	// 	} else {
-		  	// 		int y = rand() % 2;
-		  	// 		if (y == 0) {
-		  	// 			norm_rv_end = norm_rv_start;
-		  	// 			norm_rv_start = norm_rv_start - 1;
-		  	// 		} else {
-		  	// 			norm_rv_end = norm_rv_start + 1;		  				
-		  	// 		}
-		  	// 	}
-		  	// } else if (x == 2) {
-		  	// 	if (norm_rv_start == min) {
-		  	// 		// norm_rv_start = norm_rv_start;
-		  	// 		norm_rv_end = norm_rv_start;
-		  	// 	} else if (norm_rv_start == max) {
-		  	// 		norm_rv_end = norm_rv_start;
-		  	// 		// norm_rv_start = norm_rv_start - 1;
-		  	// 	} else {
-		  	// 		norm_rv_end = norm_rv_start + 1;
-		  	// 		norm_rv_start = norm_rv_start - 1;		  			
-		  	// 	}
-		  	// }
 
 	  		year = make_pair(1992 + norm_rv_start, 1992 + norm_rv_end);
 	  		yearmonth = make_pair(year.first * 100 + 1, year.second * 100 + 12);
@@ -111,14 +78,9 @@ public:
 		  	}
 
 	  		int temp_start = norm_rv_start / 12;
-	  		int temp_end = norm_rv_end / 12;
-	  		// year = make_pair(1992 + temp_start, 1992 + temp_end);
 	  		year = make_pair(1992 + temp_start, 1992 + temp_start);
 	  		temp_start = norm_rv_start % 12;
-	  		temp_end = norm_rv_end % 12;
-	  		// yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_end + 1);
 	  		yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_start + 1);
-	  		// date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
 	  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
 	  	} else if (n <= 316) { //possibility #3 (week predicate)
 
@@ -127,16 +89,10 @@ public:
 		  	}
 
 	  		int temp_start = norm_rv_start / 48;
-	  		int temp_end = norm_rv_end / 48;
-			// year = make_pair(1992 + temp_start, 1992 + temp_end);
 			year = make_pair(1992 + temp_start, 1992 + temp_start);
 	  		temp_start = (norm_rv_start % 48)/ 4;
-	  		temp_end = (norm_rv_end % 48) / 4;
-			// yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_end + 1);
 			yearmonth = make_pair(year.first * 100 + temp_start + 1, year.second * 100 + temp_start + 1);
 	  		temp_start = (norm_rv_start % 48) % 4;
-	  		temp_end = (norm_rv_end % 48) % 4;
-			// date = make_pair(yearmonth.first * 100 + temp_start * 7 + 1, yearmonth.second * 100 + temp_end * 7 + 7);
 			date = make_pair(yearmonth.first * 100 + temp_start * 7 + 1, yearmonth.second * 100 + temp_start * 7 + 7);
 	  	}
 
@@ -233,8 +189,6 @@ public:
 
 	  	zipf_rv = zipf();
 
-	  	// zipf_rv = n - zipf_rv; //n-1 to 0 (n-1 with highest probability)
-
 	  	if (n <= 7) { //possibility #1 (year predicate)
 	  		assert(range < 7);
 	  		year = make_pair(1998 - zipf_rv - range, 1998 - zipf_rv);
@@ -244,25 +198,15 @@ public:
 	  		assert(range == 0);
 	  		if (zipf_rv < 7) { // 0 to 6
 		  		int temp = zipf_rv / 12;
-		  		//zipf_rv = 0 to 6;
-		  		//min = 0; 1998
-		  		//max = 6; 1992
 		  		year = make_pair(1998 - temp, 1998 - temp);
 		  		temp = zipf_rv % 12;
-		  		//min = 0; 12
-		  		//max = 11; 1
 		  		yearmonth = make_pair(year.first * 100 + 7 - temp - range, year.second * 100 + 7 - temp);
 		  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
 	  		} else {
 	  			zipf_rv -= 7;
 		  		int temp = zipf_rv / 12;
-		  		//zipf_rv = 0 to 71 or 7 to 78
-		  		//min = 0; 1998
-		  		//max = 6; 1992
 		  		year = make_pair(1997 - temp, 1997 - temp);
 		  		temp = zipf_rv % 12;
-		  		//min = 0; 12
-		  		//max = 11; 1
 		  		yearmonth = make_pair(year.first * 100 + 12 - temp - range, year.second * 100 + 12 - temp);
 		  		date = make_pair(yearmonth.first * 100 + 1, yearmonth.second * 100 + 30);
 	  		}
@@ -270,38 +214,21 @@ public:
 	  		assert(range == 0);
 	  		if (zipf_rv < 28) { // 0 to 27
 				int temp = zipf_rv / 48;
-				//zipf_rv = 0 to 27;
-				//min = 0; 1998
-				//max = 6; 1992
 				year = make_pair(1998 - temp, 1998 - temp);
 				temp = (zipf_rv % 48) / 4;
-				//min = 0; 12
-				//max = 11; 1
 				yearmonth = make_pair(year.first * 100 + 7 - temp, year.second * 100 + 7 - temp);
 				temp = (zipf_rv % 48) % 4;
-				//min = 0; 22 - 28
-				//max = 3; 1 - 7
 				date = make_pair(yearmonth.first * 100 + 22 - temp * 7 - range * 7, yearmonth.second * 100 + 28 - temp * 7);
 	  		} else {
 				int temp = zipf_rv / 48;
-				//zipf_rv = 0 to 27;
-				//min = 0; 1998
-				//max = 6; 1992
 				year = make_pair(1997 - temp, 1997 - temp);
 				temp = (zipf_rv % 48) / 4;
-				//min = 0; 12
-				//max = 11; 1
 				yearmonth = make_pair(year.first * 100 + 12 - temp, year.second * 100 + 12 - temp);
 				temp = (zipf_rv % 48) % 4;
-				//min = 0; 22 - 28
-				//max = 3; 1 - 7
 				date = make_pair(yearmonth.first * 100 + 22 - temp * 7 - range * 7, yearmonth.second * 100 + 28 - temp * 7);
 	  		}
 
-
 	  	}
-
-	  
 
 	};
 };
@@ -361,7 +288,6 @@ public:
 	vector<vector<vector<vector<Operator*>>>> opCPUPipeline; // for each table, for each segment group, for each pipeline, there is vector of operator
 
 	vector<vector<Operator*>> opRoots; // for each table, for each segment group there is operator
-
 	vector<vector<Operator*>> opParsed; // for each table, there is vector of operator
 
 	vector<vector<ColumnInfo*>> joinGPUPipelineCol;
@@ -395,7 +321,7 @@ public:
 	int processed_segment;
 	int skipped_segment;
 
-	QueryOptimizer(size_t _cache_size, size_t _ondemand_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp);
+	QueryOptimizer(size_t _cache_size, size_t _processing_size, size_t _pinned_memsize, CPUGPUProcessing* _cgp);
 	~QueryOptimizer();
 
 	void setDistributionZipfian(double alpha);
@@ -424,15 +350,9 @@ public:
 
 	void dataDrivenOperatorPlacement(int query, bool isprofile = 0);
 	void prepareOperatorPlacement();
-	void prepareOperatorPlacementEMat();
-	void prepareOperatorPlacementHE();
 	void groupBitmap(bool isprofile = 0);
 	void groupBitmapSegment(int query, bool isprofile = 0);
 	void groupBitmapSegmentTable(int table_id, int query, bool isprofile = 0);
-	void groupBitmapSegmentTableEMat(int table_id, int query, bool isprofile = 0);
-	void groupBitmapSegmentTableOD(int table_id, int query, bool isprofile = 0);
-	void groupBitmapSegmentTableHE(int table_id, int query, bool isprofile = 0);
-
 
 	bool checkPredicate(int table_id, int segment_idx);
 	void updateSegmentStats(int table_id, int segment_idx, int query);
